@@ -14,6 +14,10 @@ open System
 
 [<EntryPoint>]
 let main args =
+
+    SimpleRenderer.main args |> ignore
+    System.Environment.Exit 0
+
     Ag.initialize()
     Aardvark.Init()
     Aardium.init()
