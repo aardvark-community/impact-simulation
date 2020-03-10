@@ -14,6 +14,8 @@
     <RunWorkingDirectory>$(OutputPath)\netcoreapp3.0</RunWorkingDirectory>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Parser.fs" />
+    <Compile Include="Points.fs" />
     <None Include="paket.references" />
     <Compile Include="SimpleRenderer.fs" />
     <Compile Include="Model.fs" />

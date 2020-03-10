@@ -24,6 +24,10 @@ nuget Aardvark.Compiler.DomainTypes.MSBuild ~> 4.3.0
 
 nuget Aardium                               ~> 1.0.21
 
+nuget sharpcompress
+nuget Aardvark.Geometry.PointSet
+nuget Aardvark.Data.Points.Ascii
+
 
 group Build
 source https://api.nuget.org/v3/index.json

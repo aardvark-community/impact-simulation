@@ -15,6 +15,8 @@ open System
 [<EntryPoint>]
 let main args =
 
+    DSLAwesomness.Points.run () |> ignore
+    
     SimpleRenderer.main args |> ignore
     System.Environment.Exit 0
 

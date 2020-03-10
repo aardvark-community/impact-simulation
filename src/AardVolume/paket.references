@@ -17,3 +17,8 @@ Aardvark.UI
 Aardvark.UI.Primitives
 Aardvark.Compiler.DomainTypes.MSBuild
 Aardium
+
+sharpcompress
+
+Aardvark.Geometry.PointSet
+Aardvark.Data.Points.Ascii
