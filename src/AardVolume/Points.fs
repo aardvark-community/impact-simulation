@@ -1,15 +1,15 @@
 ﻿module DSLAwesomness.Points
 
-
+open System
 
 open Aardvark.Rendering.Vulkan
 open Aardvark.Base
-open System
 open Aardvark.Application.Slim
 open Aardvark.Base.Rendering
 open Aardvark.SceneGraph
 open Aardvark.Application
-open Aardvark.Base.Incremental
+
+open FSharp.Data.Adaptive
 
 
 module Shaders = 
@@ -57,7 +57,6 @@ module Shaders =
 
 
 let runSingleFrame args =
-    Ag.initialize()
     Aardvark.Init()
 
     let vertices,velocities,bb = Parser.parseFile @"D:\volumes\univie\r80_p0_m500_v6000_mbasalt_a1.0_1M\impact.0400"
@@ -66,35 +65,22 @@ let runSingleFrame args =
     //let vertices,velocities,bb = Parser.parseFile @"D:\volumes\univie\r80_p0_m500_v6000_mbasalt_a4.0_1M\impact.0400"
     //let vertices,velocities,bb = Parser.parseFile @"D:\volumes\univie\r80_p45_m500_v6000_mbasalt_a1.25_1M\impact.0400"
 
-    //let app = new HeadlessVulkanApplication()
-
-    //WebPart.startServer 4321 [
-    //    MutableApp.toWebPart' app.Runtime false (App.start App.app)
-    //] |> ignore
-    
-    //Aardium.run {
-    //    title "Aardvark rocks \\o/"
-    //    width 1024
-    //    height 768
-    //    url "http://localhost:4321/"
-    //}
-
     let app = new OpenGlApplication()
 
-    // creates a new game window with samples = 8 (not showing it). neeeds to be disposed.
 
-    let win = new Aardvark.Application.Slim.GameWindow(app.Runtime, false, 4, true)
+    let win = app.CreateGameWindow(4)
+    //let win = new Aardvark.Application.Slim.GameWindow(app.Runtime, false, 4, true)
 
     let t = Trafo3d.Translation -bb.Center * Trafo3d.Scale (20.0 / bb.Size.NormMax)
     let initialCam = CameraView.lookAt (V3d.III * 30.0) V3d.Zero V3d.OOI
     let c = DefaultCameraController.control win.Mouse win.Keyboard win.Time initialCam
 
-    let f = win.Sizes |> Mod.map (fun s -> Frustum.perspective 60.0 0.01 100.0 (float s.X / float s.Y))
+    let f = win.Sizes |> AVal.map (fun s -> Frustum.perspective 60.0 0.01 100.0 (float s.X / float s.Y))
 
 
     let sw = System.Diagnostics.Stopwatch.StartNew()
     let vertices = 
-        win.Time |> Mod.map (fun _ -> 
+        win.Time |> AVal.map (fun _ -> 
             let t = (sw.Elapsed.TotalSeconds % 5.0 ) * 1.5
             (vertices, velocities) ||> Array.map2 (fun p v -> 
                 p + t * v |> V3f
@@ -105,7 +91,7 @@ let runSingleFrame args =
 
     let stereoViews =
         let half = eyeSeparation * 0.5
-        c  |> Mod.map (fun v -> 
+        c  |> AVal.map (fun v -> 
             let t = CameraView.viewTrafo v
             [|
                 t * Trafo3d.Translation(-half)
@@ -117,7 +103,7 @@ let runSingleFrame args =
         win.Sizes 
         // construct a standard perspective frustum (60 degrees horizontal field of view,
         // near plane 0.1, far plane 50.0 and aspect ratio x/y.
-        |> Mod.map (fun s -> 
+        |> AVal.map (fun s -> 
             let ac = 30.0
             let ao = 30.0
             let near = 0.01
@@ -158,11 +144,11 @@ let runSingleFrame args =
              //do! DefaultSurfaces.pointSprite
              //do! DefaultSurfaces.pointSpriteFragment
            }
-        |> Sg.uniform "PointSize" (Mod.constant 8.0)
+        |> Sg.uniform "PointSize" (AVal.constant 8.0)
 
         |> Sg.transform t
-        |> Sg.viewTrafo (c |> Mod.map CameraView.viewTrafo)
-        |> Sg.projTrafo (f |> Mod.map Frustum.projTrafo)
+        |> Sg.viewTrafo (c |> AVal.map CameraView.viewTrafo)
+        |> Sg.projTrafo (f |> AVal.map Frustum.projTrafo)
         |> Sg.uniform "ViewTrafo" stereoViews
         |> Sg.uniform "ProjTrafo" stereoProjs
         //|> Sg.blendMode (Mod.constant blend)
@@ -180,63 +166,9 @@ open MBrace.FsPickler.Combinators
 open System.Threading.Tasks
 
 let run args =
-    Ag.initialize()
     Aardvark.Init()
 
-
-
-    //let sourceDir = @"\\heap\steinlechner\hera\r80_p0_m500_v6000_mbasalt_a1.0_1M.tar\r80_p0_m500_v6000_mbasalt_a1.0_1M"
-    //let targetDir = @"D:\volumes\univie\anim\r80_p0_m500_v6000_mbasalt_a1.0_1M"
-
     let p = MBrace.FsPickler.FsPickler.CreateBinarySerializer()
-    //let arr = Pickler.array
-
-    //let files = System.IO.Directory.EnumerateFiles(sourceDir) |> Seq.toArray
-    //let s = ()
-    //let reader f = // (_ : ParallelLoopState) (s : BinarySerializer) =
-    //    let fileName = Path.GetFileName f
-    //    if fileName.StartsWith "impact" then
-    //        let cacheFileName = fileName + "_cache"
-    //        let path_vertices = Path.combine [targetDir; cacheFileName]
-    //        let cacheFileNameVs = fileName + "_cache_vs"
-    //        let path_velocities = Path.combine [targetDir; cacheFileNameVs]
-    //        if File.Exists path_vertices && File.Exists path_velocities then
-    //            s
-    //        else
-    //            Log.startTimed "converting: %s ~> %s " fileName path_vertices
-    //            let vertices,velocities,bb = Parser.parseFile f
-    //            let bytes = p.Pickle(vertices |> Array.map V3f)
-    //            File.writeAllBytes path_vertices bytes
-    //            let bytes = p.Pickle(velocities |> Array.map V3f)
-    //            File.writeAllBytes path_velocities bytes
-    //            Log.stop()
-    //            s
-    //    else s
-             
-
-    //let _ = files |> Array.map reader
-
-    //let a = Func<string,ParallelLoopState,BinarySerializer,BinarySerializer>(reader)
-    //let opt = ParallelOptions(MaxDegreeOfParallelism=4)
-    //Parallel.ForEach(files,opt,(fun _ -> MBrace.FsPickler.FsPickler.CreateBinarySerializer()),a,(fun _ -> ()))
-
-
-    //let vertices,velocities,bb = Parser.parseFile @"D:\volumes\univie\r80_p0_m500_v6000_mbasalt_a1.0_1M\impact.0400"
-    
-    
-    //let vertices,velocities,bb = Parser.parseFile @"D:\volumes\univie\r80_p0_m500_v6000_mbasalt_a4.0_1M\impact.0400"
-    //let vertices,velocities,bb = Parser.parseFile @"D:\volumes\univie\r80_p45_m500_v6000_mbasalt_a1.25_1M\impact.0400"
-
-    //let app = new HeadlessVulkanApplication()
-    
-    //] |> ignore
-    
-    //Aardium.run {
-    //    title "Aardvark rocks \\o/"
-    //    width 1024
-    //    height 768
-    //    url "http://localhost:4321/"
-    //}
 
     let app = new OpenGlApplication()
 
@@ -244,7 +176,7 @@ let run args =
 
     let mutable bb = Box3d.Invalid
 
-    let files = Directory.EnumerateFiles(@"D:\volumes\univie\anim\r80_p0_m500_v6000_mbasalt_a1.0_1M") |> Seq.skip 200 |> Seq.atMost 10  |> Seq.toArray 
+    let files = Directory.EnumerateFiles(@"F:\vrvis\sim") |> Seq.skip 200 |> Seq.atMost 10  |> Seq.toArray 
     let buffers = 
         files 
         |> Array.choosei (fun i f -> 
@@ -266,44 +198,36 @@ let run args =
                     Some (app.Runtime.PrepareBuffer (ArrayBuffer vertices) :> IBuffer, app.Runtime.PrepareBuffer (ArrayBuffer colors) :> IBuffer, vertices)
         )
 
-    //let buffers = Array.zeroCreate 2
-    //let mutable current = 0
-    //let loadThread () = 
-    //    while true do
-    //        for i in files do
-    //            let ne
-
-
 
     let bb : Box3d = Box3d.FromCenterAndSize(V3d.Zero,V3d.III)
 
-    let win = new Aardvark.Application.Slim.GameWindow(app.Runtime, false, 4, true)
+    let win = app.CreateGameWindow() // new Aardvark.Application.Slim.GameWindow(app.Runtime, false, 4, true)
 
     let t = Trafo3d.Translation -bb.Center * Trafo3d.Scale (20.0 / bb.Size.NormMax)
     let initialCam = CameraView.lookAt (V3d.III * 30.0) V3d.Zero V3d.OOI
     let c = DefaultCameraController.control win.Mouse win.Keyboard win.Time initialCam
 
-    let f = win.Sizes |> Mod.map (fun s -> Frustum.perspective 60.0 0.01 100.0 (float s.X / float s.Y))
+    let f = win.Sizes |> AVal.map (fun s -> Frustum.perspective 60.0 0.01 100.0 (float s.X / float s.Y))
 
 
     let sw = System.Diagnostics.Stopwatch.StartNew()
     let frameDt = 0.05
     let currentBuffers = 
-        win.Time |> Mod.map (fun _ -> 
+        win.Time |> AVal.map (fun _ -> 
             let t = (sw.Elapsed.TotalSeconds / frameDt) |> int
             let i = t % buffers.Length
             Log.line "frame: %d" i
             let vertices, colors, array = buffers.[i]
             vertices, colors
     )
-    let vertices = Mod.map fst currentBuffers
-    let colors = Mod.map snd currentBuffers
+    let vertices = AVal.map fst currentBuffers
+    let colors = AVal.map snd currentBuffers
 
     let eyeSeparation = V3d(-0.04, 0.0, 0.0)
 
     let stereoViews =
         let half = eyeSeparation * 0.5
-        c  |> Mod.map (fun v -> 
+        c  |> AVal.map (fun v -> 
             let t = CameraView.viewTrafo v
             [|
                 t * Trafo3d.Translation(-half)
@@ -315,7 +239,7 @@ let run args =
         win.Sizes 
         // construct a standard perspective frustum (60 degrees horizontal field of view,
         // near plane 0.1, far plane 50.0 and aspect ratio x/y.
-        |> Mod.map (fun s -> 
+        |> AVal.map (fun s -> 
             let ac = 30.0
             let ao = 30.0
             let near = 0.01
@@ -362,18 +286,9 @@ let run args =
              //do! DefaultSurfaces.pointSprite
              //do! DefaultSurfaces.pointSpriteFragment
            }
-        |> Sg.uniform "PointSize" (Mod.constant 8.0)
-
-        //|> Sg.andAlso (
-        //    Sg.wireBox (Mod.constant C4b.White) (Mod.constant Box3d.Unit)
-        //    |> Sg.shader { 
-        //        do! DefaultSurfaces.trafo
-        //        do! DefaultSurfaces.vertexColor
-        //      }
-        //   )
-        //|> Sg.transform t
-        |> Sg.viewTrafo (c |> Mod.map CameraView.viewTrafo)
-        |> Sg.projTrafo (f |> Mod.map Frustum.projTrafo)
+        |> Sg.uniform "PointSize" (AVal.constant 8.0)
+        |> Sg.viewTrafo (c |> AVal.map CameraView.viewTrafo)
+        |> Sg.projTrafo (f |> AVal.map Frustum.projTrafo)
         |> Sg.uniform "ViewTrafo" stereoViews
         |> Sg.uniform "ProjTrafo" stereoProjs
         //|> Sg.blendMode (Mod.constant blend)

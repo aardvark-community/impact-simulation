@@ -15,10 +15,8 @@ Aardvark.SceneGraph.IO
 Aardvark.Service
 Aardvark.UI
 Aardvark.UI.Primitives
-Aardvark.Compiler.DomainTypes.MSBuild
 Aardium
 
-sharpcompress
 
-Aardvark.Geometry.PointSet
-Aardvark.Data.Points.Ascii
+Adaptify.MSBuild
+FSharp.Data.Adaptive

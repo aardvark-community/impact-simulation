@@ -15,12 +15,13 @@ open System
 [<EntryPoint>]
 let main args =
 
-    DSLAwesomness.Points.run () |> ignore
-    
+    //DSLAwesomness.Points.run () |> ignore
+    //System.Environment.Exit 0
+
     SimpleRenderer.main args |> ignore
+
     System.Environment.Exit 0
 
-    Ag.initialize()
     Aardvark.Init()
     Aardium.init()
 

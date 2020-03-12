@@ -2,15 +2,17 @@ namespace AardVolume.Model
 
 open System
 open Aardvark.Base
-open Aardvark.Base.Incremental
 open Aardvark.UI.Primitives
+
+open FSharp.Data.Adaptive
+open Adaptify
 
 type Primitive =
     | Box
     | Sphere
 
 
-[<DomainType>]
+[<ModelType>]
 type Model =
     {
         currentModel    : Primitive
