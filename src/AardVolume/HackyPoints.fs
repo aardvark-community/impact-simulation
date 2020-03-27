@@ -176,7 +176,7 @@ let run args =
 
     let mutable bb = Box3d.Invalid
 
-    let files = Directory.EnumerateFiles(@"F:\vrvis\sim") |> Seq.skip 200 |> Seq.atMost 10  |> Seq.toArray 
+    let files = Directory.EnumerateFiles(@"F:\notebooks\sim") |> Seq.atMost 10  |> Seq.toArray 
     let buffers = 
         files 
         |> Array.choosei (fun i f -> 
@@ -211,7 +211,7 @@ let run args =
 
 
     let sw = System.Diagnostics.Stopwatch.StartNew()
-    let frameDt = 0.05
+    let frameDt = 0.5
     let currentBuffers = 
         win.Time |> AVal.map (fun _ -> 
             let t = (sw.Elapsed.TotalSeconds / frameDt) |> int
@@ -289,8 +289,8 @@ let run args =
         |> Sg.uniform "PointSize" (AVal.constant 8.0)
         |> Sg.viewTrafo (c |> AVal.map CameraView.viewTrafo)
         |> Sg.projTrafo (f |> AVal.map Frustum.projTrafo)
-        |> Sg.uniform "ViewTrafo" stereoViews
-        |> Sg.uniform "ProjTrafo" stereoProjs
+        //|> Sg.uniform "ViewTrafo" stereoViews
+        //|> Sg.uniform "ProjTrafo" stereoProjs
         //|> Sg.blendMode (Mod.constant blend)
         //|> Sg.depthTest (Mod.constant DepthTestMode.None)
         |> Sg.compile app.Runtime win.FramebufferSignature

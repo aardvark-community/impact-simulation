@@ -77,7 +77,36 @@ module Shader =
             return V4d(2.0 * color / float steps, 1.0)
         }
 
-module SimpleRenderer = 
+module SimpleVolumeRenderer = 
+
+    let createSg (runtime : IRuntime) (folder : string) = 
+        Log.startTimed "creating volume sg"
+        let files = Directory.GetFiles folder
+
+        let images = files |> Array.map (fun p -> PixImage.Create(p).ToPixImage<byte>(Col.Format.Gray))
+
+        let s2d = images.[0].Size
+        let volume = PixVolume<byte>(s2d.X, s2d.Y, files.Length, 1)
+        for layer in 0 .. images.Length - 1 do
+            volume.Tensor4.SubImageAtZ(int64 layer).Set(images.[layer].Volume) |> ignore
+
+        let texture = PixTexture3d(volume, false) :> ITexture
+        let texture = runtime.PrepareTexture(texture) :> ITexture |> AVal.constant
+
+        let size = V3d volume.Size / float volume.Size.NormMax
+
+        let sg = 
+            Sg.box' C4b.Red (Box3d(-size, size))
+            |> Sg.uniform "VolumeTexture" texture
+            |> Sg.shader {
+                    do! Shader.vertex
+                    do! Shader.fragment
+                }
+            |> Sg.cullMode (AVal.constant CullMode.Front)
+
+        Log.stop()
+
+        sg
 
     let main argv = 
     
@@ -91,34 +120,7 @@ module SimpleRenderer =
             samples 1
         }
 
-        let box = Box3d(-V3d.III, V3d.III)
-        let color = C4b.Red
-
-        let folder = @"F:\notebooks\hechtkopfsalamander male - Copy"
-        let files = Directory.GetFiles folder
-
-        let images = files |> Array.map (fun p -> PixImage.Create(p).ToPixImage<byte>(Col.Format.Gray))
-
-        let s2d = images.[0].Size
-        let volume = PixVolume<byte>(s2d.X, s2d.Y, files.Length, 1)
-        for layer in 0 .. images.Length - 1 do
-            volume.Tensor4.SubImageAtZ(int64 layer).Set(images.[layer].Volume) |> ignore
-
-        let texture = PixTexture3d(volume, false) :> ITexture
-        let texture = win.Runtime.PrepareTexture(texture) :> ITexture |> AVal.constant
-
-        let fvc = int64 volume.Size.X * int64 volume.Size.Y * int64 volume.Size.Z
-
-        let size = V3d volume.Size / float volume.Size.NormMax
-
-        let sg = 
-            Sg.box' C4b.Red (Box3d(-size, size))
-            |> Sg.uniform "VolumeTexture" texture
-            |> Sg.shader {
-                do! Shader.vertex
-                do! Shader.fragment
-                }
-            |> Sg.cullMode (AVal.constant CullMode.Front)
+        let sg = createSg win.Runtime @"F:\notebooks\hechtkopfsalamander male - Copy"
 
         win.Scene <- sg
         win.Run()

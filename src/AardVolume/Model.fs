@@ -12,9 +12,17 @@ type Primitive =
     | Sphere
 
 
+type Vis = 
+    | HeraSimVis
+    | VolumeVis
+
+
+
 [<ModelType>]
 type Model =
     {
         currentModel    : Primitive
         cameraState     : CameraControllerState
+        frame : int
+        vis : Vis
     }

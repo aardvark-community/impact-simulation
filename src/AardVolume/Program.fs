@@ -15,20 +15,19 @@ open System
 [<EntryPoint>]
 let main args =
 
+    // plain rendering applications
     //DSLAwesomness.Points.run () |> ignore
-    //System.Environment.Exit 0
-
-    SimpleRenderer.main args |> ignore
-
-    System.Environment.Exit 0
+    //SimpleVolumeRenderer.main args |> ignore
 
     Aardvark.Init()
     Aardium.init()
 
     let app = new Aardvark.Application.Slim.OpenGlApplication()
 
+    let media = App.app app.Runtime
+
     WebPart.startServer 4321 [
-        MutableApp.toWebPart' app.Runtime false (App.start App.app)
+        MutableApp.toWebPart' app.Runtime false (App.start media)
     ] |> ignore
     
     Aardium.run {
