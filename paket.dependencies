@@ -30,6 +30,7 @@ nuget Adaptify.MSBuild
 
 nuget Newtonsoft.Json = 12.0.1
 
+nuget FSharp.Data
 
 
 group Build

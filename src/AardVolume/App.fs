@@ -9,6 +9,101 @@ open AardVolume.Model
 
 open FSharp.Data.Adaptive
 
+//{
+//	"data": "data",
+//	"mark": "splat",
+//	"encoding": {
+//		"position": {
+//			"x": "datum.u - 0.5",
+//			"y": "(Math.cos(datum.u * Math.PI * 4) + Math.sin(datum.v * Math.PI * 4)) / 20",
+//			"z": "datum.v - 0.5"
+//		},
+//		"color": {
+//			"r": "datum.velocity.x",
+//			"g": "datum.velocity.y",
+//			"b": "1",
+//			"mapping": "color + 0.5"
+//		},
+//		"size": "y * 2.05"
+//	},
+//	"selection": {
+//		"raycast": {
+//			"size": "0.5",
+//			"label": "position.y.toFixed(3) + ' m'"
+//		}
+//	}
+//}
+
+module DSLExp = 
+
+    open FSharp.Data
+    
+    [<Literal>]
+    let data="""x(float),y(float),z(float),vx(float),vy(float),vz(float),my(float)
+0.0f,0.0f,0.f0,0.0f,1.0f,0.0f,10.0f"""
+
+    type Points = CsvProvider<data>
+
+    let a = Points.Load("")
+
+    type Mark = Splat
+
+    let vis () = 
+        {|
+            data = Points.Load ""
+            mark = Splat
+            encoding = 
+                fun (d : CsvProvider<data>) ->
+                    {|
+                        position = 
+                            d.Rows |> Seq.map (fun r -> V3d(r.X,r.Y,r.Z))
+                    |}
+        |}
+    
+
+    type Data<'d> = 
+        | Columns of Map<string, Type * System.Array>
+        | Computation of amap<string, Type * aval<Object[]>>
+        | Dense of Volume<'d>
+
+    type Vis<'a> =
+        {
+            data : Data<'a>
+        }
+
+    type Encoding<'d,'v> = 
+        | ForEachRow of ('d -> 'v)
+
+    type Vis<'d,'v> = 
+        {
+            data : Data<'d>
+            encoding : list<string * Encoding<'d,'v>>
+        }
+
+    let array (arr : array<'a>) = 
+        typeof<'a>, arr :> System.Array
+
+    let vis2 = 
+        {
+            data = Data<V3d * V3d>.Columns <| Map.ofList 
+                        [ 
+                            "x", array [| 0.0, 0.0 |] 
+                            "y", array [| 0.0, 0.0 |] 
+                            "z", array [| 0.0, 0.0 |] 
+                            "vx", array [| 0.0, 0.0 |] 
+                            "vy", array [| 0.0, 0.0 |] 
+                            "vz", array [| 0.0, 0.0 |] 
+                        ]
+            encoding = 
+                [
+                    "colors", ForEachRow (fun (vertex, velocity) -> 
+                        velocity * 0.5 + V3d.Half
+                    )
+                ]
+        }
+
+
+
 type Message =
     | ToggleModel
     | CameraMessage of FreeFlyController.Message
@@ -44,7 +139,7 @@ module App =
 
         let heraData,volumeData = 
             match Environment.UserName with
-            | "hs" -> @"F:\notebooks\sim",  @"F:\notebooks\hechtkopfsalamander male - Copy"
+            | "hs" -> @"C:\Users\hs\OneDrive\notebookdata\sim",  @"C:\Users\hs\OneDrive\notebookdata\hechtkopfsalamander male - Copy"
             | _ -> failwith "add your data"
 
         let heraSg = 

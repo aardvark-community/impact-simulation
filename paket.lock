@@ -269,6 +269,8 @@ NUGET
       FShade.Imperative (5.0)
       FSharp.Core (>= 4.6.2)
     FSharp.Core (4.6.2)
+    FSharp.Data (3.3.3)
+      FSharp.Core (>= 4.3.4)
     FSharp.Data.Adaptive (0.0.17)
       FSharp.Core (>= 4.6.2)
       System.Reflection.Emit.Lightweight (>= 4.6 < 4.7)
