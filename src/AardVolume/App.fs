@@ -34,7 +34,7 @@ open FSharp.Data.Adaptive
 //	}
 //}
 
-//module DSLExp = 
+module DSLExp = 
 
 //    open FSharp.Data
     
@@ -61,46 +61,73 @@ open FSharp.Data.Adaptive
 //        |}
     
 
-//    type Data<'d> = 
-//        | Columns of Map<string, Type * System.Array>
-//        | Computation of amap<string, Type * aval<Object[]>>
-//        | Dense of Volume<'d>
+    type Data<'d> = 
+        | Columns of Map<string, Type * System.Array>
+        | Computation of amap<string, Type * aval<Object[]>>
+        | Dense of Volume<'d>
 
-//    type Vis<'a> =
-//        {
-//            data : Data<'a>
-//        }
 
-//    type Encoding<'d,'v> = 
-//        | ForEachRow of ('d -> 'v)
+    type Encoding<'d,'v> = 
+        | ForEachRow of ('d -> 'v)
 
-//    type Vis<'d,'v> = 
-//        {
-//            data : Data<'d>
-//            encoding : list<string * Encoding<'d,'v>>
-//        }
+    type VisualProperties = 
+        {
+            camera : CameraView
+            mouseDown : bool
+        }
 
-//    let array (arr : array<'a>) = 
-//        typeof<'a>, arr :> System.Array
+    type Message<'msg> = 
+        | Msg of 'msg
+        | Continue
 
-//    let vis2 = 
-//        {
-//            data = Data<V3d * V3d>.Columns <| Map.ofList 
-//                        [ 
-//                            "x", array [| 0.0, 0.0 |] 
-//                            "y", array [| 0.0, 0.0 |] 
-//                            "z", array [| 0.0, 0.0 |] 
-//                            "vx", array [| 0.0, 0.0 |] 
-//                            "vy", array [| 0.0, 0.0 |] 
-//                            "vz", array [| 0.0, 0.0 |] 
-//                        ]
-//            encoding = 
-//                [
-//                    "colors", ForEachRow (fun (vertex, velocity) -> 
-//                        velocity * 0.5 + V3d.Half
-//                    )
-//                ]
-//        }
+    type Vis<'d,'v, 'msg> = 
+        {
+            data : Data<'d>
+            encoding : list<string * Encoding<'d,'v>>
+            interactions : Message<'msg> -> Vis<'d,'v, 'msg> -> Vis<'d,'v, 'msg> 
+            //continuation : Vis<'d,'v,'msg> -> Vis<'d,'v,'msg>
+            properties : VisualProperties
+        }
+
+    let orbitController (v : Vis<'d,'v,'msg>) : Vis<'d,'v,'msg> = failwith ""
+
+    let array (arr : array<'a>) = 
+        typeof<'a>, arr :> System.Array
+
+    type Message = 
+        | CenterScene
+        | OnMouseMouve
+
+    let vis2 = 
+        {
+            data = Data<V3d * V3d>.Columns <| Map.ofList 
+                        [ 
+                            "x", array [| 0.0, 0.0 |] 
+                            "y", array [| 0.0, 0.0 |] 
+                            "z", array [| 0.0, 0.0 |] 
+                            "vx", array [| 0.0, 0.0 |] 
+                            "vy", array [| 0.0, 0.0 |] 
+                            "vz", array [| 0.0, 0.0 |] 
+                        ]
+            encoding = 
+                [
+                    "colors", ForEachRow (fun (vertex, velocity) -> 
+                        velocity * 0.5 + V3d.Half
+                    )
+                ]
+
+            properties = { camera = CameraView.lookAt V3d.III V3d.OOO V3d.OII; mouseDown = false }
+
+            interactions = 
+                fun (msg : Message<Message>) (self) -> 
+                    match msg with
+                        | Msg(CenterScene) -> // update storage, return new vis
+                            //{ self with continuation = fun self -> freeFlyController self }
+                            self
+                        //| OnMouseMouve -> { self with properties = { self.properties with mouseDown = true }}
+                        | Continue -> if self.properties.mouseDown then failwith "gah" else failwith "other"
+
+        } 
 
 
 
@@ -120,7 +147,7 @@ module App =
     let update (m : Model) (msg : Message) =
         match msg with
             | HeraSimVis -> { m with vis = Vis.HeraSimVis }
-            | VolumeVis -> { m with vis = Vis.VolumeVis}
+            | VolumeVis -> { m with vis = Vis.VolumeVis;  }
             | StepTime -> 
                 { m with frame = sw.Elapsed.TotalSeconds / 0.5 |> int }
             | ToggleModel -> 
@@ -178,6 +205,7 @@ module App =
     let threads (state : Model) =
          let pool = ThreadPool.empty
     
+   
          let rec time() =
              proclist {
                  do! Proc.Sleep 10
