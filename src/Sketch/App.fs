@@ -175,9 +175,10 @@ module App =
                 |> AVal.constant
 
         let heraData,volumeData = 
-            match Environment.UserName with
-            | "hs" -> @"C:\Users\hs\OneDrive\notebookdata\sim",  @"C:\Users\hs\OneDrive\notebookdata\hechtkopfsalamander male - Copy"
-            | _ -> failwith "add your data"
+            @"..\..\..\data", @"C:\Users\hs\OneDrive\notebookdata\hechtkopfsalamander male - Copy"
+            //match Environment.UserName with
+            //| "hs" -> @"C:\Users\hs\OneDrive\notebookdata\sim",  @"C:\Users\hs\OneDrive\notebookdata\hechtkopfsalamander male - Copy"
+            //| _ -> failwith "add your data"
 
         let heraSg = 
             Hera.loadOldCacheFiles runtime heraData 10
