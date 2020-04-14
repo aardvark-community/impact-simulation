@@ -137,15 +137,25 @@ type Message =
     | StepTime
     | VolumeVis
     | HeraSimVis
+    | TogglePointSize
+    | SetPointSize of float
 
 module App =
     
-    let initial = { currentModel = Box; cameraState = FreeFlyController.initial; frame = 0; vis = Vis.HeraSimVis }
+    let initial = { 
+        currentModel = Box; cameraState = FreeFlyController.initial; 
+        frame = 0; vis = Vis.HeraSimVis
+        pointSize = 8.0
+    }
 
     let sw = System.Diagnostics.Stopwatch.StartNew()
 
     let update (m : Model) (msg : Message) =
         match msg with
+            | SetPointSize s -> { m with pointSize = s }
+            | TogglePointSize -> 
+                let newPointSize = if m.pointSize = 8.0 then 20.0 elif m.pointSize = 20.0 then 8.0 else m.pointSize
+                { m with pointSize = newPointSize }
             | HeraSimVis -> { m with vis = Vis.HeraSimVis }
             | VolumeVis -> { m with vis = Vis.VolumeVis;  }
             | StepTime -> 
@@ -170,10 +180,9 @@ module App =
             | _ -> failwith "add your data"
 
         let heraSg = 
-            lazy
-                Hera.loadOldCacheFiles runtime heraData 10
-                |> Hera.createAnimatedSg m.frame
-                |> Sg.noEvents
+            Hera.loadOldCacheFiles runtime heraData 10
+            |> Hera.createAnimatedSg m.frame m.pointSize
+            |> Sg.noEvents
 
         let volSg = 
             lazy
@@ -183,7 +192,7 @@ module App =
         let sg =
             m.vis |> AVal.map (fun v -> 
                 match v with   
-                | Vis.HeraSimVis -> heraSg.Value
+                | Vis.HeraSimVis -> heraSg
                 | Vis.VolumeVis -> volSg.Value
             ) |> Sg.dynamic
 
@@ -192,12 +201,31 @@ module App =
                 style "position: fixed; left: 0; top: 0; width: 100%; height: 100%"
             ]
 
+        let dynamicUI = 
+            alist {
+                let! p = m.pointSize
+
+                if p = 8.0 || p = 20.0 then 
+                    yield button [onClick (fun _ -> TogglePointSize)] [text "toggle point size"]
+                else 
+                    yield text "cannot toogle you superstar"
+            }
+
+
         body [] [
             FreeFlyController.controlledControl m.cameraState CameraMessage frustum (AttributeMap.ofList att) sg
 
             div [style "position: fixed; left: 20px; top: 20px"] [
                 button [onClick (fun _ -> VolumeVis)] [text "volume vis"]
                 button [onClick (fun _ -> HeraSimVis)] [text "hera sim vis"]
+                br []
+                br []
+                br []
+                numeric { min = 1.0; max = 30.0; smallStep = 1.0; largeStep = 5.0 } AttributeMap.empty m.pointSize SetPointSize
+
+                Incremental.div AttributeMap.empty dynamicUI
+
+
             ]
 
         ]

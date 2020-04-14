@@ -12,3 +12,4 @@ bin/Debug
 /.fake
 /.paket
 /Aardvark.log
+/src/Sketch/*.domaincache

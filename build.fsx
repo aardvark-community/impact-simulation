@@ -9,7 +9,7 @@ open Aardvark.Fake
 
 do Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
 
-DefaultSetup.install ["src/DSL-Awesomness.sln"]
+DefaultSetup.install ["src/Visualization-Experiments.sln"]
 
 
 entry()

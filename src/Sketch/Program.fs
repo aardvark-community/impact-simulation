@@ -26,6 +26,8 @@ let main args =
 
     let media = App.app app.Runtime
 
+    app.ShaderCachePath <- None
+
     WebPart.startServer 4321 [
         MutableApp.toWebPart' app.Runtime false (App.start media)
     ] |> ignore

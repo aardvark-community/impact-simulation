@@ -25,4 +25,6 @@ type Model =
         cameraState     : CameraControllerState
         frame : int
         vis : Vis
+
+        pointSize : float
     }

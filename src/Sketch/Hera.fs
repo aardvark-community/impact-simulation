@@ -27,16 +27,16 @@ module Shaders =
 
     type Vertex = 
         {
-            [<Position>]
+            [<Position>] // gl_Position
             pos : V4d
 
-            [<PointSize>]
+            [<PointSize>] // gl_PointSize
             pointSize : float
 
-            [<PointCoord>]
+            [<PointCoord>] // gl_PointCoord
             pointCoord : V2d
 
-            [<Semantic("Velocity")>]
+            [<Semantic("Velocity")>] 
             velocity : V3d
         }
 
@@ -52,7 +52,7 @@ module Shaders =
         fragment {
             let c = v.pointCoord * 2.0 - V2d.II
             let f = Vec.dot c c - 1.0
-            if f > 0.0 then discard()
+            if f > 0.0 then discard() // round points magick
             return V4d((v.velocity * 0.5 + V3d.Half).XYZ,1.0)
         }
 
@@ -102,7 +102,10 @@ let loadOldCacheFiles (runtime : IRuntime) (dir : string) (frames : int) =
     buffers, bb, vertexCount
 
 
-let createAnimatedSg  (frame : aval<int>) (frames : Frame[], bb : Box3d, vertexCount : int) = 
+
+
+
+let createAnimatedSg  (frame : aval<int>) (pointSize : aval<float>) (frames : Frame[], bb : Box3d, vertexCount : int)  = 
     let dci = DrawCallInfo(vertexCount, InstanceCount = 1)
 
     let currentBuffers = 
@@ -114,6 +117,7 @@ let createAnimatedSg  (frame : aval<int>) (frames : Frame[], bb : Box3d, vertexC
     let velocities = AVal.map snd currentBuffers
 
     Sg.render IndexedGeometryMode.PointList dci
+    // complex, can also handly dynamic vertex data
     |> Sg.vertexBuffer DefaultSemantic.Positions (BufferView(vertices, typeof<V3f>))
     |> Sg.vertexBuffer (Sym.ofString "Velocity")  (BufferView(velocities, typeof<V3f>))
     |> Sg.shader {  
@@ -121,4 +125,4 @@ let createAnimatedSg  (frame : aval<int>) (frames : Frame[], bb : Box3d, vertexC
             do! Shaders.vs
             do! Shaders.fs
         }
-    |> Sg.uniform "PointSize" (AVal.constant 8.0)
+    |> Sg.uniform "PointSize" pointSize
