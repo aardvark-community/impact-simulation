@@ -59,7 +59,7 @@ module Shaders =
 let runSingleFrame args =
     Aardvark.Init()
 
-    let vertices,velocities,bb = Parser.parseFile @"D:\volumes\univie\r80_p0_m500_v6000_mbasalt_a1.0_1M\impact.0400"
+    let myData,bb = Parser.parseFile @"D:\volumes\univie\r80_p0_m500_v6000_mbasalt_a1.0_1M\impact.0400"
     
     
     //let vertices,velocities,bb = Parser.parseFile @"D:\volumes\univie\r80_p0_m500_v6000_mbasalt_a4.0_1M\impact.0400"
@@ -82,7 +82,7 @@ let runSingleFrame args =
     let vertices = 
         win.Time |> AVal.map (fun _ -> 
             let t = (sw.Elapsed.TotalSeconds % 5.0 ) * 1.5
-            (vertices, velocities) ||> Array.map2 (fun p v -> 
+            (myData.vertices, myData.velocities) ||> Array.map2 (fun p v -> 
                 p + t * v |> V3f
             )
     )
@@ -136,7 +136,7 @@ let runSingleFrame args =
     win.RenderTask <-
         Sg.draw IndexedGeometryMode.PointList
         |> Sg.vertexAttribute DefaultSemantic.Positions vertices
-        |> Sg.vertexAttribute' DefaultSemantic.Colors (velocities |> Array.map ( fun v -> ((v.Normalized + V3d.III) * 0.5) |> V3f ))
+        |> Sg.vertexAttribute' DefaultSemantic.Colors (myData.velocities |> Array.map ( fun v -> ((v.Normalized + V3d.III) * 0.5) |> V3f ))
         |> Sg.shader {  
              do! DefaultSurfaces.trafo
              do! Shaders.vs
