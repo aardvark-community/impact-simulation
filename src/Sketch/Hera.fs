@@ -38,6 +38,9 @@ module Shaders =
 
             [<Semantic("Velocity")>] 
             velocity : V3d
+
+            [<Semantic("CubicRootsOfDamage")>]
+            cubicRoots : float32
         }
 
     let vs (v : Vertex) =
@@ -52,8 +55,10 @@ module Shaders =
         fragment {
             let c = v.pointCoord * 2.0 - V2d.II
             let f = Vec.dot c c - 1.0
-            if f > 0.0 then discard() // round points magick
-            return V4d((v.velocity * 0.5 + V3d.Half).XYZ,1.0)
+            if f > 0.0 then discard() // round points magic
+            //return V4d((v.velocity * 0.5 + V3d.Half).XYZ,1.0) // color according to velocity
+
+            return V4d(V3d(v.cubicRoots), 1.0) // color according to cubic Roots
         }
 
 
@@ -72,6 +77,7 @@ type Frame =
         pressures : IBuffer
     }
 
+    //not used atm !!!
 let loadOldCacheFiles (runtime : IRuntime) (dir : string) (frames : int) = 
     Log.startTimed "loading hera data"
     let files = Directory.EnumerateFiles dir |> Seq.atMost frames  |> Seq.toArray 
@@ -119,15 +125,18 @@ let createAnimatedSg  (frame : aval<int>) (pointSize : aval<float>) (frames : Fr
     let currentBuffers = 
         frame |> AVal.map (fun i -> 
             let frame = frames.[i % frames.Length]
-            frame.vertices, frame.velocities
+            frame.vertices, frame.velocities, frame.cubicRoots
         )
-    let vertices = AVal.map fst currentBuffers
-    let velocities = AVal.map snd currentBuffers
+
+    let vertices = currentBuffers |> AVal.map (fun (a, _, _) -> a)
+    let velocities = currentBuffers |> AVal.map (fun (_, b, _) -> b)
+    let cubicRoots = currentBuffers |> AVal.map (fun (_, _, c) -> c)
 
     Sg.render IndexedGeometryMode.PointList dci
     // complex, can also handly dynamic vertex data
     |> Sg.vertexBuffer DefaultSemantic.Positions (BufferView(vertices, typeof<V3f>))
     |> Sg.vertexBuffer (Sym.ofString "Velocity")  (BufferView(velocities, typeof<V3f>))
+    |> Sg.vertexBuffer (Sym.ofString "CubicRootsOfDamage") (BufferView(cubicRoots, typeof<float32>))
     |> Sg.shader {  
             do! DefaultSurfaces.trafo
             do! Shaders.vs

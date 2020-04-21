@@ -241,7 +241,7 @@ module App =
                 buffers, box, vertexCount
 
         let heraSg = 
-            framesToAnimate 0 4
+            framesToAnimate 0 7
             |> Hera.createAnimatedSg m.frame m.pointSize
             |> Sg.noEvents       
 
