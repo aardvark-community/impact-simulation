@@ -40,7 +40,7 @@ module Shaders =
             velocity : V3d
 
             [<Semantic("CubicRootsOfDamage")>]
-            cubicRoots : float32
+            cubicRoots : float
         }
 
     let vs (v : Vertex) =

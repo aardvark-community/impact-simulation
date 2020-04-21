@@ -188,11 +188,11 @@ module App =
             let frame = {
                 vertices = runtime.PrepareBuffer (ArrayBuffer d.vertices) :> IBuffer
                 velocities = runtime.PrepareBuffer (ArrayBuffer d.velocities) :> IBuffer
-                energies = runtime.PrepareBuffer (ArrayBuffer d.internalEnergies) :> IBuffer
-                cubicRoots = runtime.PrepareBuffer (ArrayBuffer d.cubicRootsOfDamage) :> IBuffer
-                strains = runtime.PrepareBuffer (ArrayBuffer d.localStrains) :> IBuffer
-                alphaJutzis = runtime.PrepareBuffer (ArrayBuffer d.alphaJutzis) :> IBuffer
-                pressures = runtime.PrepareBuffer (ArrayBuffer d.pressures) :> IBuffer
+                energies = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.internalEnergies)) :> IBuffer
+                cubicRoots = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.cubicRootsOfDamage)) :> IBuffer
+                strains = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.localStrains)) :> IBuffer
+                alphaJutzis = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.alphaJutzis)) :> IBuffer
+                pressures = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.pressures)) :> IBuffer
                 positions = d.vertices }
             frame
 
@@ -290,8 +290,6 @@ module App =
                 numeric { min = 1.0; max = 30.0; smallStep = 1.0; largeStep = 5.0 } AttributeMap.empty m.pointSize SetPointSize
 
                 Incremental.div AttributeMap.empty dynamicUI
-
-
             ]
 
         ]
