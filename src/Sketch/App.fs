@@ -1,11 +1,13 @@
 namespace AardVolume
 
 open System
+open System.IO
 open Aardvark.Base
 open Aardvark.UI
 open Aardvark.UI.Primitives
 open Aardvark.Base.Rendering
 open AardVolume.Model
+open Hera
 
 open FSharp.Data.Adaptive
 
@@ -180,10 +182,73 @@ module App =
             //| "hs" -> @"C:\Users\hs\OneDrive\notebookdata\sim",  @"C:\Users\hs\OneDrive\notebookdata\hechtkopfsalamander male - Copy"
             //| _ -> failwith "add your data"
 
+        let serializer = MBrace.FsPickler.FsPickler.CreateBinarySerializer()
+
+        let prepareData (d : Parser.Data) : Hera.Frame = 
+            let frame = {
+                vertices = runtime.PrepareBuffer (ArrayBuffer d.vertices) :> IBuffer
+                velocities = runtime.PrepareBuffer (ArrayBuffer d.velocities) :> IBuffer
+                energies = runtime.PrepareBuffer (ArrayBuffer d.internalEnergies) :> IBuffer
+                cubicRoots = runtime.PrepareBuffer (ArrayBuffer d.cubicRootsOfDamage) :> IBuffer
+                strains = runtime.PrepareBuffer (ArrayBuffer d.localStrains) :> IBuffer
+                alphaJutzis = runtime.PrepareBuffer (ArrayBuffer d.alphaJutzis) :> IBuffer
+                pressures = runtime.PrepareBuffer (ArrayBuffer d.pressures) :> IBuffer
+                positions = d.vertices }
+            frame
+
+        let cachedFileEnding = "_cache_2"
+
+        let convertToCacheFile (fileName : string) =
+            let cacheName = fileName + cachedFileEnding
+            if not (File.Exists cacheName) then
+                let d,b = Parser.parseFile fileName
+                let data = serializer.Pickle((d,b))
+                File.writeAllBytes cacheName data
+        
+        let loadDataAndCache (fileName : string) =
+            if fileName.EndsWith(cachedFileEnding) then
+                let bytes = File.readAllBytes fileName
+                let (d, b : Box3f) = serializer.UnPickle(bytes) // exception hier wenn nicht richtiger inhalt... 
+                
+                let buffer = prepareData(d)
+                let vertexCount = d.vertices.Length
+
+                Some(buffer, b, vertexCount)                 
+                
+            else
+                convertToCacheFile fileName
+                None           
+
+
+        let allFiles = 
+            Directory.EnumerateFiles heraData |> Seq.toArray 
+            |> Array.map loadDataAndCache
+            |> Array.choose (fun elem -> elem)
+
+        //TODO: Check for all possible exceptions! -> no data, endFrame > startFrame 
+        let framesToAnimate startFrame frames =
+            let l = allFiles.Length
+            if l = 0 then
+                Log.warn "There is no data!"
+                Array.empty, Box3f.Invalid, 0
+            else
+                let mutable endFrame = 0
+                if frames > l then endFrame <- l - 1 else endFrame <- frames - 1 //check if out of bounds
+                let framesToAnimate = allFiles.[startFrame..endFrame]
+                let buffers = framesToAnimate |> Array.map (fun (elem, _, _) ->  elem)
+                let box = framesToAnimate.[0] |> (fun (_, b, _) -> b)
+                let vertexCount = framesToAnimate.[0] |> (fun (_, _, c) -> c)
+                buffers, box, vertexCount
+
         let heraSg = 
-            Hera.loadOldCacheFiles runtime heraData 10
+            framesToAnimate 0 4
             |> Hera.createAnimatedSg m.frame m.pointSize
-            |> Sg.noEvents
+            |> Sg.noEvents       
+
+        //let heraSg = 
+        //    Hera.loadOldCacheFiles runtime heraData 10
+        //    |> Hera.createAnimatedSg m.frame m.pointSize
+        //    |> Sg.noEvents
 
         let volSg = 
             lazy

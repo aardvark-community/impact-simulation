@@ -65,12 +65,17 @@ type Frame =
         positions : V3f[]
         vertices : IBuffer
         velocities : IBuffer
+        energies : IBuffer
+        cubicRoots : IBuffer
+        strains : IBuffer
+        alphaJutzis : IBuffer
+        pressures : IBuffer
     }
 
 let loadOldCacheFiles (runtime : IRuntime) (dir : string) (frames : int) = 
     Log.startTimed "loading hera data"
     let files = Directory.EnumerateFiles dir |> Seq.atMost frames  |> Seq.toArray 
-    let mutable bb = Box3d.Invalid
+    let mutable bb = Box3f.Invalid
     let mutable vertexCount = 0
     let buffers = 
         files 
@@ -82,18 +87,23 @@ let loadOldCacheFiles (runtime : IRuntime) (dir : string) (frames : int) =
                     let d = File.readAllBytes f
                     let vertices : array<V3f> = serializer.UnPickle d
                     if i = 0 then 
-                        bb <- Box3d(vertices |> Seq.map V3d)
+                        bb <- Box3f(vertices |> Seq.map V3f)
                         vertexCount <- vertices.Length
 
 
                     let vs = sprintf "%s_vs" f
                     let d = File.readAllBytes vs
-                    let velocities : array<V3f> = serializer.UnPickle(d)
+                    let velocities : array<V3f> = serializer.UnPickle d
 
                     Some 
                         {
                             vertices = runtime.PrepareBuffer (ArrayBuffer vertices)   :> IBuffer
                             velocities = runtime.PrepareBuffer (ArrayBuffer velocities) :> IBuffer
+                            energies = runtime.PrepareBuffer (ArrayBuffer velocities) :> IBuffer;
+                            cubicRoots = runtime.PrepareBuffer (ArrayBuffer velocities) :> IBuffer;
+                            strains = runtime.PrepareBuffer (ArrayBuffer velocities) :> IBuffer;
+                            alphaJutzis = runtime.PrepareBuffer (ArrayBuffer velocities) :> IBuffer;
+                            pressures = runtime.PrepareBuffer (ArrayBuffer velocities) :> IBuffer;
                             positions = vertices
                         }
         )
@@ -103,9 +113,7 @@ let loadOldCacheFiles (runtime : IRuntime) (dir : string) (frames : int) =
 
 
 
-
-
-let createAnimatedSg  (frame : aval<int>) (pointSize : aval<float>) (frames : Frame[], bb : Box3d, vertexCount : int)  = 
+let createAnimatedSg  (frame : aval<int>) (pointSize : aval<float>) (frames : Frame[], bb : Box3f, vertexCount : int)  = 
     let dci = DrawCallInfo(vertexCount, InstanceCount = 1)
 
     let currentBuffers = 
