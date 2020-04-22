@@ -39,8 +39,28 @@ module Shaders =
             [<Semantic("Velocity")>] 
             velocity : V3d
 
-            [<Semantic("CubicRootsOfDamage")>]
-            cubicRoots : float
+            [<Semantic("Energy")>]
+            energy : float
+            
+            [<Semantic("CubicRootOfDamage")>]
+            cubicRoot : float
+
+            [<Semantic("LocalStrain")>]
+            localStrain : float
+
+            [<Semantic("AlphaJutzi")>]
+            alphaJutzi : float
+
+            [<Semantic("Pressure")>]
+            pressure : float
+        }
+
+    let transfer = 
+        sampler2d {
+            texture uniform?TransferFunction
+            filter Filter.MinMagLinear
+            addressU WrapMode.Clamp
+            addressV WrapMode.Clamp
         }
 
     let vs (v : Vertex) =
@@ -56,9 +76,18 @@ module Shaders =
             let c = v.pointCoord * 2.0 - V2d.II
             let f = Vec.dot c c - 1.0
             if f > 0.0 then discard() // round points magic
-            //return V4d((v.velocity * 0.5 + V3d.Half).XYZ,1.0) // color according to velocity
 
-            return V4d(V3d(v.cubicRoots), 1.0) // color according to cubic Roots
+            let transferWidth = 5.0
+            let value = v.energy
+
+            let linearCoord = value;
+            let logCoord = log (transferWidth * value + 1.0)
+
+            let color = transfer.SampleLevel(V2d(linearCoord, 0.0), 0.0)
+
+            //return V4d((v.velocity * 0.5 + V3d.Half).XYZ,1.0) // color according to velocity
+            //return V4d(V3d(v.cubicRoots), 1.0) // color according to cubic Roots
+            return color
         }
 
 
@@ -117,7 +146,9 @@ let loadOldCacheFiles (runtime : IRuntime) (dir : string) (frames : int) =
     Log.stop()
     buffers, bb, vertexCount
 
-
+let texture = 
+    let path = @"..\..\..\data\transfer\map-26.png"
+    FileTexture(path, TextureParams.empty) :> ITexture
 
 let createAnimatedSg  (frame : aval<int>) (pointSize : aval<float>) (frames : Frame[], bb : Box3f, vertexCount : int)  = 
     let dci = DrawCallInfo(vertexCount, InstanceCount = 1)
@@ -125,21 +156,30 @@ let createAnimatedSg  (frame : aval<int>) (pointSize : aval<float>) (frames : Fr
     let currentBuffers = 
         frame |> AVal.map (fun i -> 
             let frame = frames.[i % frames.Length]
-            frame.vertices, frame.velocities, frame.cubicRoots
+            frame.vertices, frame.velocities, frame.energies, frame.cubicRoots, frame.strains, frame.alphaJutzis, frame.pressures
         )
 
-    let vertices = currentBuffers |> AVal.map (fun (a, _, _) -> a)
-    let velocities = currentBuffers |> AVal.map (fun (_, b, _) -> b)
-    let cubicRoots = currentBuffers |> AVal.map (fun (_, _, c) -> c)
+    let vertices = currentBuffers |> AVal.map (fun (a, _, _, _, _, _, _) -> a)
+    let velocities = currentBuffers |> AVal.map (fun (_, b, _, _, _, _, _) -> b)
+    let energies = currentBuffers |> AVal.map (fun (_, _, c, _, _, _, _) -> c)
+    let cubicRoots = currentBuffers |> AVal.map (fun (_, _, _, d, _, _, _) -> d)
+    let strains = currentBuffers |> AVal.map (fun (_, _, _, _, e, _, _) -> e)
+    let alphaJutzis = currentBuffers |> AVal.map (fun (_, _, _, _, _, f, _) -> f)
+    let pressures = currentBuffers |> AVal.map (fun (_, _, _, _, _, _, g) -> g)
 
     Sg.render IndexedGeometryMode.PointList dci
     // complex, can also handly dynamic vertex data
     |> Sg.vertexBuffer DefaultSemantic.Positions (BufferView(vertices, typeof<V3f>))
     |> Sg.vertexBuffer (Sym.ofString "Velocity")  (BufferView(velocities, typeof<V3f>))
-    |> Sg.vertexBuffer (Sym.ofString "CubicRootsOfDamage") (BufferView(cubicRoots, typeof<float32>))
+    |> Sg.vertexBuffer (Sym.ofString "Energy") (BufferView(energies, typeof<float32>))
+    |> Sg.vertexBuffer (Sym.ofString "CubicRootOfDamage") (BufferView(cubicRoots, typeof<float32>))
+    |> Sg.vertexBuffer (Sym.ofString "LocalStrain") (BufferView(strains, typeof<float32>))
+    |> Sg.vertexBuffer (Sym.ofString "AlphaJutzi") (BufferView(alphaJutzis, typeof<float32>))
+    |> Sg.vertexBuffer (Sym.ofString "Pressure") (BufferView(pressures, typeof<float32>))
     |> Sg.shader {  
             do! DefaultSurfaces.trafo
             do! Shaders.vs
             do! Shaders.fs
         }
     |> Sg.uniform "PointSize" pointSize
+    |> Sg.uniform "TransferFunction" (AVal.constant texture)
