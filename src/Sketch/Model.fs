@@ -17,6 +17,12 @@ type Vis =
     | VolumeVis
 
 
+type RenderValue = 
+    | Energy = 0
+    | CubicRoot = 1
+    | Strain = 2
+    | AlphaJutzi = 3
+    | Pressure = 4
 
 [<ModelType>]
 type Model =
@@ -27,4 +33,8 @@ type Model =
         vis : Vis
 
         pointSize : float
+        playAnimation : bool
+        renderValue : RenderValue
+        colorMaps : HashMap<string, string>
+        currentMap : string
     }

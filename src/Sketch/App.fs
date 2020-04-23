@@ -141,13 +141,35 @@ type Message =
     | HeraSimVis
     | TogglePointSize
     | SetPointSize of float
+    | ChangeAnimation
+    | SetRenderValue of RenderValue
+    | SetTransferFunc of option<string>
 
 module App =
-    
+
+    let tfsDir = @"..\..\..\data\transfer"
+
+    let transferFunctions = 
+        Directory.EnumerateFiles tfsDir  
+        |> Seq.toList
+
+    let listWithValues =
+        transferFunctions
+        |> List.mapi (fun i t ->
+                let text = "Color Map " + string i
+                (t, text)
+                )
+        |> HashMap.ofList
+
+
     let initial = { 
         currentModel = Box; cameraState = FreeFlyController.initial; 
         frame = 0; vis = Vis.HeraSimVis
         pointSize = 8.0
+        playAnimation = true
+        renderValue = RenderValue.Energy
+        colorMaps = listWithValues
+        currentMap = @"..\..\..\data\transfer\map-03.png"
     }
 
     let sw = System.Diagnostics.Stopwatch.StartNew()
@@ -160,15 +182,23 @@ module App =
                 { m with pointSize = newPointSize }
             | HeraSimVis -> { m with vis = Vis.HeraSimVis }
             | VolumeVis -> { m with vis = Vis.VolumeVis;  }
+            | ChangeAnimation -> { m with playAnimation = not m.playAnimation}
             | StepTime -> 
+                if m.playAnimation then sw.Start() else sw.Stop()
                 { m with frame = sw.Elapsed.TotalSeconds / 0.5 |> int }
             | ToggleModel -> 
                 match m.currentModel with
                     | Box -> { m with currentModel = Sphere }
                     | Sphere -> { m with currentModel = Box }
-
             | CameraMessage msg ->
                 { m with cameraState = FreeFlyController.update m.cameraState msg }
+            | SetRenderValue v -> {m with renderValue = v}
+            | SetTransferFunc t -> 
+                match t with    
+                | None -> m
+                | Some(s) -> {m with currentMap = s} 
+
+    let renderValues = AMap.ofArray((Enum.GetValues typeof<RenderValue> :?> (RenderValue [])) |> Array.map (fun c -> (c, text (Enum.GetName(typeof<RenderValue>, c)) )))
 
     let view (runtime : IRuntime) (m : AdaptiveModel) =
 
@@ -239,10 +269,10 @@ module App =
                 let box = framesToAnimate.[0] |> (fun (_, b, _) -> b)
                 let vertexCount = framesToAnimate.[0] |> (fun (_, _, c) -> c)
                 buffers, box, vertexCount
-
+        
         let heraSg = 
             framesToAnimate 0 7
-            |> Hera.createAnimatedSg m.frame m.pointSize
+            |> Hera.createAnimatedSg m.frame m.pointSize m.renderValue m.currentMap
             |> Sg.noEvents       
 
         //let heraSg = 
@@ -277,6 +307,17 @@ module App =
                     yield text "cannot toogle you superstar"
             }
 
+        let dynamicNameChange =
+            alist {
+                let! animation = m.playAnimation
+
+                if animation = true then
+                    yield button [onClick (fun _ -> ChangeAnimation)] [text "Pause"]
+                else 
+                    yield button [onClick (fun _ -> ChangeAnimation)] [text "Play"]
+            }
+
+        let colorMaps = AMap.map (fun k v -> text v) m.colorMaps
 
         body [] [
             FreeFlyController.controlledControl m.cameraState CameraMessage frustum (AttributeMap.ofList att) sg
@@ -286,10 +327,17 @@ module App =
                 button [onClick (fun _ -> HeraSimVis)] [text "hera sim vis"]
                 br []
                 br []
+                Incremental.div AttributeMap.empty dynamicNameChange
+                br []
+                dropdown { placeholder = "ColorMaps"; allowEmpty = false} [ clazz "ui selection" ] colorMaps (m.currentMap |> AVal.map Some) SetTransferFunc
+                br []
+                dropdown1 [ clazz "ui selection" ] renderValues m.renderValue SetRenderValue
+                br []
                 br []
                 numeric { min = 1.0; max = 30.0; smallStep = 1.0; largeStep = 5.0 } AttributeMap.empty m.pointSize SetPointSize
-
                 Incremental.div AttributeMap.empty dynamicUI
+                br[]
+
             ]
 
         ]

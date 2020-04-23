@@ -6,6 +6,8 @@ open Aardvark.Base
 open Aardvark.Base.Rendering
 open FSharp.Data.Adaptive
 open Aardvark.SceneGraph
+open AardVolume.Model
+
 
 module Array = 
     open System.Collections.Generic
@@ -36,6 +38,9 @@ module Shaders =
             [<PointCoord>] // gl_PointCoord
             pointCoord : V2d
 
+            [<Color>]
+            pointColor : V4d
+
             [<Semantic("Velocity")>] 
             velocity : V3d
 
@@ -62,32 +67,37 @@ module Shaders =
             addressU WrapMode.Clamp
             addressV WrapMode.Clamp
         }
-
+        
     let vs (v : Vertex) =
         vertex {
             return 
                 { v with
                     pointSize = uniform?PointSize
+                    pointColor =
+                        let renderValue = uniform?RenderValue
+                        let value renderValue = 
+                            match renderValue with
+                            | RenderValue.Energy -> v.energy
+                            | RenderValue.CubicRoot -> v.cubicRoot
+                            | RenderValue.Strain -> v.localStrain
+                            | RenderValue.AlphaJutzi -> v.alphaJutzi
+                            | RenderValue.Pressure -> v.pressure
+                            | _ -> v.energy
+                        let linearCoord = value renderValue          
+                        let transferFunc = transfer.SampleLevel(V2d(linearCoord, 0.0), 0.0)
+                        transferFunc
                 }
-        }
-
+        }            
+      
     let fs (v : Vertex) = 
         fragment {
             let c = v.pointCoord * 2.0 - V2d.II
             let f = Vec.dot c c - 1.0
             if f > 0.0 then discard() // round points magic
 
-            let transferWidth = 5.0
-            let value = v.energy
-
-            let linearCoord = value;
-            let logCoord = log (transferWidth * value + 1.0)
-
-            let color = transfer.SampleLevel(V2d(linearCoord, 0.0), 0.0)
-
             //return V4d((v.velocity * 0.5 + V3d.Half).XYZ,1.0) // color according to velocity
             //return V4d(V3d(v.cubicRoots), 1.0) // color according to cubic Roots
-            return color
+            return v.pointColor
         }
 
 
@@ -150,7 +160,8 @@ let texture =
     let path = @"..\..\..\data\transfer\map-26.png"
     FileTexture(path, TextureParams.empty) :> ITexture
 
-let createAnimatedSg  (frame : aval<int>) (pointSize : aval<float>) (frames : Frame[], bb : Box3f, vertexCount : int)  = 
+
+let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (renderValue : aval<RenderValue>) (tfPath : aval<string>) (frames : Frame[], bb : Box3f, vertexCount : int)  = 
     let dci = DrawCallInfo(vertexCount, InstanceCount = 1)
 
     let currentBuffers = 
@@ -167,6 +178,8 @@ let createAnimatedSg  (frame : aval<int>) (pointSize : aval<float>) (frames : Fr
     let alphaJutzis = currentBuffers |> AVal.map (fun (_, _, _, _, _, f, _) -> f)
     let pressures = currentBuffers |> AVal.map (fun (_, _, _, _, _, _, g) -> g)
 
+    let texture = tfPath |> AVal.map (fun p -> FileTexture(p, TextureParams.empty) :> ITexture )
+
     Sg.render IndexedGeometryMode.PointList dci
     // complex, can also handly dynamic vertex data
     |> Sg.vertexBuffer DefaultSemantic.Positions (BufferView(vertices, typeof<V3f>))
@@ -182,4 +195,5 @@ let createAnimatedSg  (frame : aval<int>) (pointSize : aval<float>) (frames : Fr
             do! Shaders.fs
         }
     |> Sg.uniform "PointSize" pointSize
-    |> Sg.uniform "TransferFunction" (AVal.constant texture)
+    |> Sg.uniform "TransferFunction" texture
+    |> Sg.uniform "RenderValue" renderValue
