@@ -32,6 +32,9 @@ module Shaders =
             [<Position>] // gl_Position
             pos : V4d
 
+            [<WorldPosition>]
+            wp : V4d
+
             [<PointSize>] // gl_PointSize
             pointSize : float
 
@@ -67,7 +70,8 @@ module Shaders =
             addressU WrapMode.Clamp
             addressV WrapMode.Clamp
         }
-        
+
+
     let vs (v : Vertex) =
         vertex {
             return 
@@ -79,7 +83,7 @@ module Shaders =
                             match renderValue with
                             | RenderValue.Energy -> v.energy
                             | RenderValue.CubicRoot -> v.cubicRoot
-                            | RenderValue.Strain -> v.localStrain
+                            | RenderValue.Strain -> v.localStrain * 10000.0
                             | RenderValue.AlphaJutzi -> v.alphaJutzi
                             | RenderValue.Pressure -> v.pressure
                             | _ -> v.energy
@@ -89,15 +93,40 @@ module Shaders =
                 }
         }            
       
+    let internal pointSprite (p : Point<Vertex>) = 
+        point {
+            let wp = p.Value.wp
+
+            let minX = uniform?MinX
+            let maxX = uniform?MaxX
+            let minY = uniform?MinY
+            let maxY = uniform?MaxY
+            let minZ = uniform?MinZ
+            let maxZ = uniform?MaxZ
+
+            let sliderX = uniform?SliderX
+            let sliderY = uniform?SliderY
+            let sliderZ = uniform?SliderZ
+
+            if (wp.X >= minX && wp.X <= maxX && wp.Y >= minY && wp.Y <= maxY && wp.Z >= minZ && wp.Z <= maxZ) &&
+                (wp.X <= sliderX && wp.Y <= sliderY && wp.Z <= sliderZ) then
+                yield p.Value
+        }
+        
+
+
     let fs (v : Vertex) = 
         fragment {
             let c = v.pointCoord * 2.0 - V2d.II
             let f = Vec.dot c c - 1.0
             if f > 0.0 then discard() // round points magic
 
+           // if v.wp.X >= 0.0 then discard()
+
             //return V4d((v.velocity * 0.5 + V3d.Half).XYZ,1.0) // color according to velocity
             //return V4d(V3d(v.cubicRoots), 1.0) // color according to cubic Roots
-            return v.pointColor
+            let color = V4d(V3d(v.pointColor), 0.9)
+            return color
         }
 
 
@@ -156,12 +185,22 @@ let loadOldCacheFiles (runtime : IRuntime) (dir : string) (frames : int) =
     Log.stop()
     buffers, bb, vertexCount
 
-let texture = 
-    let path = @"..\..\..\data\transfer\map-26.png"
-    FileTexture(path, TextureParams.empty) :> ITexture
+//let texture = 
+//    let path = @"..\..\..\data\transfer\map-26.png"
+//    FileTexture(path, TextureParams.empty) :> ITexture
 
 
-let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (renderValue : aval<RenderValue>) (tfPath : aval<string>) (frames : Frame[], bb : Box3f, vertexCount : int)  = 
+let mutable blend = 
+    BlendMode(true)
+
+blend.AlphaOperation <- BlendOperation.Add
+blend.Operation <- BlendOperation.Add
+blend.SourceAlphaFactor <- BlendFactor.One
+blend.DestinationAlphaFactor <- BlendFactor.One
+blend.SourceFactor <- BlendFactor.One
+blend.DestinationFactor <- BlendFactor.One
+
+let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (renderValue : aval<RenderValue>) (tfPath : aval<string>) (axis : Axis) (slider : Slider) (frames : Frame[], bb : Box3f, vertexCount : int)  = 
     let dci = DrawCallInfo(vertexCount, InstanceCount = 1)
 
     let currentBuffers = 
@@ -191,9 +230,28 @@ let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (renderValue 
     |> Sg.vertexBuffer (Sym.ofString "Pressure") (BufferView(pressures, typeof<float32>))
     |> Sg.shader {  
             do! DefaultSurfaces.trafo
+            do! Shaders.pointSprite
             do! Shaders.vs
             do! Shaders.fs
         }
     |> Sg.uniform "PointSize" pointSize
     |> Sg.uniform "TransferFunction" texture
     |> Sg.uniform "RenderValue" renderValue
+    |> Sg.uniform "MinX" axis.minX
+    |> Sg.uniform "MaxX" axis.maxX
+    |> Sg.uniform "MinY" axis.minY
+    |> Sg.uniform "MaxY" axis.maxY
+    |> Sg.uniform "MinZ" axis.minZ
+    |> Sg.uniform "MaxZ" axis.maxZ
+    |> Sg.uniform "SliderX" slider.slideX
+    |> Sg.uniform "SliderY" slider.slideY
+    |> Sg.uniform "SliderZ" slider.slideZ
+ 
+
+
+
+
+
+
+
+   

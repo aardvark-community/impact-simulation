@@ -3,6 +3,7 @@ namespace AardVolume
 open System
 open System.IO
 open Aardvark.Base
+open Aardvark.SceneGraph
 open Aardvark.UI
 open Aardvark.UI.Primitives
 open Aardvark.Base.Rendering
@@ -144,6 +145,15 @@ type Message =
     | ChangeAnimation
     | SetRenderValue of RenderValue
     | SetTransferFunc of option<string>
+    | SetMinX of float
+    | SetMaxX of float
+    | SetMinY of float
+    | SetMaxY of float
+    | SetMinZ of float
+    | SetMaxZ of float
+    | SetSlideX of float
+    | SetSlideY of float
+    | SetSlideZ of float
 
 module App =
 
@@ -170,6 +180,15 @@ module App =
         renderValue = RenderValue.Energy
         colorMaps = listWithValues
         currentMap = @"..\..\..\data\transfer\map-03.png"
+        minX = -16.0
+        maxX = 16.0
+        minY = -16.0
+        maxY = 30.0 
+        minZ = -16.0
+        maxZ = 16.0
+        slideX = 16.0
+        slideY = 30.0
+        slideZ = 16.0
     }
 
     let sw = System.Diagnostics.Stopwatch.StartNew()
@@ -197,6 +216,18 @@ module App =
                 match t with    
                 | None -> m
                 | Some(s) -> {m with currentMap = s} 
+            | SetMinX x -> {m with minX = x}
+            | SetMaxX x -> {m with maxX = x}
+            | SetMinY y -> {m with minY = y}
+            | SetMaxY y -> {m with maxY = y}
+            | SetMinZ z -> {m with minZ = z}
+            | SetMaxZ z -> {m with maxZ = z}
+            | SetSlideX x -> {m with slideX = x}
+            | SetSlideY y -> {m with slideY = y}
+            | SetSlideZ z -> {m with slideZ = z}
+
+
+
 
     let renderValues = AMap.ofArray((Enum.GetValues typeof<RenderValue> :?> (RenderValue [])) |> Array.map (fun c -> (c, text (Enum.GetName(typeof<RenderValue>, c)) )))
 
@@ -269,11 +300,26 @@ module App =
                 let box = framesToAnimate.[0] |> (fun (_, b, _) -> b)
                 let vertexCount = framesToAnimate.[0] |> (fun (_, _, c) -> c)
                 buffers, box, vertexCount
-        
+
+        let axis = {
+            minX = m.minX
+            maxX = m.maxX
+            minY = m.minY
+            maxY = m.maxY
+            minZ = m.minZ
+            maxZ = m.maxZ
+        } 
+
+        let slide = {
+            slideX = m.slideX
+            slideY = m.slideY
+            slideZ = m.slideZ
+        }
+    
         let heraSg = 
             framesToAnimate 0 7
-            |> Hera.createAnimatedSg m.frame m.pointSize m.renderValue m.currentMap
-            |> Sg.noEvents       
+            |> Hera.createAnimatedSg m.frame m.pointSize m.renderValue m.currentMap axis slide
+            |> Sg.noEvents
 
         //let heraSg = 
         //    Hera.loadOldCacheFiles runtime heraData 10
@@ -291,6 +337,12 @@ module App =
                 | Vis.HeraSimVis -> heraSg
                 | Vis.VolumeVis -> volSg.Value
             ) |> Sg.dynamic
+            
+              
+       
+        //let clipPlanes = Sg.empty
+
+        //let sg = Sg.ofList [sg; clipPlanes]
 
         let att =
             [
@@ -322,30 +374,109 @@ module App =
         body [] [
             FreeFlyController.controlledControl m.cameraState CameraMessage frustum (AttributeMap.ofList att) sg
 
-            div [style "position: fixed; left: 20px; top: 20px"] [
+            div [style "position: fixed; left: 20px; top: 20px; width: 218px"] [
                 button [onClick (fun _ -> VolumeVis)] [text "volume vis"]
                 button [onClick (fun _ -> HeraSimVis)] [text "hera sim vis"]
                 br []
                 br []
                 Incremental.div AttributeMap.empty dynamicNameChange
                 br []
+                numeric { min = 1.0; max = 30.0; smallStep = 1.0; largeStep = 5.0 } AttributeMap.empty m.pointSize SetPointSize
+                Incremental.div AttributeMap.empty dynamicUI
+                br []
                 dropdown { placeholder = "ColorMaps"; allowEmpty = false} [ clazz "ui selection" ] colorMaps (m.currentMap |> AVal.map Some) SetTransferFunc
+                br []
                 br []
                 dropdown1 [ clazz "ui selection" ] renderValues m.renderValue SetRenderValue
                 br []
                 br []
-                numeric { min = 1.0; max = 30.0; smallStep = 1.0; largeStep = 5.0 } AttributeMap.empty m.pointSize SetPointSize
-                Incremental.div AttributeMap.empty dynamicUI
-                br[]
+                div [ style "color: white" ] [
 
+                    div [ clazz "item" ] [
+                        span [style "padding: 2px"] [text "min X: "]
+                        simplenumeric {
+                            attributes [style "width: 25%; padding: 2px"]
+                            value m.minX
+                            update SetMinX
+                            step 1.0
+                            largeStep 5.0
+                            min -25.0
+                            max 0.0
+                        }
+                        span [style "padding: 2px"] [text "max X: "]
+                        simplenumeric {
+                            attributes [style "width: 25%; padding: 2px"]
+                            value m.maxX
+                            update SetMaxX
+                            step 1.0
+                            largeStep 5.0
+                            min 0.0
+                            max 25.0
+                        }
+                        br []
+                        br []
+                        span [style "padding: 2px"] [text "min Y: "]
+                        simplenumeric {
+                            attributes [style "width: 25%; padding: 2px"]
+                            value m.minY
+                            update SetMinY
+                            step 1.0
+                            largeStep 5.0
+                            min -25.0
+                            max 0.0
+                        }
+                        span [style "padding: 2px"] [text "max Y: "]
+                        simplenumeric {
+                            attributes [style "width: 25%; padding: 2px"]
+                            value m.maxY
+                            update SetMaxY
+                            step 1.0
+                            largeStep 5.0
+                            min 0.0
+                            max 30.0
+                        }
+                        br []
+                        br []
+                        span [style "padding: 2px"] [text "min Z: "]
+                        simplenumeric {
+                            attributes [style "width: 25%; padding: 2px"]
+                            value m.minZ
+                            update SetMinZ
+                            step 1.0
+                            largeStep 5.0
+                            min -25.0
+                            max 0.0
+                        }
+                        span [style "padding: 2px"] [text "max Z: "]
+                        simplenumeric {
+                            attributes [style "width: 25%; padding: 2px"]
+                            value m.maxZ
+                            update SetMaxZ
+                            step 1.0
+                            largeStep 5.0
+                            min 0.0
+                            max 25.0
+                        }
+                    ]
+                    
+                    div [ clazz "item"; style "width: 90%" ] [
+                        span [style "padding: 2px"] [text "X: "]
+                        slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"] m.slideX SetSlideX
+                        span [style "padding: 2px"] [text "Y: "]
+                        slider { min = -16.0; max = 30.0; step = 0.5 } [clazz "ui inverted slider"] m.slideY SetSlideY
+                        span [style "padding: 2px"] [text "Z: "]
+                        slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"] m.slideZ SetSlideZ
+
+                    ]
+                ]
             ]
+
 
         ]
 
     let threads (state : Model) =
          let pool = ThreadPool.empty
     
-   
          let rec time() =
              proclist {
                  do! Proc.Sleep 10
@@ -354,7 +485,6 @@ module App =
              }
 
          ThreadPool.add "timer" (time()) pool
-
 
     let app (runtime : IRuntime) =
         {

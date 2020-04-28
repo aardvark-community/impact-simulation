@@ -24,6 +24,24 @@ type RenderValue =
     | AlphaJutzi = 3
     | Pressure = 4
 
+
+type Axis = 
+    {
+    minX : aval<float>;
+    maxX : aval<float>;
+    minY : aval<float>;
+    maxY : aval<float>;
+    minZ : aval<float>;
+    maxZ : aval<float>;
+    }
+
+type Slider = 
+    {
+    slideX : aval<float>
+    slideY : aval<float>
+    slideZ : aval<float>
+    }
+
 [<ModelType>]
 type Model =
     {
@@ -37,4 +55,13 @@ type Model =
         renderValue : RenderValue
         colorMaps : HashMap<string, string>
         currentMap : string
+        minX : float
+        maxX : float
+        minY : float
+        maxY : float
+        minZ : float
+        maxZ : float 
+        slideX : float
+        slideY : float
+        slideZ : float
     }
