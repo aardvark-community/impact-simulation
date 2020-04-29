@@ -2,8 +2,8 @@ namespace AardVolume.Model
 
 open System
 open Aardvark.Base
+open Aardvark.UI
 open Aardvark.UI.Primitives
-
 open FSharp.Data.Adaptive
 open Adaptify
 
@@ -64,4 +64,8 @@ type Model =
         slideX : float
         slideY : float
         slideZ : float
+
+        count : NumericInput
+        data : list<float>
+
     }

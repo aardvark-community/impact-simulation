@@ -10,6 +10,7 @@ open Aardvark.Base
 open System
 
 
+type EmbeddedRessource = EmbeddedRessource // THIS IS NECESSARY
 
 
 [<EntryPoint>]
@@ -28,8 +29,13 @@ let main args =
 
     app.ShaderCachePath <- None
 
+
+    let resourcesFolder = @"..\..\..\src\Sketch\resources"
+
     WebPart.startServer 4321 [
+      //  Suave.Files.browse resourcesFolder
         MutableApp.toWebPart' app.Runtime false (App.start media)
+        Suave.Files.browse resourcesFolder
     ] |> ignore
     
     Aardium.run {

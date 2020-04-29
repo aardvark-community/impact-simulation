@@ -154,6 +154,9 @@ type Message =
     | SetSlideX of float
     | SetSlideY of float
     | SetSlideZ of float
+    | Generate 
+    | ChangeCount of Numeric.Action
+    
 
 module App =
 
@@ -189,9 +192,14 @@ module App =
         slideX = 16.0
         slideY = 30.0
         slideZ = 16.0
+        data = []
+        count =  { min = 100.0; max = 5000.0; value = 1000.0; step = 100.0; format = "{0:0}" }
     }
 
     let sw = System.Diagnostics.Stopwatch.StartNew()
+
+    let rnd = RandomSystem()
+    let normal = RandomGaussian(rnd)
 
     let update (m : Model) (msg : Message) =
         match msg with
@@ -225,7 +233,12 @@ module App =
             | SetSlideX x -> {m with slideX = x}
             | SetSlideY y -> {m with slideY = y}
             | SetSlideZ z -> {m with slideZ = z}
-
+            | Generate -> 
+                { m with 
+                    data = 
+                        Array.init (m.count.value |> round |> int) (fun _ -> normal.GetDouble(20.0,5.0)) |> Array.toList 
+                }
+            | ChangeCount n -> { m with count = Numeric.update m.count n }
 
 
 
@@ -371,6 +384,17 @@ module App =
 
         let colorMaps = AMap.map (fun k v -> text v) m.colorMaps
 
+        let dependencies = 
+            [
+                { kind = Script; name = "d3"; url = "http://d3js.org/d3.v3.min.js" }
+                { kind = Stylesheet; name = "histogramStyle"; url = "resources\Histogram.css" }
+                { kind = Script; name = "histogramScript"; url = "resources\Histogram.js" }
+            ]
+
+        let dataChannel = m.data.Channel
+        let updateChart =
+            "data.onmessage = function (values) { if(values.length > 0) refresh(values); };"
+
         body [] [
             FreeFlyController.controlledControl m.cameraState CameraMessage frustum (AttributeMap.ofList att) sg
 
@@ -469,6 +493,18 @@ module App =
 
                     ]
                 ]
+            ]
+
+            div [clazz "histogram"; style "position: fixed; bottom: 20px; right: 20px; border: 3px solid #ffffff"] [
+                require dependencies (
+                    onBoot' ["data", dataChannel] updateChart (
+                        div [] [
+                            Numeric.view m.count |> UI.map ChangeCount
+                            text "  "
+                            button [onClick (fun _ -> Generate)] [text "Generate"]
+                        ]
+                    )
+                )                        
             ]
 
 

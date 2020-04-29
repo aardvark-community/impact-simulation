@@ -14,6 +14,12 @@
     <RunWorkingDirectory>$(OutputPath)\netcoreapp2.1</RunWorkingDirectory>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="resources\Histogram.css">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="resources\Histogram.js">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
     <Compile Include="HackyParser.fs" />
     <Compile Include="HackyPoints.fs" />
     <Compile Include="SimpleVolumeRender.fs" />
