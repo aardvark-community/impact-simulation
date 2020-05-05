@@ -29,13 +29,10 @@ let main args =
 
     app.ShaderCachePath <- None
 
-
-    let resourcesFolder = @"..\..\..\src\Sketch\resources"
-
     WebPart.startServer 4321 [
       //  Suave.Files.browse resourcesFolder
         MutableApp.toWebPart' app.Runtime false (App.start media)
-        Suave.Files.browse resourcesFolder
+        Reflection.assemblyWebPart typeof<EmbeddedRessource>.Assembly
     ] |> ignore
     
     Aardium.run {

@@ -203,6 +203,9 @@ blend.DestinationFactor <- BlendFactor.One
 let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (renderValue : aval<RenderValue>) (tfPath : aval<string>) (axis : Axis) (slider : Slider) (frames : Frame[], bb : Box3f, vertexCount : int)  = 
     let dci = DrawCallInfo(vertexCount, InstanceCount = 1)
 
+
+    //let frame = frame |\ Aval.map (fun i -> frames[i % frames.Length])
+
     let currentBuffers = 
         frame |> AVal.map (fun i -> 
             let frame = frames.[i % frames.Length]

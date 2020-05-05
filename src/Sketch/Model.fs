@@ -42,6 +42,12 @@ type Slider =
     slideZ : aval<float>
     }
 
+type EnergyPoints = 
+    {
+    energyPoints1 : list<float>
+    energyPoints2 : list<float>
+    }
+
 [<ModelType>]
 type Model =
     {
@@ -67,5 +73,6 @@ type Model =
 
         count : NumericInput
         data : list<float>
+
 
     }

@@ -6,14 +6,15 @@ open System.Collections.Generic
 
 open Aardvark.Base
 
-type Data = 
-    { vertices : V3f[];
-    velocities : V3f[];
-    internalEnergies : float[];
-    cubicRootsOfDamage : float[]; // Achtung: hoch drei nehmen!!
-    localStrains : float[];
-    alphaJutzis : float[]; 
-    pressures: float[] }
+type Data = { 
+        vertices           : V3f[]
+        velocities         : V3f[]
+        internalEnergies   : float[];
+        cubicRootsOfDamage : float[]; // Achtung: hoch drei nehmen!!
+        localStrains       : float[];
+        alphaJutzis        : float[]; 
+        pressures          : float[] 
+    }
 
 let parseStream (s : Stream) = 
     let t = new StreamReader(s)

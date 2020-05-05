@@ -132,7 +132,8 @@ module DSLExp =
 
         } 
 
-
+//type Dim = X | Y | Z
+//type M = | Set of Dim * float
 
 type Message =
     | ToggleModel
@@ -192,14 +193,23 @@ module App =
         slideX = 16.0
         slideY = 30.0
         slideZ = 16.0
-        data = []
+        data = [-1.25; -10.5; -1.0; -0.25; 0.0; 0.65; 1.2; 2.3; 1.7; 2.9; 25.7; 4.4; 5.31; 4.1]
+        // 5.0; 1.2; 3.4; 2.1; 3.6; 5.6; 4.4; 0.5; 0.2; 1.9; 5.2; 2.7; 50.0
         count =  { min = 100.0; max = 5000.0; value = 1000.0; step = 100.0; format = "{0:0}" }
+
     }
 
     let sw = System.Diagnostics.Stopwatch.StartNew()
 
     let rnd = RandomSystem()
     let normal = RandomGaussian(rnd)
+
+    let mutable energyPts = {
+        energyPoints1 = List.empty<float>
+        energyPoints2 = List.empty<float>
+    }
+    
+    let mutable pts1 = true
 
     let update (m : Model) (msg : Message) =
         match msg with
@@ -211,8 +221,10 @@ module App =
             | VolumeVis -> { m with vis = Vis.VolumeVis;  }
             | ChangeAnimation -> { m with playAnimation = not m.playAnimation}
             | StepTime -> 
+                let frameId =  sw.Elapsed.TotalSeconds / 0.5 |> int
+                // update filtered data using frameId and filter
                 if m.playAnimation then sw.Start() else sw.Stop()
-                { m with frame = sw.Elapsed.TotalSeconds / 0.5 |> int }
+                { m with frame = frameId }
             | ToggleModel -> 
                 match m.currentModel with
                     | Box -> { m with currentModel = Sphere }
@@ -234,9 +246,10 @@ module App =
             | SetSlideY y -> {m with slideY = y}
             | SetSlideZ z -> {m with slideZ = z}
             | Generate -> 
+                let points = if pts1 then energyPts.energyPoints1 else energyPts.energyPoints2
+                pts1 <- not pts1
                 { m with 
-                    data = 
-                        Array.init (m.count.value |> round |> int) (fun _ -> normal.GetDouble(20.0,5.0)) |> Array.toList 
+                    data = points;
                 }
             | ChangeCount n -> { m with count = Numeric.update m.count n }
 
@@ -272,6 +285,8 @@ module App =
 
         let cachedFileEnding = "_cache_2"
 
+        let mutable energyPoints = Array.empty<float>;
+
         let convertToCacheFile (fileName : string) =
             let cacheName = fileName + cachedFileEnding
             if not (File.Exists cacheName) then
@@ -282,8 +297,11 @@ module App =
         let loadDataAndCache (fileName : string) =
             if fileName.EndsWith(cachedFileEnding) then
                 let bytes = File.readAllBytes fileName
-                let (d, b : Box3f) = serializer.UnPickle(bytes) // exception hier wenn nicht richtiger inhalt... 
-                
+                let (d : Parser.Data, b : Box3f) = serializer.UnPickle(bytes) // exception hier wenn nicht richtiger inhalt... 
+
+                if fileName.EndsWith("impact.0110_cache_2") then
+                    energyPoints <- d.internalEnergies
+
                 let buffer = prepareData(d)
                 let vertexCount = d.vertices.Length
 
@@ -333,6 +351,11 @@ module App =
             framesToAnimate 0 7
             |> Hera.createAnimatedSg m.frame m.pointSize m.renderValue m.currentMap axis slide
             |> Sg.noEvents
+
+        energyPts <- {
+            energyPoints1 = energyPoints.[1..100] |> Array.toList
+            energyPoints2 = energyPoints.[200..300] |> Array.toList
+        }
 
         //let heraSg = 
         //    Hera.loadOldCacheFiles runtime heraData 10
@@ -386,128 +409,131 @@ module App =
 
         let dependencies = 
             [
-                { kind = Script; name = "d3"; url = "http://d3js.org/d3.v3.min.js" }
-                { kind = Stylesheet; name = "histogramStyle"; url = "resources\Histogram.css" }
-                { kind = Script; name = "histogramScript"; url = "resources\Histogram.js" }
+                { kind = Script; name = "d3"; url = "http://d3js.org/d3.v4.min.js" }
+                { kind = Stylesheet; name = "histogramStyle"; url = "Histogram.css" }
+                { kind = Script; name = "histogramScript"; url = "Histogram.js" }
             ]
+
+         
 
         let dataChannel = m.data.Channel
         let updateChart =
-            "data.onmessage = function (values) { if(values.length > 0) refresh(values); };"
+            "initHisto(__ID__); data.onmessage = function (values) { refresh(values); };"  // subscribe to m.data
 
         body [] [
             FreeFlyController.controlledControl m.cameraState CameraMessage frustum (AttributeMap.ofList att) sg
+            require dependencies ( // here. we executit Histogram.js.... all values, functions defined in Histogram.js are further down accessible...
 
-            div [style "position: fixed; left: 20px; top: 20px; width: 218px"] [
-                button [onClick (fun _ -> VolumeVis)] [text "volume vis"]
-                button [onClick (fun _ -> HeraSimVis)] [text "hera sim vis"]
-                br []
-                br []
-                Incremental.div AttributeMap.empty dynamicNameChange
-                br []
-                numeric { min = 1.0; max = 30.0; smallStep = 1.0; largeStep = 5.0 } AttributeMap.empty m.pointSize SetPointSize
-                Incremental.div AttributeMap.empty dynamicUI
-                br []
-                dropdown { placeholder = "ColorMaps"; allowEmpty = false} [ clazz "ui selection" ] colorMaps (m.currentMap |> AVal.map Some) SetTransferFunc
-                br []
-                br []
-                dropdown1 [ clazz "ui selection" ] renderValues m.renderValue SetRenderValue
-                br []
-                br []
-                div [ style "color: white" ] [
+                div[] [
+                    div [style "position: fixed; left: 20px; top: 20px; width: 218px"] [
+                    button [onClick (fun _ -> VolumeVis)] [text "volume vis"]
+                    button [onClick (fun _ -> HeraSimVis)] [text "hera sim vis"]
+                    br []
+                    br []
+                    Incremental.div AttributeMap.empty dynamicNameChange
+                    br []
+                    numeric { min = 1.0; max = 30.0; smallStep = 1.0; largeStep = 5.0 } AttributeMap.empty m.pointSize SetPointSize
+                    Incremental.div AttributeMap.empty dynamicUI
+                    br []
+                    dropdown { placeholder = "ColorMaps"; allowEmpty = false} [ clazz "ui selection" ] colorMaps (m.currentMap |> AVal.map Some) SetTransferFunc
+                    br []
+                    br []
+                    dropdown1 [ clazz "ui selection" ] renderValues m.renderValue SetRenderValue
+                    br []
+                    br []
+                    div [ style "color: white" ] [
 
-                    div [ clazz "item" ] [
-                        span [style "padding: 2px"] [text "min X: "]
-                        simplenumeric {
-                            attributes [style "width: 25%; padding: 2px"]
-                            value m.minX
-                            update SetMinX
-                            step 1.0
-                            largeStep 5.0
-                            min -25.0
-                            max 0.0
-                        }
-                        span [style "padding: 2px"] [text "max X: "]
-                        simplenumeric {
-                            attributes [style "width: 25%; padding: 2px"]
-                            value m.maxX
-                            update SetMaxX
-                            step 1.0
-                            largeStep 5.0
-                            min 0.0
-                            max 25.0
-                        }
-                        br []
-                        br []
-                        span [style "padding: 2px"] [text "min Y: "]
-                        simplenumeric {
-                            attributes [style "width: 25%; padding: 2px"]
-                            value m.minY
-                            update SetMinY
-                            step 1.0
-                            largeStep 5.0
-                            min -25.0
-                            max 0.0
-                        }
-                        span [style "padding: 2px"] [text "max Y: "]
-                        simplenumeric {
-                            attributes [style "width: 25%; padding: 2px"]
-                            value m.maxY
-                            update SetMaxY
-                            step 1.0
-                            largeStep 5.0
-                            min 0.0
-                            max 30.0
-                        }
-                        br []
-                        br []
-                        span [style "padding: 2px"] [text "min Z: "]
-                        simplenumeric {
-                            attributes [style "width: 25%; padding: 2px"]
-                            value m.minZ
-                            update SetMinZ
-                            step 1.0
-                            largeStep 5.0
-                            min -25.0
-                            max 0.0
-                        }
-                        span [style "padding: 2px"] [text "max Z: "]
-                        simplenumeric {
-                            attributes [style "width: 25%; padding: 2px"]
-                            value m.maxZ
-                            update SetMaxZ
-                            step 1.0
-                            largeStep 5.0
-                            min 0.0
-                            max 25.0
-                        }
+                        div [ clazz "item" ] [
+                            span [style "padding: 2px"] [text "min X: "]
+                            simplenumeric {
+                                attributes [style "width: 25%; padding: 2px"]
+                                value m.minX
+                                update SetMinX
+                                step 1.0
+                                largeStep 5.0
+                                min -25.0
+                                max 0.0
+                            }
+                            span [style "padding: 2px"] [text "max X: "]
+                            simplenumeric {
+                                attributes [style "width: 25%; padding: 2px"]
+                                value m.maxX
+                                update SetMaxX
+                                step 1.0
+                                largeStep 5.0
+                                min 0.0
+                                max 25.0
+                            }
+                            br []
+                            br []
+                            span [style "padding: 2px"] [text "min Y: "]
+                            simplenumeric {
+                                attributes [style "width: 25%; padding: 2px"]
+                                value m.minY
+                                update SetMinY
+                                step 1.0
+                                largeStep 5.0
+                                min -25.0
+                                max 0.0
+                            }
+                            span [style "padding: 2px"] [text "max Y: "]
+                            simplenumeric {
+                                attributes [style "width: 25%; padding: 2px"]
+                                value m.maxY
+                                update SetMaxY
+                                step 1.0
+                                largeStep 5.0
+                                min 0.0
+                                max 30.0
+                            }
+                            br []
+                            br []
+                            span [style "padding: 2px"] [text "min Z: "]
+                            simplenumeric {
+                                attributes [style "width: 25%; padding: 2px"]
+                                value m.minZ
+                                update SetMinZ
+                                step 1.0
+                                largeStep 5.0
+                                min -25.0
+                                max 0.0
+                            }
+                            span [style "padding: 2px"] [text "max Z: "]
+                            simplenumeric {
+                                attributes [style "width: 25%; padding: 2px"]
+                                value m.maxZ
+                                update SetMaxZ
+                                step 1.0
+                                largeStep 5.0
+                                min 0.0
+                                max 25.0
+                            }
+                        ]
+                        
+                        div [ clazz "item"; style "width: 90%" ] [
+                            span [style "padding: 2px"] [text "X: "]
+                            slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"] m.slideX SetSlideX
+                            span [style "padding: 2px"] [text "Y: "]
+                            slider { min = -16.0; max = 30.0; step = 0.5 } [clazz "ui inverted slider"] m.slideY SetSlideY
+                            span [style "padding: 2px"] [text "Z: "]
+                            slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"] m.slideZ SetSlideZ
+
+                        ]
                     ]
-                    
-                    div [ clazz "item"; style "width: 90%" ] [
-                        span [style "padding: 2px"] [text "X: "]
-                        slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"] m.slideX SetSlideX
-                        span [style "padding: 2px"] [text "Y: "]
-                        slider { min = -16.0; max = 30.0; step = 0.5 } [clazz "ui inverted slider"] m.slideY SetSlideY
-                        span [style "padding: 2px"] [text "Z: "]
-                        slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"] m.slideZ SetSlideZ
-
                     ]
-                ]
-            ]
-
-            div [clazz "histogram"; style "position: fixed; bottom: 20px; right: 20px; border: 3px solid #ffffff"] [
-                require dependencies (
-                    onBoot' ["data", dataChannel] updateChart (
-                        div [] [
-                            Numeric.view m.count |> UI.map ChangeCount
-                            text "  "
-                            button [onClick (fun _ -> Generate)] [text "Generate"]
+                
+                    onBoot' ["data", dataChannel] updateChart ( // when div [histogram etc] is constructed updateChart is called.
+                        div [clazz "histogram"; style "position: fixed; bottom: 20px; right: 20px; width:300px; height: 200px; background-color: #ffffff; border: 3px solid #ffffff; z-index: 1000"] [                       
+                            div [] [
+                                Numeric.view m.count |> UI.map ChangeCount
+                                text "  "
+                                button [onClick (fun _ -> Generate)] [text "Generate"]
+                            ]
                         ]
                     )
-                )                        
-            ]
-
-
+                ]
+                
+            )  
         ]
 
     let threads (state : Model) =
@@ -523,8 +549,9 @@ module App =
          ThreadPool.add "timer" (time()) pool
 
     let app (runtime : IRuntime) =
+        // load data....
         {
-            initial = initial
+            initial = initial // store data Hera frame as array to model....
             update = update
             view = view runtime
             threads = threads
