@@ -21,8 +21,6 @@
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
     <Compile Include="HackyParser.fs" />
-    <Compile Include="HackyPoints.fs" />
-    <Compile Include="SimpleVolumeRender.fs" />
     <Compile Include="Model.fs" />
     <Compile Include="Hera.fs" />
     <Compile Include="App.fs" />

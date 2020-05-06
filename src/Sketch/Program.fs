@@ -1,24 +1,15 @@
 open AardVolume
 
 open Aardium
-open Aardvark.Service
 open Aardvark.UI
 open Suave
-open Suave.WebPart
-open Aardvark.Rendering.Vulkan
 open Aardvark.Base
 open System
 
-
 type EmbeddedRessource = EmbeddedRessource // THIS IS NECESSARY
-
 
 [<EntryPoint>]
 let main args =
-
-    // plain rendering applications
-    //DSLAwesomness.Points.run () |> ignore
-    //SimpleVolumeRenderer.main args |> ignore
 
     Aardvark.Init()
     Aardium.init()
@@ -30,7 +21,6 @@ let main args =
     app.ShaderCachePath <- None
 
     WebPart.startServer 4321 [
-      //  Suave.Files.browse resourcesFolder
         MutableApp.toWebPart' app.Runtime false (App.start media)
         Reflection.assemblyWebPart typeof<EmbeddedRessource>.Assembly
     ] |> ignore

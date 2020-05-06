@@ -8,23 +8,8 @@ open FSharp.Data.Adaptive
 open Aardvark.SceneGraph
 open AardVolume.Model
 
-
-module Array = 
-    open System.Collections.Generic
-
-    let choosei (f : int -> 'a -> Option<'b>) (xs : array<'a>) : array<'b> =
-        let r = List<'b>(xs.Length)
-        xs |> Array.iteri (fun i e -> 
-            match f i e with
-            | Some v -> r.Add v 
-            | None -> ()
-        )
-        r.ToArray()
-
-
 module Shaders = 
 
-    open Aardvark.Base.Rendering.Effects
     open FShade
 
     type Vertex = 
@@ -71,25 +56,25 @@ module Shaders =
             addressV WrapMode.Clamp
         }
 
-
     let vs (v : Vertex) =
         vertex {
+            let color = 
+                let renderValue = uniform?RenderValue
+                let value renderValue = 
+                    match renderValue with
+                    | RenderValue.Energy -> v.energy
+                    | RenderValue.CubicRoot -> v.cubicRoot
+                    | RenderValue.Strain -> v.localStrain * 10000.0
+                    | RenderValue.AlphaJutzi -> v.alphaJutzi
+                    | RenderValue.Pressure -> v.pressure
+                    | _ -> v.energy
+                let linearCoord = value renderValue          
+                let transferFunc = transfer.SampleLevel(V2d(linearCoord, 0.0), 0.0)
+                transferFunc
             return 
                 { v with
                     pointSize = uniform?PointSize
-                    pointColor =
-                        let renderValue = uniform?RenderValue
-                        let value renderValue = 
-                            match renderValue with
-                            | RenderValue.Energy -> v.energy
-                            | RenderValue.CubicRoot -> v.cubicRoot
-                            | RenderValue.Strain -> v.localStrain * 10000.0
-                            | RenderValue.AlphaJutzi -> v.alphaJutzi
-                            | RenderValue.Pressure -> v.pressure
-                            | _ -> v.energy
-                        let linearCoord = value renderValue          
-                        let transferFunc = transfer.SampleLevel(V2d(linearCoord, 0.0), 0.0)
-                        transferFunc
+                    pointColor = color
                 }
         }            
       
@@ -104,17 +89,15 @@ module Shaders =
             let minZ = uniform?MinZ
             let maxZ = uniform?MaxZ
 
-            let sliderX = uniform?SliderX
-            let sliderY = uniform?SliderY
-            let sliderZ = uniform?SliderZ
+            let planeX = uniform?ClippingPlaneX
+            let planeY = uniform?ClippingPlaneY
+            let planeZ = uniform?ClippingPlaneZ
 
             if (wp.X >= minX && wp.X <= maxX && wp.Y >= minY && wp.Y <= maxY && wp.Z >= minZ && wp.Z <= maxZ) &&
-                (wp.X <= sliderX && wp.Y <= sliderY && wp.Z <= sliderZ) then
+                (wp.X <= planeX && wp.Y <= planeY && wp.Z <= planeZ) then
                 yield p.Value
         }
         
-
-
     let fs (v : Vertex) = 
         fragment {
             let c = v.pointCoord * 2.0 - V2d.II
@@ -128,97 +111,31 @@ module Shaders =
             let color = V4d(V3d(v.pointColor), 0.9)
             return color
         }
-
-
-let private serializer = MBrace.FsPickler.FsPickler.CreateBinarySerializer()
  
-
 type Frame = 
     {
-        positions : V3f[]
-        vertices : IBuffer
-        velocities : IBuffer
-        energies : IBuffer
-        cubicRoots : IBuffer
-        strains : IBuffer
+        positions   : V3f[]
+        vertices    : IBuffer
+        velocities  : IBuffer
+        energies    : IBuffer
+        cubicRoots  : IBuffer
+        strains     : IBuffer
         alphaJutzis : IBuffer
-        pressures : IBuffer
+        pressures   : IBuffer
     }
 
-    //not used atm !!!
-let loadOldCacheFiles (runtime : IRuntime) (dir : string) (frames : int) = 
-    Log.startTimed "loading hera data"
-    let files = Directory.EnumerateFiles dir |> Seq.atMost frames  |> Seq.toArray 
-    let mutable bb = Box3f.Invalid
-    let mutable vertexCount = 0
-    let buffers = 
-        files 
-        |> Array.choosei (fun i f -> 
-                if f.EndsWith("_vs") then   
-                    None
-                else
-                    Report.Progress(float i / float files.Length)
-                    let d = File.readAllBytes f
-                    let vertices : array<V3f> = serializer.UnPickle d
-                    if i = 0 then 
-                        bb <- Box3f(vertices |> Seq.map V3f)
-                        vertexCount <- vertices.Length
-
-
-                    let vs = sprintf "%s_vs" f
-                    let d = File.readAllBytes vs
-                    let velocities : array<V3f> = serializer.UnPickle d
-
-                    Some 
-                        {
-                            vertices = runtime.PrepareBuffer (ArrayBuffer vertices)   :> IBuffer
-                            velocities = runtime.PrepareBuffer (ArrayBuffer velocities) :> IBuffer
-                            energies = runtime.PrepareBuffer (ArrayBuffer velocities) :> IBuffer;
-                            cubicRoots = runtime.PrepareBuffer (ArrayBuffer velocities) :> IBuffer;
-                            strains = runtime.PrepareBuffer (ArrayBuffer velocities) :> IBuffer;
-                            alphaJutzis = runtime.PrepareBuffer (ArrayBuffer velocities) :> IBuffer;
-                            pressures = runtime.PrepareBuffer (ArrayBuffer velocities) :> IBuffer;
-                            positions = vertices
-                        }
-        )
-
-    Log.stop()
-    buffers, bb, vertexCount
-
-//let texture = 
-//    let path = @"..\..\..\data\transfer\map-26.png"
-//    FileTexture(path, TextureParams.empty) :> ITexture
-
-
-let mutable blend = 
-    BlendMode(true)
-
-blend.AlphaOperation <- BlendOperation.Add
-blend.Operation <- BlendOperation.Add
-blend.SourceAlphaFactor <- BlendFactor.One
-blend.DestinationAlphaFactor <- BlendFactor.One
-blend.SourceFactor <- BlendFactor.One
-blend.DestinationFactor <- BlendFactor.One
-
-let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (renderValue : aval<RenderValue>) (tfPath : aval<string>) (axis : Axis) (slider : Slider) (frames : Frame[], bb : Box3f, vertexCount : int)  = 
+let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (renderValue : aval<RenderValue>) (tfPath : aval<string>) (domainRange : DomainRange) (clippingPlane : ClippingPlane) (frames : Frame[], bb : Box3f, vertexCount : int)  = 
     let dci = DrawCallInfo(vertexCount, InstanceCount = 1)
 
+    let currentBuffers = frame |> AVal.map (fun i -> frames.[i % frames.Length]) 
 
-    //let frame = frame |\ Aval.map (fun i -> frames[i % frames.Length])
-
-    let currentBuffers = 
-        frame |> AVal.map (fun i -> 
-            let frame = frames.[i % frames.Length]
-            frame.vertices, frame.velocities, frame.energies, frame.cubicRoots, frame.strains, frame.alphaJutzis, frame.pressures
-        )
-
-    let vertices = currentBuffers |> AVal.map (fun (a, _, _, _, _, _, _) -> a)
-    let velocities = currentBuffers |> AVal.map (fun (_, b, _, _, _, _, _) -> b)
-    let energies = currentBuffers |> AVal.map (fun (_, _, c, _, _, _, _) -> c)
-    let cubicRoots = currentBuffers |> AVal.map (fun (_, _, _, d, _, _, _) -> d)
-    let strains = currentBuffers |> AVal.map (fun (_, _, _, _, e, _, _) -> e)
-    let alphaJutzis = currentBuffers |> AVal.map (fun (_, _, _, _, _, f, _) -> f)
-    let pressures = currentBuffers |> AVal.map (fun (_, _, _, _, _, _, g) -> g)
+    let vertices    = currentBuffers |> AVal.map (fun f -> f.vertices)
+    let velocities  = currentBuffers |> AVal.map (fun f -> f.velocities)
+    let energies    = currentBuffers |> AVal.map (fun f -> f.energies)
+    let cubicRoots  = currentBuffers |> AVal.map (fun f -> f.cubicRoots)
+    let strains     = currentBuffers |> AVal.map (fun f -> f.strains)
+    let alphaJutzis = currentBuffers |> AVal.map (fun f -> f.alphaJutzis)
+    let pressures   = currentBuffers |> AVal.map (fun f -> f.pressures)
 
     let texture = tfPath |> AVal.map (fun p -> FileTexture(p, TextureParams.empty) :> ITexture )
 
@@ -240,15 +157,15 @@ let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (renderValue 
     |> Sg.uniform "PointSize" pointSize
     |> Sg.uniform "TransferFunction" texture
     |> Sg.uniform "RenderValue" renderValue
-    |> Sg.uniform "MinX" axis.minX
-    |> Sg.uniform "MaxX" axis.maxX
-    |> Sg.uniform "MinY" axis.minY
-    |> Sg.uniform "MaxY" axis.maxY
-    |> Sg.uniform "MinZ" axis.minZ
-    |> Sg.uniform "MaxZ" axis.maxZ
-    |> Sg.uniform "SliderX" slider.slideX
-    |> Sg.uniform "SliderY" slider.slideY
-    |> Sg.uniform "SliderZ" slider.slideZ
+    |> Sg.uniform "MinX" domainRange.minX
+    |> Sg.uniform "MaxX" domainRange.maxX
+    |> Sg.uniform "MinY" domainRange.minY
+    |> Sg.uniform "MaxY" domainRange.maxY
+    |> Sg.uniform "MinZ" domainRange.minZ
+    |> Sg.uniform "MaxZ" domainRange.maxZ
+    |> Sg.uniform "ClippingPlaneX" clippingPlane.clippingPlaneX
+    |> Sg.uniform "ClippingPlaneY" clippingPlane.clippingPlaneY
+    |> Sg.uniform "ClippingPlaneZ" clippingPlane.clippingPlaneZ
  
 
 

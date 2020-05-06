@@ -1,21 +1,9 @@
 namespace AardVolume.Model
 
-open System
-open Aardvark.Base
 open Aardvark.UI
 open Aardvark.UI.Primitives
 open FSharp.Data.Adaptive
 open Adaptify
-
-type Primitive =
-    | Box
-    | Sphere
-
-
-type Vis = 
-    | HeraSimVis
-    | VolumeVis
-
 
 type RenderValue = 
     | Energy = 0
@@ -24,8 +12,7 @@ type RenderValue =
     | AlphaJutzi = 3
     | Pressure = 4
 
-
-type Axis = 
+type DomainRange = 
     {
     minX : aval<float>;
     maxX : aval<float>;
@@ -35,11 +22,11 @@ type Axis =
     maxZ : aval<float>;
     }
 
-type Slider = 
+type ClippingPlane = 
     {
-    slideX : aval<float>
-    slideY : aval<float>
-    slideZ : aval<float>
+    clippingPlaneX : aval<float>
+    clippingPlaneY : aval<float>
+    clippingPlaneZ : aval<float>
     }
 
 type EnergyPoints = 
@@ -48,13 +35,12 @@ type EnergyPoints =
     energyPoints2 : list<float>
     }
 
+
 [<ModelType>]
 type Model =
     {
-        currentModel    : Primitive
-        cameraState     : CameraControllerState
+        cameraState : CameraControllerState
         frame : int
-        vis : Vis
 
         pointSize : float
         playAnimation : bool
@@ -67,12 +53,13 @@ type Model =
         maxY : float
         minZ : float
         maxZ : float 
-        slideX : float
-        slideY : float
-        slideZ : float
+        clippingPlaneX : float
+        clippingPlaneY : float
+        clippingPlaneZ : float
 
         count : NumericInput
         data : list<float>
 
-
+        //filter : option<Box3d>
+        //filtered : list<float> 
     }
