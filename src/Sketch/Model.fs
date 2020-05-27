@@ -4,6 +4,32 @@ open Aardvark.UI
 open Aardvark.UI.Primitives
 open FSharp.Data.Adaptive
 open Adaptify
+open Aardvark.Base
+open System.IO
+
+open FSharp.Data.Adaptive
+
+type Values = 
+    {
+    energies    : float[]
+    cubicRoots  : float[]
+    strains     : float[]
+    alphaJutzis : float[]
+    pressures   : float[]
+    }
+
+type Frame = 
+    {
+        positions   : V3f[]
+        vertices    : IBuffer
+        velocities  : IBuffer
+        energies    : IBuffer
+        cubicRoots  : IBuffer
+        strains     : IBuffer
+        alphaJutzis : IBuffer
+        pressures   : IBuffer
+        values      : Values
+    }
 
 type RenderValue = 
     | Energy = 0
@@ -12,29 +38,29 @@ type RenderValue =
     | AlphaJutzi = 3
     | Pressure = 4
 
+type Dim = X | Y | Z
+
+type Value = Min | Max
+
+type Range = 
+    {
+    min : float
+    max : float
+    }
+
 type DomainRange = 
     {
-    minX : aval<float>;
-    maxX : aval<float>;
-    minY : aval<float>;
-    maxY : aval<float>;
-    minZ : aval<float>;
-    maxZ : aval<float>;
+    x : Range
+    y : Range
+    z : Range
     }
 
 type ClippingPlane = 
     {
-    clippingPlaneX : aval<float>
-    clippingPlaneY : aval<float>
-    clippingPlaneZ : aval<float>
+    x : float
+    y : float
+    z : float
     }
-
-type EnergyPoints = 
-    {
-    energyPoints1 : list<float>
-    energyPoints2 : list<float>
-    }
-
 
 [<ModelType>]
 type Model =
@@ -47,19 +73,94 @@ type Model =
         renderValue : RenderValue
         colorMaps : HashMap<string, string>
         currentMap : string
-        minX : float
-        maxX : float
-        minY : float
-        maxY : float
-        minZ : float
-        maxZ : float 
-        clippingPlaneX : float
-        clippingPlaneY : float
-        clippingPlaneZ : float
+        domainRange : DomainRange
+        clippingPlane : ClippingPlane
+        dataRange : Range
+        initDataRange : Range
 
-        count : NumericInput
         data : list<float>
+        values : float[]
 
-        //filter : option<Box3d>
-        //filtered : list<float> 
+        filter : option<Box3f>
+        filtered : list<float> 
     }
+
+module DataLoader = 
+
+    let loadData (runtime : IRuntime) startFrame frames = 
+
+        let heraData = @"..\..\..\data"
+    
+        let serializer = MBrace.FsPickler.FsPickler.CreateBinarySerializer()
+    
+        let prepareData (d : Parser.Data) : Frame = 
+            let frame = {
+                vertices    = runtime.PrepareBuffer (ArrayBuffer d.vertices) :> IBuffer
+                velocities  = runtime.PrepareBuffer (ArrayBuffer d.velocities) :> IBuffer
+                energies    = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.internalEnergies)) :> IBuffer
+                cubicRoots  = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.cubicRootsOfDamage)) :> IBuffer
+                strains     = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.localStrains)) :> IBuffer
+                alphaJutzis = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.alphaJutzis)) :> IBuffer
+                pressures   = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.pressures)) :> IBuffer
+                positions   = d.vertices 
+                values      = {
+                    energies    = d.internalEnergies
+                    cubicRoots  = d.cubicRootsOfDamage
+                    strains     = d.localStrains
+                    alphaJutzis = d.alphaJutzis
+                    pressures   = d.pressures
+                    }
+                }
+            frame
+    
+        let cachedFileEnding = "_cache_2"
+   
+        let convertToCacheFile (fileName : string) =
+            let cacheName = fileName + cachedFileEnding
+            if not (File.Exists cacheName) then
+                let d,b = Parser.parseFile fileName
+                let data = serializer.Pickle((d,b))
+                File.writeAllBytes cacheName data
+        
+        let loadDataAndCache (fileName : string) =
+            if fileName.EndsWith(cachedFileEnding) then
+                let bytes = File.readAllBytes fileName
+                let (d : Parser.Data, b : Box3f) = serializer.UnPickle(bytes) // exception hier wenn nicht richtiger inhalt... 
+
+                let buffer = prepareData(d)
+                let vertexCount = d.vertices.Length
+
+                Some(buffer, b, vertexCount)                 
+                
+            else
+                convertToCacheFile fileName
+                None           
+        
+        let allFiles = 
+            Directory.EnumerateFiles heraData |> Seq.toArray 
+            |> Array.map loadDataAndCache
+            |> Array.choose (fun elem -> elem)
+
+        //TODO: Check for all possible exceptions! -> no data, endFrame > startFrame 
+        let framesToAnimate startFrame frames =
+            let l = allFiles.Length
+            if l = 0 then
+                Log.warn "There is no data!"
+                Array.empty, Box3f.Invalid, 0
+            else
+                let mutable endFrame = 0
+                if frames > l then endFrame <- l - 1 else endFrame <- frames - 1 //check if out of bounds
+                let framesToAnimate = allFiles.[startFrame..endFrame]
+                let buffers = framesToAnimate |> Array.map (fun (elem, _, _) ->  elem)
+                let box = framesToAnimate.[0] |> (fun (_, b, _) -> b)
+                let vertexCount = framesToAnimate.[0] |> (fun (_, _, c) -> c)
+                buffers, box, vertexCount     
+
+        framesToAnimate startFrame frames
+
+
+
+
+                
+
+        

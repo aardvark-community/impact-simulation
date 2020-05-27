@@ -8,6 +8,16 @@ open FSharp.Data.Adaptive
 open Aardvark.SceneGraph
 open AardVolume.Model
 
+//[<ReflectedDefinition>]
+//let isInsideBox (filter : Box3f) (pos : V3f) =
+//    let min = filter.Min
+//    let max = filter.Max
+
+//    if (min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z) then
+//        true
+//    else
+//        false
+
 module Shaders = 
 
     open FShade
@@ -46,6 +56,7 @@ module Shaders =
 
             [<Semantic("Pressure")>]
             pressure : float
+
         }
 
     let transfer = 
@@ -60,17 +71,31 @@ module Shaders =
         vertex {
             let color = 
                 let renderValue = uniform?RenderValue
+                let filter : Box3f = uniform?Filter
+                let dataRange : Range = uniform?DataRange
                 let value renderValue = 
                     match renderValue with
                     | RenderValue.Energy -> v.energy
                     | RenderValue.CubicRoot -> v.cubicRoot
-                    | RenderValue.Strain -> v.localStrain * 10000.0
+                    | RenderValue.Strain -> v.localStrain
                     | RenderValue.AlphaJutzi -> v.alphaJutzi
                     | RenderValue.Pressure -> v.pressure
                     | _ -> v.energy
                 let linearCoord = value renderValue          
                 let transferFunc = transfer.SampleLevel(V2d(linearCoord, 0.0), 0.0)
-                transferFunc
+
+                let pos = V3f(v.wp)
+
+                let min = filter.Min
+                let max = filter.Max
+
+                let minRange = dataRange.min
+                let maxRange = dataRange.max
+
+                if (min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z && minRange <= linearCoord && linearCoord <= maxRange) then
+                    transferFunc
+                else
+                    V4d(0.5, 0.5, 0.5, 1.0)
             return 
                 { v with
                     pointSize = uniform?PointSize
@@ -81,20 +106,11 @@ module Shaders =
     let internal pointSprite (p : Point<Vertex>) = 
         point {
             let wp = p.Value.wp
+            let dm : DomainRange = uniform?DomainRange
+            let plane = uniform?ClippingPlane
 
-            let minX = uniform?MinX
-            let maxX = uniform?MaxX
-            let minY = uniform?MinY
-            let maxY = uniform?MaxY
-            let minZ = uniform?MinZ
-            let maxZ = uniform?MaxZ
-
-            let planeX = uniform?ClippingPlaneX
-            let planeY = uniform?ClippingPlaneY
-            let planeZ = uniform?ClippingPlaneZ
-
-            if (wp.X >= minX && wp.X <= maxX && wp.Y >= minY && wp.Y <= maxY && wp.Z >= minZ && wp.Z <= maxZ) &&
-                (wp.X <= planeX && wp.Y <= planeY && wp.Z <= planeZ) then
+            if (wp.X >= dm.x.min && wp.X <= dm.x.max && wp.Y >= dm.y.min && wp.Y <= dm.y.max && wp.Z >= dm.z.min && wp.Z <= dm.z.max) &&
+                (wp.X <= plane.x && wp.Y <= plane.y && wp.Z <= plane.z) then
                 yield p.Value
         }
         
@@ -108,24 +124,16 @@ module Shaders =
 
             //return V4d((v.velocity * 0.5 + V3d.Half).XYZ,1.0) // color according to velocity
             //return V4d(V3d(v.cubicRoots), 1.0) // color according to cubic Roots
-            let color = V4d(V3d(v.pointColor), 0.9)
+            let color = V4d(V3d(v.pointColor), 1.0)
             return color
         }
- 
-type Frame = 
-    {
-        positions   : V3f[]
-        vertices    : IBuffer
-        velocities  : IBuffer
-        energies    : IBuffer
-        cubicRoots  : IBuffer
-        strains     : IBuffer
-        alphaJutzis : IBuffer
-        pressures   : IBuffer
-    }
 
-let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (renderValue : aval<RenderValue>) (tfPath : aval<string>) (domainRange : DomainRange) (clippingPlane : ClippingPlane) (frames : Frame[], bb : Box3f, vertexCount : int)  = 
+let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (renderValue : aval<RenderValue>) (tfPath : aval<string>) (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) (filter : aval<option<Box3f>>) (dataRange : aval<Range>) (frames : Frame[], bb : Box3f, vertexCount : int)  = 
     let dci = DrawCallInfo(vertexCount, InstanceCount = 1)
+
+    let filterNew = filter |> AVal.map (fun f -> match f with
+                                                 | Some i -> i
+                                                 | None -> Box3f.Infinite)
 
     let currentBuffers = frame |> AVal.map (fun i -> frames.[i % frames.Length]) 
 
@@ -157,21 +165,8 @@ let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (renderValue 
     |> Sg.uniform "PointSize" pointSize
     |> Sg.uniform "TransferFunction" texture
     |> Sg.uniform "RenderValue" renderValue
-    |> Sg.uniform "MinX" domainRange.minX
-    |> Sg.uniform "MaxX" domainRange.maxX
-    |> Sg.uniform "MinY" domainRange.minY
-    |> Sg.uniform "MaxY" domainRange.maxY
-    |> Sg.uniform "MinZ" domainRange.minZ
-    |> Sg.uniform "MaxZ" domainRange.maxZ
-    |> Sg.uniform "ClippingPlaneX" clippingPlane.clippingPlaneX
-    |> Sg.uniform "ClippingPlaneY" clippingPlane.clippingPlaneY
-    |> Sg.uniform "ClippingPlaneZ" clippingPlane.clippingPlaneZ
- 
-
-
-
-
-
-
-
-   
+    |> Sg.uniform "DomainRange" domainRange
+    |> Sg.uniform "ClippingPlane" clippingPlane
+    |> Sg.uniform "Filter" filterNew
+    |> Sg.uniform "DataRange" dataRange
+  

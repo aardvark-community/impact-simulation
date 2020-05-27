@@ -12,9 +12,6 @@ open Hera
 
 open FSharp.Data.Adaptive
 
-//type Dim = X | Y | Z
-//type M = | Set of Dim * float
-
 type Message =
     | ToggleModel
     | CameraMessage of FreeFlyController.Message
@@ -24,21 +21,16 @@ type Message =
     | ChangeAnimation
     | SetRenderValue of RenderValue
     | SetTransferFunc of option<string>
-    | SetMinX of float
-    | SetMaxX of float
-    | SetMinY of float
-    | SetMaxY of float
-    | SetMinZ of float
-    | SetMaxZ of float
-    | SetSlideX of float
-    | SetSlideY of float
-    | SetSlideZ of float
-    | Generate 
-    | ChangeCount of Numeric.Action
-    
-module App =
+    | SetRange of Dim * Value * float
+    | SetDataRange of Value * float
+    | SetClippingPlane of Dim * float
+    | SetFilter of int
+    | ResetFilter 
 
-    let tfsDir = @"..\..\..\data\transfer"
+    
+module App =    
+
+    let tfsDir = @"..\..\..\src\Sketch\resources\transfer"
 
     let transferFunctions = 
         Directory.EnumerateFiles tfsDir  
@@ -52,41 +44,81 @@ module App =
                 )
         |> HashMap.ofList
 
-    let initial = { 
-        cameraState = FreeFlyController.initial; 
-        frame = 0;
-        pointSize = 8.0
-        playAnimation = true
-        renderValue = RenderValue.Energy
-        colorMaps = listWithValues
-        currentMap = @"..\..\..\data\transfer\map-03.png"
-        minX = -16.0
-        maxX = 16.0
-        minY = -16.0
-        maxY = 30.0 
-        minZ = -16.0
-        maxZ = 16.0
-        clippingPlaneX = 16.0
-        clippingPlaneY = 30.0
-        clippingPlaneZ = 16.0
-        data = [-1.25; -10.5; -1.0; -0.25; 0.0; 0.65; 1.2; 2.3; 1.7; 2.9; 25.7; 4.4; 5.31; 4.1]
-        // 5.0; 1.2; 3.4; 2.1; 3.6; 5.6; 4.4; 0.5; 0.2; 1.9; 5.2; 2.7; 50.0
-        count =  { min = 100.0; max = 5000.0; value = 1000.0; step = 100.0; format = "{0:0}" }
-    }
+
+    let initial (frames : Frame[]) = 
+        let initValues = frames.[0].values.energies
+        let range = initValues.GetBoundingRange()
+        let minValue = range.Min
+        let maxValue = range.Max
+
+        let model = 
+            { 
+            cameraState = FreeFlyController.initial; 
+            frame = 0;
+            pointSize = 8.0
+            playAnimation = true
+            renderValue = RenderValue.Energy
+            colorMaps = listWithValues
+            currentMap = @"..\..\..\src\Sketch\resources\transfer\map-03.png"
+            domainRange = {
+                x = {min = -16.0; max = 16.0}; 
+                y = {min = -16.0; max = 30.0}; 
+                z = {min = -16.0; max = 16.0}
+                }            
+            clippingPlane = {
+                x = 16.0
+                y = 30.0
+                z = 16.0
+                }
+            dataRange = {
+                min = minValue
+                max = maxValue
+            }
+            initDataRange = {
+                min = minValue
+                max = maxValue
+            }
+            values = initValues
+            data = []
+            // -1.25; -10.5; -1.0; -0.25; 0.0; 0.65; 1.2; 2.3; 1.7; 2.9; 25.7; 4.4; 5.31; 4.1
+            // 5.0; 1.2; 3.4; 2.1; 3.6; 5.6; 4.4; 0.5; 0.2; 1.9; 5.2; 2.7; 50.0
+            filter = None
+            filtered = []
+            }
+        model
 
     let sw = System.Diagnostics.Stopwatch.StartNew()
 
-    let rnd = RandomSystem()
-    let normal = RandomGaussian(rnd)
+    let filteri condition values = 
+        values
+        |> Array.mapi (fun i v -> (v, i))
+        |> Array.filter (fun (v, i) -> condition v)
+        |> Array.map (fun (v, i) -> i)
 
-    let mutable energyPts = {
-        energyPoints1 = List.empty<float>
-        energyPoints2 = List.empty<float>
-    }
-    
-    let mutable pts1 = true
+    let filterValue condition (pos : V3f[]) (value : float[]) = 
+        Array.zip pos value
+        |> Array.filter (fun (pos, v) -> condition pos)
+        |> Array.map (fun (pos, v) -> v)
+  
+    let filterData (filter : option<Box3f>) (positions : V3f[]) (values : float[]) = 
+        let filter_ = filter |> (fun elem -> defaultArg elem Box3f.Invalid)
+        let isInsideBox (pos : V3f) = filter_.Contains(pos)    
+        let filteredValues = filterValue isInsideBox positions values
+        filteredValues
 
-    let update (m : Model) (msg : Message) =
+    let update (frames : Frame[]) (m : Model) (msg : Message) =
+
+        let positions = frames.[0].positions
+        //let temp = frames.[0].values.energies
+        //let range = temp.GetBoundingRange()
+        //let minValue = range.Min
+        //let maxValue = range.Max
+        //let normalized = 
+        //    temp 
+        //    |> Array.map (fun elem -> (elem - minValue)/(maxValue - minValue))
+
+        //let norm = normalized
+
         match msg with
             | SetPointSize s -> { m with pointSize = s }
             | TogglePointSize -> 
@@ -100,127 +132,104 @@ module App =
                 { m with frame = frameId }
             | CameraMessage msg ->
                 { m with cameraState = FreeFlyController.update m.cameraState msg }
-            | SetRenderValue v -> {m with renderValue = v}
+            | SetRenderValue v -> 
+                let renderValues = 
+                    match v with
+                    | RenderValue.Energy ->  frames.[0].values.energies
+                    | RenderValue.CubicRoot -> frames.[0].values.cubicRoots
+                    | RenderValue.Strain -> frames.[0].values.strains
+                    | RenderValue.AlphaJutzi -> frames.[0].values.alphaJutzis
+                    | RenderValue.Pressure -> frames.[0].values.pressures
+                let range = renderValues.GetBoundingRange()
+                let minValue = range.Min
+                let maxValue = range.Max
+                let newDataRange = {
+                    min = minValue
+                    max = maxValue
+                    }
+                let filteredData = filterData m.filter positions renderValues
+
+                {m with 
+                    renderValue = v
+                    values = renderValues
+                    dataRange = newDataRange
+                    initDataRange = newDataRange
+                    data = Array.toList filteredData }
             | SetTransferFunc t -> 
                 match t with    
                 | None -> m
                 | Some(s) -> {m with currentMap = s} 
-            | SetMinX x -> {m with minX = x}
-            | SetMaxX x -> {m with maxX = x}
-            | SetMinY y -> {m with minY = y}
-            | SetMaxY y -> {m with maxY = y}
-            | SetMinZ z -> {m with minZ = z}
-            | SetMaxZ z -> {m with maxZ = z}
-            | SetSlideX x -> {m with clippingPlaneX = x}
-            | SetSlideY y -> {m with clippingPlaneY = y}
-            | SetSlideZ z -> {m with clippingPlaneZ = z}
-            | Generate -> 
-                let points = if pts1 then energyPts.energyPoints1 else energyPts.energyPoints2
-                pts1 <- not pts1
-                { m with 
-                    data = points;
-                }
-            | ChangeCount n -> { m with count = Numeric.update m.count n }
+            | SetRange (d, r, v) -> 
+                let range = m.domainRange
+                let newDomainRange = 
+                    match d with
+                    | X ->
+                        {range with
+                            x =  
+                            match r with 
+                            | Min -> {range.x with min = v}
+                            | Max -> {range.x with max = v}
+                        }
+                    | Y ->
+                        {range with
+                            y =  
+                            match r with 
+                            | Min -> {range.y with min = v}
+                            | Max -> {range.y with max = v}
+                        }
+                    | Z ->
+                        {range with
+                            z =  
+                            match r with 
+                            | Min -> {range.z with min = v}
+                            | Max -> {range.z with max = v}
+                        }
+                {m with domainRange = newDomainRange}
+            | SetDataRange (r, v) ->
+                let dRange = m.dataRange
+                let newDataRange = 
+                    match r with
+                    | Min -> {dRange with min = v}
+                    | Max -> {dRange with max = v}
+                {m with dataRange = newDataRange}
+            | SetClippingPlane (d, v) ->
+                let clipPlane = m.clippingPlane
+                let newClipPlane = 
+                    match d with
+                    | X -> {clipPlane with x = v}
+                    | Y -> {clipPlane with y = v}
+                    | Z -> {clipPlane with z = v}
+                {m with clippingPlane = newClipPlane}
+            | SetFilter i ->
+                let newFilter =
+                    match i with
+                    | 1 -> Some(Box3f(V3f(-3.0, -3.0, -3.0), V3f(3.0, 30.0, 3.0)))
+                    | 2 -> Some(Box3f(V3f(-4.0, -4.0, -4.0), V3f(4.0, 30.0, 4.0)))
+                    | 3 -> Some(Box3f(V3f(-5.0, -5.0, -5.0), V3f(5.0, 30.0, 5.0)))
+                    | _ -> None
 
+                let filteredData = filterData newFilter positions m.values
 
+                {m with 
+                    filter = newFilter
+                    data = Array.toList filteredData }
+            | ResetFilter -> {m with 
+                                filter = None
+                                data = []
+                                dataRange = m.initDataRange}
 
     let renderValues = AMap.ofArray((Enum.GetValues typeof<RenderValue> :?> (RenderValue [])) |> Array.map (fun c -> (c, text (Enum.GetName(typeof<RenderValue>, c)) )))
 
-    let view (runtime : IRuntime) (m : AdaptiveModel) =
+    let view (runtime : IRuntime) (data : Frame[] * Box3f * int) (m : AdaptiveModel) =
 
         let frustum = 
             Frustum.perspective 60.0 0.1 100.0 1.0 
                 |> AVal.constant
 
-        let heraData = @"..\..\..\data"
-
-        let serializer = MBrace.FsPickler.FsPickler.CreateBinarySerializer()
-
-        let prepareData (d : Parser.Data) : Hera.Frame = 
-            let frame = {
-                vertices    = runtime.PrepareBuffer (ArrayBuffer d.vertices) :> IBuffer
-                velocities  = runtime.PrepareBuffer (ArrayBuffer d.velocities) :> IBuffer
-                energies    = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.internalEnergies)) :> IBuffer
-                cubicRoots  = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.cubicRootsOfDamage)) :> IBuffer
-                strains     = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.localStrains)) :> IBuffer
-                alphaJutzis = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.alphaJutzis)) :> IBuffer
-                pressures   = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.pressures)) :> IBuffer
-                positions   = d.vertices }
-            frame
-
-        let cachedFileEnding = "_cache_2"
-
-        let mutable energyPoints = Array.empty<float>;
-
-        let convertToCacheFile (fileName : string) =
-            let cacheName = fileName + cachedFileEnding
-            if not (File.Exists cacheName) then
-                let d,b = Parser.parseFile fileName
-                let data = serializer.Pickle((d,b))
-                File.writeAllBytes cacheName data
-        
-        let loadDataAndCache (fileName : string) =
-            if fileName.EndsWith(cachedFileEnding) then
-                let bytes = File.readAllBytes fileName
-                let (d : Parser.Data, b : Box3f) = serializer.UnPickle(bytes) // exception hier wenn nicht richtiger inhalt... 
-
-                if fileName.EndsWith("impact.0110_cache_2") then
-                    energyPoints <- d.internalEnergies
-
-                let buffer = prepareData(d)
-                let vertexCount = d.vertices.Length
-
-                Some(buffer, b, vertexCount)                 
-                
-            else
-                convertToCacheFile fileName
-                None           
-
-
-        let allFiles = 
-            Directory.EnumerateFiles heraData |> Seq.toArray 
-            |> Array.map loadDataAndCache
-            |> Array.choose (fun elem -> elem)
-
-        //TODO: Check for all possible exceptions! -> no data, endFrame > startFrame 
-        let framesToAnimate startFrame frames =
-            let l = allFiles.Length
-            if l = 0 then
-                Log.warn "There is no data!"
-                Array.empty, Box3f.Invalid, 0
-            else
-                let mutable endFrame = 0
-                if frames > l then endFrame <- l - 1 else endFrame <- frames - 1 //check if out of bounds
-                let framesToAnimate = allFiles.[startFrame..endFrame]
-                let buffers = framesToAnimate |> Array.map (fun (elem, _, _) ->  elem)
-                let box = framesToAnimate.[0] |> (fun (_, b, _) -> b)
-                let vertexCount = framesToAnimate.[0] |> (fun (_, _, c) -> c)
-                buffers, box, vertexCount
-
-        let domainRange = {
-            minX = m.minX
-            maxX = m.maxX
-            minY = m.minY
-            maxY = m.maxY
-            minZ = m.minZ
-            maxZ = m.maxZ
-        } 
-
-        let clippingPlane = {
-            clippingPlaneX = m.clippingPlaneX
-            clippingPlaneY = m.clippingPlaneY
-            clippingPlaneZ = m.clippingPlaneZ
-        }
-    
         let heraSg = 
-            framesToAnimate 0 7
-            |> Hera.createAnimatedSg m.frame m.pointSize m.renderValue m.currentMap domainRange clippingPlane
+            data
+            |> Hera.createAnimatedSg m.frame m.pointSize m.renderValue m.currentMap m.domainRange m.clippingPlane m.filter m.dataRange
             |> Sg.noEvents
-
-        energyPts <- {
-            energyPoints1 = energyPoints.[1..100] |> Array.toList
-            energyPoints2 = energyPoints.[200..300] |> Array.toList
-        }
 
         let sg = heraSg
             
@@ -249,6 +258,7 @@ module App =
                     yield button [onClick (fun _ -> ChangeAnimation)] [text "Play"]
             }
 
+
         let colorMaps = AMap.map (fun k v -> text v) m.colorMaps
 
         let dependencies = 
@@ -262,117 +272,171 @@ module App =
         let updateChart =
             "initHisto(__ID__); data.onmessage = function (values) { refresh(values); };"  // subscribe to m.data
 
-        body [] [
-            FreeFlyController.controlledControl m.cameraState CameraMessage frustum (AttributeMap.ofList att) sg
-            require dependencies ( // here. we executit Histogram.js.... all values, functions defined in Histogram.js are further down accessible...
+        let inputView dispText inValue updateFunc minV maxV = 
+            span [] [
+            span [style "padding: 3px"] [text dispText]
+            simplenumeric {
+                attributes [style "width: 38%; padding: 5px"]
+                value inValue
+                update updateFunc
+                step 1.0
+                largeStep 5.0
+                min minV
+                max maxV
+            }]
 
-                div[] [
-                    div [style "position: fixed; left: 20px; top: 20px; width: 218px"] [
-                    Incremental.div AttributeMap.empty dynamicNameChange
-                    br []
-                    numeric { min = 1.0; max = 30.0; smallStep = 1.0; largeStep = 5.0 } AttributeMap.empty m.pointSize SetPointSize
-                    Incremental.div AttributeMap.empty dynamicUI
-                    br []
-                    dropdown { placeholder = "ColorMaps"; allowEmpty = false} [ clazz "ui selection" ] colorMaps (m.currentMap |> AVal.map Some) SetTransferFunc
-                    br []
-                    br []
-                    dropdown1 [ clazz "ui selection" ] renderValues m.renderValue SetRenderValue
-                    br []
-                    br []
-                    div [ style "color: white" ] [
+        let rangeView (dim : Dim) (inRange : aval<Range>) minV maxV = 
+            div [] [ 
+                inputView (string dim + ":") (inRange |> AVal.map (fun r -> r.min)) (fun v -> SetRange (dim, Min, v)) minV 0.0
+                inputView (string dim + ":") (inRange |> AVal.map (fun r -> r.max)) (fun v -> SetRange (dim, Max, v)) 0.0 maxV
+                br []
+            ]
+        require Html.semui (
+            body [] [
+                FreeFlyController.controlledControl m.cameraState CameraMessage frustum (AttributeMap.ofList att) sg
+                require dependencies ( // here we execute Histogram.js.... all values, functions defined in Histogram.js are further down accessible...
 
-                        div [ clazz "item" ] [
-                            span [style "padding: 2px"] [text "min X: "]
-                            simplenumeric {
-                                attributes [style "width: 25%; padding: 2px"]
-                                value m.minX
-                                update SetMinX
-                                step 1.0
-                                largeStep 5.0
-                                min -25.0
-                                max 0.0
-                            }
-                            span [style "padding: 2px"] [text "max X: "]
-                            simplenumeric {
-                                attributes [style "width: 25%; padding: 2px"]
-                                value m.maxX
-                                update SetMaxX
-                                step 1.0
-                                largeStep 5.0
-                                min 0.0
-                                max 25.0
-                            }
-                            br []
-                            br []
-                            span [style "padding: 2px"] [text "min Y: "]
-                            simplenumeric {
-                                attributes [style "width: 25%; padding: 2px"]
-                                value m.minY
-                                update SetMinY
-                                step 1.0
-                                largeStep 5.0
-                                min -25.0
-                                max 0.0
-                            }
-                            span [style "padding: 2px"] [text "max Y: "]
-                            simplenumeric {
-                                attributes [style "width: 25%; padding: 2px"]
-                                value m.maxY
-                                update SetMaxY
-                                step 1.0
-                                largeStep 5.0
-                                min 0.0
-                                max 30.0
-                            }
-                            br []
-                            br []
-                            span [style "padding: 2px"] [text "min Z: "]
-                            simplenumeric {
-                                attributes [style "width: 25%; padding: 2px"]
-                                value m.minZ
-                                update SetMinZ
-                                step 1.0
-                                largeStep 5.0
-                                min -25.0
-                                max 0.0
-                            }
-                            span [style "padding: 2px"] [text "max Z: "]
-                            simplenumeric {
-                                attributes [style "width: 25%; padding: 2px"]
-                                value m.maxZ
-                                update SetMaxZ
-                                step 1.0
-                                largeStep 5.0
-                                min 0.0
-                                max 25.0
-                            }
-                        ]
-                        
-                        div [ clazz "item"; style "width: 90%" ] [
-                            span [style "padding: 2px"] [text "X: "]
-                            slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"] m.clippingPlaneX SetSlideX
-                            span [style "padding: 2px"] [text "Y: "]
-                            slider { min = -16.0; max = 30.0; step = 0.5 } [clazz "ui inverted slider"] m.clippingPlaneY SetSlideY
-                            span [style "padding: 2px"] [text "Z: "]
-                            slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"] m.clippingPlaneZ SetSlideZ
-
-                        ]
-                    ]
-                    ]
-                
-                    onBoot' ["data", dataChannel] updateChart ( // when div [histogram etc] is constructed updateChart is called.
-                        div [clazz "histogram"; style "position: fixed; bottom: 20px; right: 20px; width:300px; height: 200px; background-color: #ffffff; border: 3px solid #ffffff; z-index: 1000"] [                       
-                            div [] [
-                                Numeric.view m.count |> UI.map ChangeCount
-                                text "  "
-                                button [onClick (fun _ -> Generate)] [text "Generate"]
+                    div[] [
+                        div [style "position: fixed; left: 20px; top: 20px; width: 220px"] [
+                        Incremental.div AttributeMap.empty dynamicNameChange
+                        br []
+                        numeric { min = 1.0; max = 30.0; smallStep = 1.0; largeStep = 5.0 } AttributeMap.empty m.pointSize SetPointSize
+                        Incremental.div AttributeMap.empty dynamicUI
+                        br []
+                        dropdown { placeholder = "ColorMaps"; allowEmpty = false} [ clazz "ui selection" ] colorMaps (m.currentMap |> AVal.map Some) SetTransferFunc
+                        br []
+                        br []
+                        dropdown1 [ clazz "ui selection" ] renderValues m.renderValue SetRenderValue
+                        br []
+                        br []
+                        div [ style "color: white" ] [
+                              
+                            div [style "width: 90%"] [  
+                                Html.SemUi.accordion "Clipping Box" "plus" false [
+                                    Incremental.div (AttributeMap.ofAMap (amap {
+                                        yield clazz "item"
+                                        yield style "width: 100%"
+                                    })) (alist {
+                                        span [style "padding: 3px; padding-inline-start: 0px; padding-inline-end: 50px"] [text "Min:"]
+                                        span [style "padding: 3px; padding-inline-start: 15px; padding-inline-end: 50px"] [text "Max:"]
+                                        br []
+                                        rangeView X (m.domainRange |> AVal.map (fun r -> r.x)) -25.0 25.0 
+                                        rangeView Y (m.domainRange |> AVal.map (fun r -> r.y)) -25.0 30.0 
+                                        rangeView Z (m.domainRange |> AVal.map (fun r -> r.z)) -25.0 25.0 
+                                        }
+                                        )
+                                    ]
                             ]
+
+                            br []
+                       
+                            div [ clazz "item"; style "width: 90%" ] [
+                                span [style "padding: 2px"] [text "X: "]
+                                slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 4px"] (m.clippingPlane |> AVal.map (fun cp -> cp.x)) (fun v -> SetClippingPlane (X, v))
+                                span [style "padding: 2px"] [text "Y: "]
+                                slider { min = -16.0; max = 30.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 4px"] (m.clippingPlane |> AVal.map (fun cp -> cp.y)) (fun v -> SetClippingPlane (Y, v))
+                                span [style "padding: 2px"] [text "Z: "]
+                                slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 4px"] (m.clippingPlane |> AVal.map (fun cp -> cp.z)) (fun v -> SetClippingPlane (Z, v))
+
+                            ]
+
+                            br []
+
+
+                            Incremental.div (AttributeMap.ofAMap (amap {
+                                yield style "width: 95%"
+                            })) (alist {
+                                let! initRange = m.initDataRange
+                            
+                                let steps = 
+                                    let range = Math.Abs(initRange.max - initRange.min)
+                                    if range <= 0.01 then
+                                        0.001, 0.005
+                                    else if range <= 0.1 then
+                                        0.01, 0.05
+                                    else if range <= 1.0 then
+                                        0.1, 1.0
+                                    else if (range <= 1000.0) then
+                                        1.0, 5.0
+                                    else if (range <= 10000.0) then
+                                        10.0, 50.0
+                                    else if (range <= 100000.0) then
+                                        100.0, 500.0
+                                    else if (range <= 1000000.0) then
+                                        1000.0, 5000.0
+                                    else 
+                                        10000.0, 50000.0
+
+                                yield span [style "padding: 4px"] [text "Min: "]
+                                yield simplenumeric {
+                                        attributes [style "width: 80%; padding: 2px"]
+                                        value (m.dataRange |> AVal.map (fun r -> r.min))
+                                        update (fun v -> SetDataRange (Min, v))
+                                        step (fst steps)
+                                        largeStep (snd steps)
+                                        min initRange.min
+                                        max initRange.max
+                                        }
+
+                                yield span [style "padding: 3px"] [text "Max: "]
+                                yield simplenumeric {
+                                        attributes [style "width: 80%; padding: 2px"]
+                                        value (m.dataRange |> AVal.map (fun r -> r.max))
+                                        update (fun v -> SetDataRange (Max, v))
+                                        step (fst steps)
+                                        largeStep (snd steps)
+                                        min initRange.min
+                                        max initRange.max
+                                        }    
+                               }
+                            )
+
+                            br []
+
+                            div [] [
+                                button [onClick (fun _ -> SetFilter 1); style "margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 1"]
+                                button [onClick (fun _ -> SetFilter 2); style "margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 2"]
+                                button [onClick (fun _ -> SetFilter 3); style "margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 3"]
+              
+                            ]
+
+                            button [onClick (fun _ -> ResetFilter); style "margin: 2px; margin-top: 4px"] [text "Reset"]
+
                         ]
-                    )
-                ]
-                
-            )  
-        ]
+                        ]   
+
+                        Incremental.div (AttributeMap.ofAMap (amap {
+                            yield style "position: fixed; top: 20px; right: 20px"
+                        })) (alist {
+                            let! src = m.currentMap
+
+                            let elems = 
+                                src.Split([|'\t'; '\\'|], StringSplitOptions.RemoveEmptyEntries) |> Array.map (fun s -> s.Trim())
+
+                            let currImage = elems.[elems.Length - 1]
+
+                            yield img [
+                                attribute "src" currImage
+                                style "width: 170px; height: 20px"
+                            ]            
+                        
+                            yield hr [
+                                style "width: 168px; height: 0px; background-color: #ffffff; margin-block-start: 3px; margin-block-end: 0px; margin-inline-start: 0px"
+                            ]
+
+                            yield span [style "position: relative; font-size: 0.8em; right: 10px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> r.min.ToString()))] 
+                            yield span [style "position: inherit; font-size: 0.8em; right: 10px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> r.max.ToString()))]
+                            }
+                        )
+
+                        onBoot' ["data", dataChannel] updateChart ( // when div [histogram etc] is constructed updateChart is called.
+                            div [clazz "histogram"; style "position: fixed; bottom: 20px; right: 20px; width:350px; height: 200px; background-color: #ffffff; border: 3px solid #ffffff; z-index: 1000"] [                       
+                            ]
+                        )
+                    ]
+                )  
+            ]
+            )
 
     let threads (state : Model) =
          let pool = ThreadPool.empty
@@ -387,11 +451,13 @@ module App =
          ThreadPool.add "timer" (time()) pool
 
     let app (runtime : IRuntime) =
-        // load data....
+        // load data
+        let data = DataLoader.loadData runtime 0 7
+        let frames = data |> (fun (elem, _, _) ->  elem)
         {
-            initial = initial // store data Hera frame as array to model....
-            update = update
-            view = view runtime
+            initial = initial frames // store data Hera frame as array to model....
+            update = update frames
+            view = view runtime data
             threads = threads
             unpersist = Unpersist.instance
         }

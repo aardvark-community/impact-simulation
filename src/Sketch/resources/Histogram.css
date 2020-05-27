@@ -15,3 +15,8 @@
   stroke: #000;
   shape-rendering: crispEdges;
 }
+
+.ui.inverted.segment {
+    background: #3d3d3d;
+    padding: 6px;
+}
