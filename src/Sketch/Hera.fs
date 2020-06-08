@@ -1,4 +1,4 @@
-﻿module Hera
+module Hera
 
 open System
 open System.IO
@@ -17,6 +17,11 @@ open AardVolume.Model
 //        true
 //    else
 //        false
+
+[<ReflectedDefinition>]
+let convertToC4d (color : C4b) = 
+    let converted = C4d(color)
+    converted
 
 module Shaders = 
 
@@ -73,6 +78,9 @@ module Shaders =
                 let renderValue = uniform?RenderValue
                 let filter : Box3f = uniform?Filter
                 let dataRange : Range = uniform?DataRange
+                let colorValue = uniform?Color
+                //let c = convertToC4d temp
+                //let colorValue = c |> (fun x -> V4d(x.R, x.G, x.B, x.A))
                 let value renderValue = 
                     match renderValue with
                     | RenderValue.Energy -> v.energy
@@ -95,7 +103,7 @@ module Shaders =
                 if (min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z && minRange <= linearCoord && linearCoord <= maxRange) then
                     transferFunc
                 else
-                    V4d(0.5, 0.5, 0.5, 1.0)
+                    colorValue
             return 
                 { v with
                     pointSize = uniform?PointSize
@@ -128,7 +136,7 @@ module Shaders =
             return color
         }
 
-let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (renderValue : aval<RenderValue>) (tfPath : aval<string>) (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) (filter : aval<option<Box3f>>) (dataRange : aval<Range>) (frames : Frame[], bb : Box3f, vertexCount : int)  = 
+let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (renderValue : aval<RenderValue>) (tfPath : aval<string>) (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) (filter : aval<option<Box3f>>) (dataRange : aval<Range>) (colorValue : aval<C4b>) (frames : Frame[], bb : Box3f, vertexCount : int)  = 
     let dci = DrawCallInfo(vertexCount, InstanceCount = 1)
 
     let filterNew = filter |> AVal.map (fun f -> match f with
@@ -169,4 +177,5 @@ let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (renderValue 
     |> Sg.uniform "ClippingPlane" clippingPlane
     |> Sg.uniform "Filter" filterNew
     |> Sg.uniform "DataRange" dataRange
+    |> Sg.uniform "Color" colorValue
   

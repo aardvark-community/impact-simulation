@@ -20,12 +20,14 @@ type Message =
     | SetPointSize of float
     | ChangeAnimation
     | SetRenderValue of RenderValue
+    | SetColorValue of ColorPicker.Action
     | SetTransferFunc of option<string>
-    | SetRange of Dim * Value * float
+    | SetDomainRange of Dim * Value * float
     | SetDataRange of Value * float
     | SetClippingPlane of Dim * float
     | SetFilter of int
     | ResetFilter 
+   // | Brushed of float * float
 
     
 module App =    
@@ -58,6 +60,7 @@ module App =
             pointSize = 8.0
             playAnimation = true
             renderValue = RenderValue.Energy
+            colorValue = { c = C4b.Gray}
             colorMaps = listWithValues
             currentMap = @"..\..\..\src\Sketch\resources\transfer\map-03.png"
             domainRange = {
@@ -155,11 +158,14 @@ module App =
                     dataRange = newDataRange
                     initDataRange = newDataRange
                     data = Array.toList filteredData }
+            | SetColorValue a -> 
+                let c = ColorPicker.update m.colorValue a
+                {m with colorValue = c}
             | SetTransferFunc t -> 
                 match t with    
                 | None -> m
                 | Some(s) -> {m with currentMap = s} 
-            | SetRange (d, r, v) -> 
+            | SetDomainRange (d, r, v) -> 
                 let range = m.domainRange
                 let newDomainRange = 
                     match d with
@@ -228,7 +234,7 @@ module App =
 
         let heraSg = 
             data
-            |> Hera.createAnimatedSg m.frame m.pointSize m.renderValue m.currentMap m.domainRange m.clippingPlane m.filter m.dataRange
+            |> Hera.createAnimatedSg m.frame m.pointSize m.renderValue m.currentMap m.domainRange m.clippingPlane m.filter m.dataRange m.colorValue.c
             |> Sg.noEvents
 
         let sg = heraSg
@@ -287,8 +293,8 @@ module App =
 
         let rangeView (dim : Dim) (inRange : aval<Range>) minV maxV = 
             div [] [ 
-                inputView (string dim + ":") (inRange |> AVal.map (fun r -> r.min)) (fun v -> SetRange (dim, Min, v)) minV 0.0
-                inputView (string dim + ":") (inRange |> AVal.map (fun r -> r.max)) (fun v -> SetRange (dim, Max, v)) 0.0 maxV
+                inputView (string dim + ":") (inRange |> AVal.map (fun r -> r.min)) (fun v -> SetDomainRange (dim, Min, v)) minV 0.0
+                inputView (string dim + ":") (inRange |> AVal.map (fun r -> r.max)) (fun v -> SetDomainRange (dim, Max, v)) 0.0 maxV
                 br []
             ]
         require Html.semui (
@@ -342,6 +348,12 @@ module App =
 
                             br []
 
+                            div [style "width: 90%"] [ 
+                                span [style "padding: 2px; padding-inline-end: 20px"] [text "Out of Range Color:"]
+                                ColorPicker.view m.colorValue |> UI.map SetColorValue
+                            ]
+
+                            br []
 
                             Incremental.div (AttributeMap.ofAMap (amap {
                                 yield style "width: 95%"
@@ -399,10 +411,8 @@ module App =
                                 button [onClick (fun _ -> SetFilter 3); style "margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 3"]
               
                             ]
-
                             button [onClick (fun _ -> ResetFilter); style "margin: 2px; margin-top: 4px"] [text "Reset"]
-
-                        ]
+                            ]
                         ]   
 
                         Incremental.div (AttributeMap.ofAMap (amap {
@@ -429,10 +439,15 @@ module App =
                             }
                         )
 
-                        onBoot' ["data", dataChannel] updateChart ( // when div [histogram etc] is constructed updateChart is called.
-                            div [clazz "histogram"; style "position: fixed; bottom: 20px; right: 20px; width:350px; height: 200px; background-color: #ffffff; border: 3px solid #ffffff; z-index: 1000"] [                       
+                        div [clazz "temp"; style "position: fixed; bottom: 220px; right: 20px"] [
+                            Html.SemUi.accordion "Histogram" "chart bar" true [
+                                onBoot' ["data", dataChannel] updateChart ( // when div [histogram etc] is constructed updateChart is called.
+                                            div [clazz "histogram"; style "position: fixed; bottom: 20px; right: 20px; width:350px; height: 200px; z-index: 1000"] []          
+                                )
                             ]
-                        )
+                        ]
+
+
                     ]
                 )  
             ]

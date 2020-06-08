@@ -71,6 +71,7 @@ type Model =
         pointSize : float
         playAnimation : bool
         renderValue : RenderValue
+        colorValue : ColorInput
         colorMaps : HashMap<string, string>
         currentMap : string
         domainRange : DomainRange

@@ -1,4 +1,4 @@
-﻿module Parser
+module Parser
 
 open System
 open System.IO
