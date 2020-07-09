@@ -18,11 +18,6 @@ open AardVolume.Model
 //    else
 //        false
 
-[<ReflectedDefinition>]
-let convertToC4d (color : C4b) = 
-    let converted = C4d(color)
-    converted
-
 module Shaders = 
 
     open FShade
@@ -79,8 +74,6 @@ module Shaders =
                 let filter : Box3f = uniform?Filter
                 let dataRange : Range = uniform?DataRange
                 let colorValue = uniform?Color
-                //let c = convertToC4d temp
-                //let colorValue = c |> (fun x -> V4d(x.R, x.G, x.B, x.A))
                 let value renderValue = 
                     match renderValue with
                     | RenderValue.Energy -> v.energy
@@ -145,6 +138,9 @@ let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (renderValue 
 
     let currentBuffers = frame |> AVal.map (fun i -> frames.[i % frames.Length]) 
 
+    //this conversion is actually not really neccessary
+    let color = colorValue |> AVal.map (fun c -> C4d c) |> AVal.map (fun x -> V4d(x.R, x.G, x.B, x.A))
+
     let vertices    = currentBuffers |> AVal.map (fun f -> f.vertices)
     let velocities  = currentBuffers |> AVal.map (fun f -> f.velocities)
     let energies    = currentBuffers |> AVal.map (fun f -> f.energies)
@@ -177,5 +173,5 @@ let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (renderValue 
     |> Sg.uniform "ClippingPlane" clippingPlane
     |> Sg.uniform "Filter" filterNew
     |> Sg.uniform "DataRange" dataRange
-    |> Sg.uniform "Color" colorValue
+    |> Sg.uniform "Color" color
   

@@ -19,6 +19,7 @@ type Message =
     | TogglePointSize
     | SetPointSize of float
     | ChangeAnimation
+    | AnimateAllFrames
     | SetRenderValue of RenderValue
     | SetColorValue of ColorPicker.Action
     | SetTransferFunc of option<string>
@@ -27,7 +28,7 @@ type Message =
     | SetClippingPlane of Dim * float
     | SetFilter of int
     | ResetFilter 
-   // | Brushed of float * float
+    | Brushed of Range
 
     
 module App =    
@@ -59,6 +60,7 @@ module App =
             frame = 0;
             pointSize = 8.0
             playAnimation = true
+            animateAllFrames = false
             renderValue = RenderValue.Energy
             colorValue = { c = C4b.Gray}
             colorMaps = listWithValues
@@ -87,6 +89,7 @@ module App =
             // 5.0; 1.2; 3.4; 2.1; 3.6; 5.6; 4.4; 0.5; 0.2; 1.9; 5.2; 2.7; 50.0
             filter = None
             filtered = []
+            filteredAllFrames = Array.empty
             }
         model
 
@@ -109,9 +112,27 @@ module App =
         let filteredValues = filterValue isInsideBox positions values
         filteredValues
 
+    let filterDataForAllFrames (frames : Frame[]) (filter : option<Box3f>) (renderVal : RenderValue) = 
+        let temp = 
+            frames
+            |> Array.mapi (fun i frame -> 
+                            let positions = frames.[i].positions
+                            let renderValues = 
+                                match renderVal with
+                                | RenderValue.Energy ->  frames.[i].values.energies
+                                | RenderValue.CubicRoot -> frames.[i].values.cubicRoots
+                                | RenderValue.Strain -> frames.[i].values.strains
+                                | RenderValue.AlphaJutzi -> frames.[i].values.alphaJutzis
+                                | RenderValue.Pressure -> frames.[i].values.pressures 
+                            let currFilteredData = filterData filter positions renderValues
+                            currFilteredData
+            )
+        temp
+
     let update (frames : Frame[]) (m : Model) (msg : Message) =
 
-        let positions = frames.[0].positions
+        let numOfFrames = frames.Length
+        let positions = frames.[m.frame].positions
         //let temp = frames.[0].values.energies
         //let range = temp.GetBoundingRange()
         //let minValue = range.Min
@@ -128,21 +149,50 @@ module App =
                 let newPointSize = if m.pointSize = 8.0 then 20.0 elif m.pointSize = 20.0 then 8.0 else m.pointSize
                 { m with pointSize = newPointSize }
             | ChangeAnimation -> { m with playAnimation = not m.playAnimation}
+            | AnimateAllFrames -> 
+                let filteredDataAllFrames = filterDataForAllFrames frames m.filter m.renderValue
+
+                {m with 
+                    animateAllFrames = not m.animateAllFrames
+                    filteredAllFrames = filteredDataAllFrames}
             | StepTime -> 
-                let frameId =  sw.Elapsed.TotalSeconds / 0.5 |> int
+                let frameId =  (sw.Elapsed.TotalSeconds / 0.5) |> int
+                let currFrame = frameId % numOfFrames
                 // update filtered data using frameId and filter
+                let isCurrentFilterSet = 
+                    match m.filter with 
+                    | None -> false
+                    | Some -> true
+
+                let currData = 
+                    if isCurrentFilterSet && m.animateAllFrames then  
+                        let filteredData = m.filteredAllFrames.[currFrame]
+                        filteredData
+                    else 
+                        List.toArray m.data
+
+                //let currData = 
+                //    if isCurrentFilterSet then  
+                //        let filteredData = filterData m.filter positions m.values
+                //        filteredData
+                //    else 
+                //        let temp : float[] = Array.empty
+                //        temp
+
                 if m.playAnimation then sw.Start() else sw.Stop()
-                { m with frame = frameId }
+                { m with 
+                    frame = currFrame 
+                    data = Array.toList currData}
             | CameraMessage msg ->
                 { m with cameraState = FreeFlyController.update m.cameraState msg }
             | SetRenderValue v -> 
                 let renderValues = 
                     match v with
-                    | RenderValue.Energy ->  frames.[0].values.energies
-                    | RenderValue.CubicRoot -> frames.[0].values.cubicRoots
-                    | RenderValue.Strain -> frames.[0].values.strains
-                    | RenderValue.AlphaJutzi -> frames.[0].values.alphaJutzis
-                    | RenderValue.Pressure -> frames.[0].values.pressures
+                    | RenderValue.Energy ->  frames.[m.frame].values.energies
+                    | RenderValue.CubicRoot -> frames.[m.frame].values.cubicRoots
+                    | RenderValue.Strain -> frames.[m.frame].values.strains
+                    | RenderValue.AlphaJutzi -> frames.[m.frame].values.alphaJutzis
+                    | RenderValue.Pressure -> frames.[m.frame].values.pressures
                 let range = renderValues.GetBoundingRange()
                 let minValue = range.Min
                 let maxValue = range.Max
@@ -152,12 +202,21 @@ module App =
                     }
                 let filteredData = filterData m.filter positions renderValues
 
+                let filteredDataAllFrames = 
+                    if m.animateAllFrames then
+                        let filtered = filterDataForAllFrames frames m.filter v
+                        filtered
+                    else
+                        let temp : float[] [] = Array.empty
+                        temp
+
                 {m with 
                     renderValue = v
                     values = renderValues
                     dataRange = newDataRange
                     initDataRange = newDataRange
-                    data = Array.toList filteredData }
+                    data = Array.toList filteredData
+                    filteredAllFrames = filteredDataAllFrames}
             | SetColorValue a -> 
                 let c = ColorPicker.update m.colorValue a
                 {m with colorValue = c}
@@ -214,15 +273,25 @@ module App =
                     | 3 -> Some(Box3f(V3f(-5.0, -5.0, -5.0), V3f(5.0, 30.0, 5.0)))
                     | _ -> None
 
+                let filteredDataAllFrames = 
+                    if m.animateAllFrames then
+                        let filtered = filterDataForAllFrames frames newFilter m.renderValue
+                        filtered
+                    else
+                        let temp : float[] [] = Array.empty
+                        temp
+                        
                 let filteredData = filterData newFilter positions m.values
 
                 {m with 
                     filter = newFilter
-                    data = Array.toList filteredData }
+                    data = Array.toList filteredData
+                    filteredAllFrames = filteredDataAllFrames}
             | ResetFilter -> {m with 
                                 filter = None
                                 data = []
                                 dataRange = m.initDataRange}
+            | Brushed r -> { m with playAnimation = not m.playAnimation}
 
     let renderValues = AMap.ofArray((Enum.GetValues typeof<RenderValue> :?> (RenderValue [])) |> Array.map (fun c -> (c, text (Enum.GetName(typeof<RenderValue>, c)) )))
 
@@ -257,11 +326,19 @@ module App =
         let dynamicNameChange =
             alist {
                 let! animation = m.playAnimation
+                let! allFramesAnimation = m.animateAllFrames
+
 
                 if animation = true then
                     yield button [onClick (fun _ -> ChangeAnimation)] [text "Pause"]
                 else 
                     yield button [onClick (fun _ -> ChangeAnimation)] [text "Play"]
+
+                if allFramesAnimation = true then
+                    yield button [onClick (fun _ -> AnimateAllFrames); style "margin-inline-start: 5px"] [text "One Frame"]
+                else 
+                    yield button [onClick (fun _ -> AnimateAllFrames); style "margin-inline-start: 5px"] [text "All Frames"]
+
             }
 
 
@@ -273,10 +350,32 @@ module App =
                 { kind = Stylesheet; name = "histogramStyle"; url = "Histogram.css" }
                 { kind = Script; name = "histogramScript"; url = "Histogram.js" }
             ]
+
+       // let a = m.data | AVal.map (fun data -> encodeToJSONData)
+       // let multidimjsondescription = a.Channel
         
+       // let da = AVal.map2 (fun values animatie -> sprintf "{values = %s; animate = %A}" values animate) m.data m.animateAllFrames
+       // let guh = da.Channel
+
         let dataChannel = m.data.Channel
         let updateChart =
             "initHisto(__ID__); data.onmessage = function (values) { refresh(values); };"  // subscribe to m.data
+
+
+        //let a = m.animateAllFrames.Channel
+        //let transitionHandler = "transation.onmessage = function (v) { shouldUseTransition = v; }"
+
+        let onBrushed = 
+            onEvent ("brushing") [] (( fun args ->
+                match args with
+                | [x;y] ->
+                    let range = {
+                        min = float x
+                        max = float y
+                    }
+                    Brushed range
+                | _ -> failwith ""
+            ))
 
         let inputView dispText inValue updateFunc minV maxV = 
             span [] [
@@ -441,13 +540,16 @@ module App =
 
                         div [clazz "temp"; style "position: fixed; bottom: 220px; right: 20px"] [
                             Html.SemUi.accordion "Histogram" "chart bar" true [
-                                onBoot' ["data", dataChannel] updateChart ( // when div [histogram etc] is constructed updateChart is called.
-                                            div [clazz "histogram"; style "position: fixed; bottom: 20px; right: 20px; width:350px; height: 200px; z-index: 1000"] []          
+                                onBoot' [("data", dataChannel)] updateChart ( // when div [histogram etc] is constructed updateChart is called.
+                                            div [onBrushed; clazz "histogram"; style "position: fixed; bottom: 20px; right: 20px; width:350px; height: 200px; z-index: 1000"] []          
                                 )
                             ]
                         ]
 
-
+                        div [clazz "temp"; style "position: fixed; bottom: 220px; right: 130px"] [
+                            Html.SemUi.accordion "Parall Coords" "chart bar" false [
+                            ]
+                        ]
                     ]
                 )  
             ]

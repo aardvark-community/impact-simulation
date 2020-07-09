@@ -70,6 +70,7 @@ type Model =
 
         pointSize : float
         playAnimation : bool
+        animateAllFrames : bool
         renderValue : RenderValue
         colorValue : ColorInput
         colorMaps : HashMap<string, string>
@@ -84,6 +85,7 @@ type Model =
 
         filter : option<Box3f>
         filtered : list<float> 
+        filteredAllFrames : float [] []
     }
 
 module DataLoader = 

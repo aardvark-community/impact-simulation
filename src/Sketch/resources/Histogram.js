@@ -23,8 +23,15 @@ let yAxis = undefined;
 let lowerLimit = undefined;
 let upperLimit = undefined;
 let dataSet = undefined;
+let chart_data = undefined;
 
-function initHisto(target) {
+let svg_margin = { top: 20, right: 20, bottom: 25, left: 20 };
+let svg_width = 340;
+let svg_height = 190;
+let bar_width = 0;
+let tooltip_visible = false;
+
+function initHisto(id) {
     color = "steelblue";
 
     // Generate a 1000 data points using normal distribution with mean=20, deviation=5
@@ -32,11 +39,10 @@ function initHisto(target) {
     //let values = d3.range(1000).map(d3.randomUniform(20, 5));
 
     // A formatter for counts.
-    formatCount = d3.format(",.0f");
+    formatCount = d3.format(".2s");
 
-    let margin = { top: 20, right: 20, bottom: 25, left: 20 }
-    width = 340 - margin.left - margin.right;
-    height = 190 - margin.top - margin.bottom;
+    width = svg_width - svg_margin.left - svg_margin.right;
+    height = svg_height - svg_margin.top - svg_margin.bottom;
 
 
     max = Math.ceil(d3.max(values));
@@ -64,11 +70,10 @@ function initHisto(target) {
         .domain(x.domain())
         .thresholds(d3.range(x.domain()[0], x.domain()[1], (x.domain()[1] - x.domain()[0]) / bins));
     //.thresholds(x.ticks(10));
-    let data = data_(values);
-    console.log(data);
+    chart_data = data_(values);
 
-    let yMax = d3.max(data, function (d) { return d.length });
-    let yMin = d3.min(data, function (d) { return d.length });
+    let yMax = d3.max(chart_data, function (d) { return d.length });
+    let yMin = d3.min(chart_data, function (d) { return d.length });
     colorScale = d3.scaleLinear()
         .domain([yMin, yMax])
         .range(["#00c6ff", "#2b44ff"])
@@ -81,39 +86,36 @@ function initHisto(target) {
     xAxis = d3.axisBottom(x)
         .tickFormat(d3.format(".0s"));
 
-    container = d3.select(target).append("div")
+    container = d3.select(id).append("div")
         .style("background-color", "#ffffff")
         .style("border", "3px solid #ffffff");
 
     svg = container.append("svg")
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height + margin.top + margin.bottom);
+        .attr("width", width + svg_margin.left + svg_margin.right)
+        .attr("height", height + svg_margin.top + svg_margin.bottom);
 
     g = svg
         .append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+        .attr("transform", "translate(" + svg_margin.left + "," + svg_margin.top + ")");
 
     clip = g.append("defs").append("svg:clipPath")
         .attr("id", "clip")
         .append("svg:rect")
         .attr("width", width)
-        .attr("height", height + margin.top)
+        .attr("height", height + svg_margin.top)
         .attr("x", 0)
-        .attr("y", -margin.top);
+        .attr("y", -svg_margin.top);
 
     // append bars
     bars_container = g.append("g")
         .attr("class", "bars")
         .attr("clip-path", "url(#clip)");
 
-
-   
-
     /*if (values.length > 0) {
         bar = svg.append("g")
             .attr("clip-path", "url(#clip)")
             .selectAll(".bar")
-            .data(data)
+            .data(chart_data)
             .enter().append("g")
             .attr("class", "bar")
             .attr("transform", function (d) { return "translate(" + x(d.x0) + "," + y(d.length) + ")"; })
@@ -148,7 +150,7 @@ function initHisto(target) {
         .attr("class", "brush")
         .call(brush)
 
-    tooltip = svg.append("g")
+    tooltip = container.append("div")
         .style("opacity", 0)
         .attr("class", "tooltip")
         .style("background-color", "black")
@@ -158,54 +160,54 @@ function initHisto(target) {
         .style("position", "absolute")
 
 
-    d3.select(".overlay")
-        .on("mousemove", function () {
-            var mouseCoords = d3.mouse(this);
+    // mouse move event to check for tooltip
+    d3.select(".overlay").on("mousemove", overlayMouseMove);
+    d3.select(".overlay").on("mouseleave", hideTooltip);
 
-            var mouseX = mouseCoords[0];
-            var mouseY = mouseCoords[1];
+    let idleTimeout;
+    function idled() { idleTimeout = null; }
 
-            // Get x & y co-ordinates
-            console.log(mouseCoords);
-        })
+    function brushed(data) {
 
-}
+        var extent = d3.event.selection;
+        //aardvark.processEvent("Brushing", extent);
+        if (!extent) {
+            if (!idleTimeout) return idleTimeout = setTimeout(idled, 350); // This allows to wait a little bit
+            if (lowerLimit && upperLimit) {
+                lowerLimit = undefined;
+                upperLimit = undefined;
+                refresh(dataSet);
+            }
+        } else {
+            svg.selectAll("g.x.axis")
+                .call(x);
 
-function mouseevent(e) {
-    var x = e.clientX;
-    var y = e.clientY;
-    console.log("mouseX: " + x + " mouseY: " + y);
-}
+            console.log(chart_data, extent, x.invert(extent[0]), x.invert(extent[1]));
 
-let idleTimeout
-function idled() { idleTimeout = null; }
+            lowerLimit = x.invert(extent[0]);
+            upperLimit = x.invert(extent[1]);
 
-function brushed(data) {
+            var range = [lowerLimit, upperLimit];
+            console.log("Range: ", range);
 
-    var extent = d3.event.selection;
-    //console.log("Range: " + extent);
 
-    //aardvark.processEvent("Brushing", extent);
-    if (!extent) {
-        if (!idleTimeout) return idleTimeout = setTimeout(idled, 350); // This allows to wait a little bit
-        if (lowerLimit && upperLimit) {
-            lowerLimit = undefined;
-            upperLimit = undefined;
+            //SEND BRUSHED DATA TO APP
+
+            aardvark.processEvent(id.id, "brushing", lowerLimit, upperLimit);
+
             refresh(dataSet);
+
+            brushOverlay.call(brush.move, null);
         }
-    } else {
-        svg.selectAll("g.x.axis")
-            .call(x);
 
-        console.log(data, extent, x.invert(extent[0]), x.invert(extent[1]));
-
-        lowerLimit = x.invert(extent[0]);
-        upperLimit = x.invert(extent[1]);
-
-        refresh(dataSet);
-
-        brushOverlay.call(brush.move, null);
     }
+
+    function mouseevent(e) {
+        var x = e.clientX;
+        var y = e.clientY;
+        console.log("mouseX: " + x + " mouseY: " + y);
+    }
+
     /*
        if (!extent) {
         if (!idleTimeout) return idleTimeout = setTimeout(idled, 350); // This allows to wait a little bit
@@ -219,32 +221,66 @@ function brushed(data) {
     }*/
 }
 
-function showTooltip(d) {
-    console.log("show", d);
+function overlayMouseMove(event) {
+    var mouseCoords = d3.mouse(this);
+
+    var mouseX = mouseCoords[0];
+    var mouseY = mouseCoords[1];
+
+    // Get x & y co-ordinates
+    //console.log(mouseCoords);
+
+    //let bar_width = svg_width / chart_data.length;
+
+    let hovered = chart_data.filter((d, i) => {
+
+        let x1 = x(d.x0);
+        let x2 = x(d.x1);
+        let y1 = y(0);
+        let y2 = y(d.length);
+        //console.log(d, x1, x2, mouseX, y1, y2, mouseY, x1 <= mouseX && mouseX <= x2);
+        return x1 <= mouseX && mouseX <= x2; // && y1 <= mouseY <= y2;
+    });
+    //console.log(hovered, hovered[0], hovered[0].x0, hovered[0].x1);
+
+    if (hovered.length == 1 && !tooltip_visible) {
+        showTooltip(hovered[0], mouseCoords);
+    } else if (hovered.length == 1 && tooltip_visible) {
+        moveTooltip(hovered[0], mouseCoords);
+    }
+};
+
+function showTooltip(d, mouseCoords) {
+    //console.log("show", d);
     tooltip
         .transition()
         .duration(100)
         .style("opacity", 0.75);
     tooltip
-        .html("Range: " + d.x0 + " - " + d.x1)
-        .style("left", (x(d.x0) - 10) + "px")
-        .style("top", (y(d.length) - 5) + "px");
+        .html("Range: " + formatCount(d.x0) + " - " + formatCount(d.x1))
+        .style("left", (mouseCoords[0] + 20 + svg_margin.left) + "px")
+        .style("top", (mouseCoords[1] - 30 + svg_margin.top) + "px");
+
+    tooltip_visible = true;
 }
 
-function moveTooltip(d) {
-    console.log("move", d);
+function moveTooltip(d, mouseCoords) {
+    //console.log("move", d);
     tooltip
-        .style("left", (x(d.x0) - 10) + "px")
-        .style("top", (y(d.length) - 5) + "px")
-    console.log("x: " + (x(d.x0)), "y: " + (y(d.length)));
+        .html("Range: " + formatCount(d.x0) + " - " + formatCount(d.x1))
+        .style("left", (mouseCoords[0] + 20 + svg_margin.left) + "px")
+        .style("top", (mouseCoords[1] - 30 + svg_margin.top) + "px")
+    //console.log("x: " + mouseCoords[0], "y: " + mouseCoords[1]);
 }
 
-function hideTooltip(d) {
-    console.log("hide", d);
+function hideTooltip(d, mouseCoords) {
+    //console.log("hide", d);
     tooltip
         .transition()
         .duration(100)
         .style("opacity", 0);
+
+    tooltip_visible = false;
 }
 
 /*
@@ -296,12 +332,12 @@ function refresh(values) { // normalized values
         .domain(x.domain())
         .thresholds(d3.range(x.domain()[0], x.domain()[1], (x.domain()[1] - x.domain()[0]) / bins));
     //.thresholds(x.ticks(10));
-    let data = data_(values);
-    console.log(data);
+    chart_data = data_(values);
+    console.log(chart_data);
 
     // Reset y domain using new data
-    let yMax = d3.max(data, function (d) { return d.length });
-    let yMin = d3.min(data, function (d) { return d.length });
+    let yMax = d3.max(chart_data, function (d) { return d.length });
+    let yMin = d3.min(chart_data, function (d) { return d.length });
     y.domain([0, yMax]);
 
     colorScale = d3.scaleLinear()
@@ -316,10 +352,10 @@ function refresh(values) { // normalized values
 
     bar = bars_container
         .selectAll(".bar")
-        .data(data);
+        .data(chart_data);
 
 
-    // what happens when additional data arrives...
+    // what happens when additional chart_data arrives...
     //bar.enter().append("rect").append("text") // Add a new rect for each new elements
 
 
@@ -331,45 +367,66 @@ function refresh(values) { // normalized values
             .attr("class", "bar")
             .merge(bar)
             .attr("transform", d => "translate(" + x(d.x0) + "," + y(d.length) + ")")
-            .html("")
-            .on("mouseover", showTooltip)
-            .on("mousemove", moveTooltip)
-            .on("mouseleave", hideTooltip);
+            .attr("id", (d, i) => "bar-" + i)
+            .html("");
 
         bars.append("rect");
         bars.append("text");
 
-        // describe how rectangle/bin look like
-        bars.selectAll("rect")
-            .transition()
-            .duration(1000)
-            .attr("x", 1)
-            .attr("width", d => { let _new = x(d.x1) - x(d.x0) - 1; return _new < 0 ? 0 : _new; })
-            .attr("height", d => height - y(d.length))
-            .attr("fill", d => colorScale(d.length))
+        let format = d3.format(",.0f");
 
-        // describe how text look like
-        bars.selectAll("text")
-            .transition()
-            .duration(1000)
-            .attr("dy", ".75em")
-            .attr("y", -12)
-            .attr("x", d => (x(d.x1) - x(d.x0)) / 2)
-            .attr("text-anchor", "middle")
-            .text(d => formatCount(d.length));
+        let transitions = false; 
+
+        if (transitions) {
+            bars.selectAll("rect")
+                .transition()
+                .duration(1000)
+                .attr("x", 1)
+                .attr("width", d => { bar_width = x(d.x1) - x(d.x0) - 1; return bar_width < 0 ? 0 : bar_width; })
+                .attr("height", d => height - y(d.length))
+                .attr("fill", d => colorScale(d.length))
+        } else {
+            // describe how rectangle/bin look like
+            bars.selectAll("rect")
+                .attr("x", 1)
+                .attr("width", d => { bar_width = x(d.x1) - x(d.x0) - 1; return bar_width < 0 ? 0 : bar_width; })
+                .attr("height", d => height - y(d.length))
+                .attr("fill", d => colorScale(d.length))
+        }
+
+        if (transitions) {
+            bars.selectAll("text")
+                .transition()
+                .duration(1000)
+                .attr("dy", ".75em")
+                .attr("y", -12)
+                .attr("x", d => (x(d.x1) - x(d.x0)) / 2)
+                .attr("text-anchor", "middle")
+                .text(d => format(d.length));
+        } else {
+
+            // describe how text look like
+            bars.selectAll("text")
+                .attr("dy", ".75em")
+                .attr("y", -12)
+                .attr("x", d => (x(d.x1) - x(d.x0)) / 2)
+                .attr("text-anchor", "middle")
+                .text(d => format(d.length));
+        }
 
 
         // Changes / Animations
         bars.transition()
             .duration(1000)
             .attr("transform", d => "translate(" + x(d.x0) + "," + y(d.length) + ")");
+
     } else {
         bars = bar.enter()
             .merge(bar)
             .html("");
     }
 
-    // Remove object with data
+    // Remove object with chart_data
     bar.exit().remove();
 
     svg.selectAll("g.x.axis")
