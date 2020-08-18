@@ -67,52 +67,102 @@ module Shaders =
             addressV WrapMode.Clamp
         }
 
-    let vs (v : Vertex) =
-        vertex {
-            let color = 
-                let renderValue = uniform?RenderValue
-                let filter : Box3f = uniform?Filter
-                let dataRange : Range = uniform?DataRange
-                let colorValue = uniform?Color
-                let value renderValue = 
-                    match renderValue with
-                    | RenderValue.Energy -> v.energy
-                    | RenderValue.CubicRoot -> v.cubicRoot
-                    | RenderValue.Strain -> v.localStrain
-                    | RenderValue.AlphaJutzi -> v.alphaJutzi
-                    | RenderValue.Pressure -> v.pressure
-                    | _ -> v.energy
-                let linearCoord = value renderValue          
-                let transferFunc = transfer.SampleLevel(V2d(linearCoord, 0.0), 0.0)
+    //let vs (v : Vertex) =
+    //    vertex {
+    //        let color = 
+    //            let renderValue = uniform?RenderValue
+    //            let filter : Box3f = uniform?Filter
+    //            let dataRange : Range = uniform?DataRange
+    //            let colorValue = uniform?Color
+    //            let value renderValue = 
+    //                match renderValue with
+    //                | RenderValue.Energy -> v.energy
+    //                | RenderValue.CubicRoot -> v.cubicRoot
+    //                | RenderValue.Strain -> v.localStrain
+    //                | RenderValue.AlphaJutzi -> v.alphaJutzi
+    //                | RenderValue.Pressure -> v.pressure
+    //                | _ -> v.energy
+    //            let linearCoord = value renderValue          
+    //            let transferFunc = transfer.SampleLevel(V2d(linearCoord, 0.0), 0.0)
 
-                let pos = V3f(v.wp)
+    //            let pos = V3f(v.wp)
 
-                let min = filter.Min
-                let max = filter.Max
+    //            let min = filter.Min
+    //            let max = filter.Max
 
-                let minRange = dataRange.min
-                let maxRange = dataRange.max
+    //            let minRange = dataRange.min
+    //            let maxRange = dataRange.max
 
-                if (min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z && minRange <= linearCoord && linearCoord <= maxRange) then
-                    transferFunc
-                else
-                    colorValue
-            return 
-                { v with
-                    pointSize = uniform?PointSize
-                    pointColor = color
-                }
-        }            
+    //            if (min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z && minRange <= linearCoord && linearCoord <= maxRange) then
+    //                transferFunc
+    //            else
+    //                colorValue
+    //        return 
+    //            { v with
+    //                pointSize = uniform?PointSize
+    //                pointColor = color
+    //            }
+    //    }            
       
     let internal pointSprite (p : Point<Vertex>) = 
         point {
             let wp = p.Value.wp
+
             let dm : DomainRange = uniform?DomainRange
+            let dataRange : Range = uniform?DataRange
+            let filter : Box3f = uniform?Filter
+            let filters : Filters = uniform?CurrFilters
+            let discardPoints = uniform?DiscardPoints
+            let renderValue = uniform?RenderValue
+            let colorValue = uniform?Color
+
+
+            let value renderValue = 
+                match renderValue with
+                | RenderValue.Energy -> p.Value.energy
+                | RenderValue.CubicRoot -> p.Value.cubicRoot
+                | RenderValue.Strain -> p.Value.localStrain
+                | RenderValue.AlphaJutzi -> p.Value.alphaJutzi
+                | RenderValue.Pressure -> p.Value.pressure
+                | _ -> p.Value.energy
+            let linearCoord = value renderValue         
+            let transferFunc = transfer.SampleLevel(V2d(linearCoord, 0.0), 0.0)
+
+            let notDiscardByFilters = 
+                    (p.Value.energy >= filters.filterEnergy.min && p.Value.energy <= filters.filterEnergy.max) &&
+                    (p.Value.cubicRoot >= filters.filterCubicRoot.min && p.Value.cubicRoot <= filters.filterCubicRoot.max) &&
+                    (p.Value.localStrain >= filters.filterStrain.min && p.Value.localStrain <= filters.filterStrain.max) &&
+                    (p.Value.alphaJutzi >= filters.filterAlphaJutzi.min && p.Value.alphaJutzi <= filters.filterAlphaJutzi.max) &&
+                    (p.Value.pressure >= filters.filterPressure.min && p.Value.pressure <= filters.filterPressure.max) 
+
+            let min = filter.Min
+            let max = filter.Max
+
+            let pos = V3f(wp)
+
+            let minRange = dataRange.min
+            let maxRange = dataRange.max
+
             let plane = uniform?ClippingPlane
+
+
+            let color = 
+                if (notDiscardByFilters && min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z && minRange <= linearCoord && linearCoord <= maxRange) then
+                    transferFunc
+                else
+                    colorValue
 
             if (wp.X >= dm.x.min && wp.X <= dm.x.max && wp.Y >= dm.y.min && wp.Y <= dm.y.max && wp.Z >= dm.z.min && wp.Z <= dm.z.max) &&
                 (wp.X <= plane.x && wp.Y <= plane.y && wp.Z <= plane.z) then
-                yield p.Value
+                if (discardPoints) then
+                    if (notDiscardByFilters && min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z && minRange <= linearCoord && linearCoord <= maxRange) then
+                        yield  { p.Value with 
+                                    pointColor = color
+                                    pointSize = uniform?PointSize}
+                else
+                    yield { p.Value with 
+                                pointColor = color
+                                pointSize = uniform?PointSize}
         }
         
     let fs (v : Vertex) = 
@@ -121,15 +171,13 @@ module Shaders =
             let f = Vec.dot c c - 1.0
             if f > 0.0 then discard() // round points magic
 
-           // if v.wp.X >= 0.0 then discard()
-
             //return V4d((v.velocity * 0.5 + V3d.Half).XYZ,1.0) // color according to velocity
             //return V4d(V3d(v.cubicRoots), 1.0) // color according to cubic Roots
             let color = V4d(V3d(v.pointColor), 1.0)
             return color
         }
 
-let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (renderValue : aval<RenderValue>) (tfPath : aval<string>) (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) (filter : aval<option<Box3f>>) (dataRange : aval<Range>) (colorValue : aval<C4b>) (frames : Frame[], bb : Box3f, vertexCount : int)  = 
+let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) (renderValue : aval<RenderValue>) (tfPath : aval<string>) (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) (filter : aval<option<Box3f>>) (currFilters : aval<Filters>) (dataRange : aval<Range>) (colorValue : aval<C4b>) (frames : Frame[], bb : Box3f, vertexCount : int)  = 
     let dci = DrawCallInfo(vertexCount, InstanceCount = 1)
 
     let filterNew = filter |> AVal.map (fun f -> match f with
@@ -163,15 +211,18 @@ let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (renderValue 
     |> Sg.shader {  
             do! DefaultSurfaces.trafo
             do! Shaders.pointSprite
-            do! Shaders.vs
+           // do! Shaders.vs
             do! Shaders.fs
         }
     |> Sg.uniform "PointSize" pointSize
+    |> Sg.uniform "DiscardPoints" discardPoints
     |> Sg.uniform "TransferFunction" texture
     |> Sg.uniform "RenderValue" renderValue
     |> Sg.uniform "DomainRange" domainRange
     |> Sg.uniform "ClippingPlane" clippingPlane
     |> Sg.uniform "Filter" filterNew
+    |> Sg.uniform "CurrFilters" currFilters
     |> Sg.uniform "DataRange" dataRange
     |> Sg.uniform "Color" color
+
   

@@ -17,6 +17,7 @@ type Message =
     | CameraMessage of FreeFlyController.Message
     | StepTime
     | TogglePointSize
+    | TogglePointDiscarded
     | SetPointSize of float
     | ChangeAnimation
     | AnimateAllFrames
@@ -29,7 +30,7 @@ type Message =
     | SetFilter of int
     | ResetFilter 
     | Brushed of Range
-
+    | BrushedParallCoords of RenderValue * Range * bool
     
 module App =    
 
@@ -47,12 +48,45 @@ module App =
                 )
         |> HashMap.ofList
 
+    let roundXdecimal (number : float) x = 
+        let scaled = number * Math.Pow(10.0, x)
+        let rounded = Math.Round(scaled)
+        let rescale = rounded / Math.Pow(10.0, x)
+        rescale
 
     let initial (frames : Frame[]) = 
         let initValues = frames.[0].values.energies
-        let range = initValues.GetBoundingRange()
-        let minValue = range.Min
-        let maxValue = range.Max
+        let rangeEnergy = initValues.GetBoundingRange()
+        let minValue = rangeEnergy.Min
+        let maxValue = rangeEnergy.Max
+
+        let rangeCubicRoot = frames.[0].values.cubicRoots.GetBoundingRange()
+        let rangeStrain = frames.[0].values.strains.GetBoundingRange()
+        let rangeAlphaJutzi = frames.[0].values.alphaJutzis.GetBoundingRange()
+        let rangePressure = frames.[0].values.pressures.GetBoundingRange()
+
+        let filters = {
+            filterEnergy = {
+                min = rangeEnergy.Min
+                max = rangeEnergy.Max
+            }
+            filterCubicRoot = {
+                min = rangeCubicRoot.Min
+                max = rangeCubicRoot.Max
+            }
+            filterStrain = {
+                min = rangeStrain.Min
+                max = rangeStrain.Max
+            }
+            filterAlphaJutzi = {
+                min = rangeAlphaJutzi.Min
+                max = rangeAlphaJutzi.Max
+            }
+            filterPressure = {
+                min = rangePressure.Min
+                max = rangePressure.Max
+            }
+        }
 
         let model = 
             { 
@@ -61,6 +95,8 @@ module App =
             pointSize = 8.0
             playAnimation = true
             animateAllFrames = false
+            discardPoints = false
+            transition = true
             renderValue = RenderValue.Energy
             colorValue = { c = C4b.Gray}
             colorMaps = listWithValues
@@ -83,13 +119,14 @@ module App =
                 min = minValue
                 max = maxValue
             }
+            initFilters = filters
+            currFilters = filters
             values = initValues
             data = []
-            // -1.25; -10.5; -1.0; -0.25; 0.0; 0.65; 1.2; 2.3; 1.7; 2.9; 25.7; 4.4; 5.31; 4.1
-            // 5.0; 1.2; 3.4; 2.1; 3.6; 5.6; 4.4; 0.5; 0.2; 1.9; 5.2; 2.7; 50.0
             filter = None
             filtered = []
             filteredAllFrames = Array.empty
+            dataPath = "data.csv"
             }
         model
 
@@ -101,15 +138,75 @@ module App =
         |> Array.filter (fun (v, i) -> condition v)
         |> Array.map (fun (v, i) -> i)
 
-    let filterValue condition (pos : V3f[]) (value : float[]) = 
+    let filterValue condition (pos : V3f[]) value = 
         Array.zip pos value
         |> Array.filter (fun (pos, v) -> condition pos)
         |> Array.map (fun (pos, v) -> v)
+
+    // --------------------- Longer, but more sophisticated solution -----------------------
+
+    let zip5 a (b : _ []) (c : _ []) (d : _ []) (e : _ [])=
+        Array.init (Array.length a) (fun i -> a.[i], b.[i], c.[i], d.[i], e.[i])
+
+    let unzip5 arr =
+        let a = Array.zeroCreate (Array.length arr)
+        let b = Array.zeroCreate (Array.length arr)
+        let c = Array.zeroCreate (Array.length arr)
+        let d = Array.zeroCreate (Array.length arr)
+        let e = Array.zeroCreate (Array.length arr)
+        arr
+        |> Array.iteri (fun i (x, y, z, w, v) ->
+            a.[i] <- x
+            b.[i] <- y
+            c.[i] <- z
+            d.[i] <- w
+            e.[i] <- v)
+        a, b, c, d, e
+
+    let filterAllValues condition (pos : V3f[]) (values : Values) = 
+        let allValuesArray = zip5 values.energies values.cubicRoots values.strains values.alphaJutzis values.pressures |> Seq.distinct |> Seq.toArray
+        let temp = Array.zip pos allValuesArray
+        let filtered = 
+            temp
+            |> Array.filter (fun (pos, v) -> condition pos)
+            |> Array.map (fun (pos, v) -> v)
+
+        filtered
+
+    let unzipValues filtered = 
+        let e, c, s, a, p = unzip5 filtered
+        let values : Values = { energies = e
+                                cubicRoots = c
+                                strains = s
+                                alphaJutzis = a
+                                pressures = p
+                                }
+        values
+
+    // --------------------------------------------------------------------------------
   
     let filterData (filter : option<Box3f>) (positions : V3f[]) (values : float[]) = 
         let filter_ = filter |> (fun elem -> defaultArg elem Box3f.Invalid)
         let isInsideBox (pos : V3f) = filter_.Contains(pos)    
         let filteredValues = filterValue isInsideBox positions values
+        filteredValues
+
+    let filterValueFrames condition (pos : V3f[]) (values : Values) = 
+        let filteredEnergies = filterValue condition pos values.energies
+        let filteredCubicRoots = filterValue condition pos values.cubicRoots
+        let filteredStrains = filterValue condition pos values.strains
+        let filteredAlphaJutzis = filterValue condition pos values.alphaJutzis
+        let filteredPressures = filterValue condition pos values.pressures
+        let newValues : Values = { energies = filteredEnergies
+                                   cubicRoots = filteredCubicRoots  
+                                   strains = filteredStrains
+                                   alphaJutzis = filteredAlphaJutzis
+                                   pressures = filteredPressures }
+        newValues
+
+    let filterDataFrames (filter : Box3f) (positions : V3f[]) (frame : Frame) = 
+        let isInsideBox (pos : V3f) = filter.Contains(pos)    
+        let filteredValues = filterAllValues isInsideBox positions frame.values
         filteredValues
 
     let filterDataForAllFrames (frames : Frame[]) (filter : option<Box3f>) (renderVal : RenderValue) = 
@@ -148,12 +245,14 @@ module App =
             | TogglePointSize -> 
                 let newPointSize = if m.pointSize = 8.0 then 20.0 elif m.pointSize = 20.0 then 8.0 else m.pointSize
                 { m with pointSize = newPointSize }
+            | TogglePointDiscarded -> {m with discardPoints = not m.discardPoints}
             | ChangeAnimation -> { m with playAnimation = not m.playAnimation}
             | AnimateAllFrames -> 
                 let filteredDataAllFrames = filterDataForAllFrames frames m.filter m.renderValue
 
                 {m with 
                     animateAllFrames = not m.animateAllFrames
+                    transition = not m.transition
                     filteredAllFrames = filteredDataAllFrames}
             | StepTime -> 
                 let frameId =  (sw.Elapsed.TotalSeconds / 0.5) |> int
@@ -273,6 +372,13 @@ module App =
                     | 3 -> Some(Box3f(V3f(-5.0, -5.0, -5.0), V3f(5.0, 30.0, 5.0)))
                     | _ -> None
 
+                let newDataPath =
+                    match i with
+                    | 1 -> "dataFilter1.csv"
+                    | 2 -> "dataFilter2.csv"
+                    | 3 -> "dataFilter3.csv"
+                    | _ -> "data.csv"
+
                 let filteredDataAllFrames = 
                     if m.animateAllFrames then
                         let filtered = filterDataForAllFrames frames newFilter m.renderValue
@@ -286,28 +392,154 @@ module App =
                 {m with 
                     filter = newFilter
                     data = Array.toList filteredData
-                    filteredAllFrames = filteredDataAllFrames}
+                    filteredAllFrames = filteredDataAllFrames
+                    dataPath = newDataPath}
             | ResetFilter -> {m with 
                                 filter = None
                                 data = []
-                                dataRange = m.initDataRange}
-            | Brushed r -> { m with playAnimation = not m.playAnimation}
+                                dataRange = m.initDataRange
+                                dataPath = "data.csv"
+                                currFilters = m.initFilters}
+            | Brushed r -> { m with dataRange = r}
+            | BrushedParallCoords (v, r, b) ->
+                let filters = m.currFilters
+                let initFilters = m.initFilters
+                let newFilters = 
+                    match v with
+                    | RenderValue.Energy ->  
+                        if b then 
+                            {filters with
+                                filterEnergy =
+                                {
+                                    min = initFilters.filterEnergy.min
+                                    max = initFilters.filterEnergy.max
+                                }
+                            }
+                        else
+                            {filters with
+                                filterEnergy =
+                                {
+                                    min = r.min
+                                    max = r.max
+                                }
+                            }
+                    | RenderValue.CubicRoot -> 
+                        if b then 
+                            {filters with
+                                filterCubicRoot =
+                                {
+                                    min = initFilters.filterCubicRoot.min
+                                    max = initFilters.filterCubicRoot.max
+                                }
+                            }
+                        else
+                            {filters with
+                                filterCubicRoot =
+                                {
+                                    min = r.min
+                                    max = r.max
+                                }
+                            }
+                    | RenderValue.Strain -> 
+                        if b then 
+                            {filters with
+                                filterStrain =
+                                {
+                                    min = initFilters.filterStrain.min
+                                    max = initFilters.filterStrain.max
+                                }
+                            }
+                        else
+                            {filters with
+                                filterStrain =
+                                {
+                                    min = r.min
+                                    max = r.max
+                                }
+                            }
+                    | RenderValue.AlphaJutzi ->
+                        if b then 
+                            {filters with
+                                filterAlphaJutzi =
+                                {
+                                    min = initFilters.filterAlphaJutzi.min
+                                    max = initFilters.filterAlphaJutzi.max
+                                }
+                            }
+                        else
+                            {filters with
+                                filterAlphaJutzi =
+                                {
+                                    min = r.min
+                                    max = r.max
+                                }
+                            }
+                    | RenderValue.Pressure -> 
+                        if b then 
+                            {filters with
+                                filterPressure =
+                                {
+                                    min = initFilters.filterPressure.min
+                                    max = initFilters.filterPressure.max
+                                }
+                            }
+                        else
+                            {filters with
+                                filterPressure =
+                                {
+                                    min = r.min
+                                    max = r.max
+                                }
+                            }
+                {m with currFilters = newFilters}
 
     let renderValues = AMap.ofArray((Enum.GetValues typeof<RenderValue> :?> (RenderValue [])) |> Array.map (fun c -> (c, text (Enum.GetName(typeof<RenderValue>, c)) )))
 
     let view (runtime : IRuntime) (data : Frame[] * Box3f * int) (m : AdaptiveModel) =
 
+        let frames = data |> (fun (elem, _, _) ->  elem)
+
+        let shuffleR (r : Random) xs = xs |> Seq.sortBy (fun _ -> r.Next())
+        
+        let encodeToCSVData (data : Frame[]) =
+            let builder = System.Text.StringBuilder()
+            let initValues = data.[0].values
+            let positions = data.[0].positions
+
+            builder.AppendLine("energy,cubicRoot,strain,alphaJutzi,pressure") |> ignore
+
+            let filter = Box3f(V3f(-5.0, -5.0, -5.0), V3f(5.0, 30.0, 5.0))
+
+            let filteredValues = filterDataFrames filter positions data.[0]
+
+            let randomlyPickedData = filteredValues |> shuffleR (Random ()) |> Seq.take 3800 |> Seq.toArray
+            let values = unzipValues randomlyPickedData
+            let valuesLength = randomlyPickedData.Length
+
+            for i in 0 .. valuesLength - 1 do
+                builder.AppendLine(
+                    sprintf "%f,%f,%f,%f,%f" values.energies.[i] values.cubicRoots.[i] values.strains.[i] values.alphaJutzis.[i] values.pressures.[i]
+                ) |> ignore
+
+            builder.ToString()
+
+        //______UNCOMMENT FOLLOWING LINES TO STORE THE .CSV DATA__________    
+            
+        //let csvData = encodeToCSVData frames
+        //let path = @"..\..\..\src\Sketch\resources\dataFilter3.csv"
+        //File.writeAllText path csvData
+        
         let frustum = 
             Frustum.perspective 60.0 0.1 100.0 1.0 
                 |> AVal.constant
 
         let heraSg = 
             data
-            |> Hera.createAnimatedSg m.frame m.pointSize m.renderValue m.currentMap m.domainRange m.clippingPlane m.filter m.dataRange m.colorValue.c
+            |> Hera.createAnimatedSg m.frame m.pointSize m.discardPoints m.renderValue m.currentMap m.domainRange m.clippingPlane m.filter m.currFilters m.dataRange m.colorValue.c
             |> Sg.noEvents
 
         let sg = heraSg
-            
+
         let att =
             [
                 style "position: fixed; left: 0; top: 0; width: 100%; height: 100%"
@@ -341,7 +573,6 @@ module App =
 
             }
 
-
         let colorMaps = AMap.map (fun k v -> text v) m.colorMaps
 
         let dependencies = 
@@ -349,6 +580,9 @@ module App =
                 { kind = Script; name = "d3"; url = "http://d3js.org/d3.v4.min.js" }
                 { kind = Stylesheet; name = "histogramStyle"; url = "Histogram.css" }
                 { kind = Script; name = "histogramScript"; url = "Histogram.js" }
+                { kind = Stylesheet; name = "parallCoordStyle"; url = "ParallCoords.css" }
+                { kind = Script; name = "parallCoordScript"; url = "ParallCoords.js" }
+
             ]
 
        // let a = m.data | AVal.map (fun data -> encodeToJSONData)
@@ -358,12 +592,14 @@ module App =
        // let guh = da.Channel
 
         let dataChannel = m.data.Channel
+        let transitionChannel = m.transition.Channel
         let updateChart =
-            "initHisto(__ID__); data.onmessage = function (values) { refresh(values); };"  // subscribe to m.data
+            "initHisto(__ID__); data.onmessage = function (values) { refresh(values);  }; transition.onmessage = function (v) { shouldUseTransition = v; }"  // subscribe to m.data
 
+        let pathChannel = m.dataPath.Channel
+        let updateParallCoords = 
+            "initParallCoords(__ID__); dataPath.onmessage = function (path) { if (path != null) refreshPar(path); };"
 
-        //let a = m.animateAllFrames.Channel
-        //let transitionHandler = "transation.onmessage = function (v) { shouldUseTransition = v; }"
 
         let onBrushed = 
             onEvent ("brushing") [] (( fun args ->
@@ -377,6 +613,36 @@ module App =
                 | _ -> failwith ""
             ))
 
+        let boolean (s : string) =
+            match s with
+            | "true" -> true
+            | "false" -> false
+            | _-> failwith ""
+
+        let onParallCoordsBrushed = 
+            onEvent ("parallcoords") [] (( fun args ->
+                match args with
+                | [dim; low; high; res] ->
+                    let renderValue = 
+                        match dim with
+                        | "\"energy\"" -> RenderValue.Energy
+                        | "\"cubicRoot\"" -> RenderValue.CubicRoot
+                        | "\"strain\"" -> RenderValue.Strain
+                        | "\"alphaJutzi\"" -> RenderValue.AlphaJutzi
+                        | "\"pressure\"" -> RenderValue.Pressure
+                        | _ -> failwith ""
+
+                    let lower = float low
+                    let upper = float high
+                    let reset = boolean res
+                    let range = {
+                        min = lower
+                        max = upper
+                    }
+                    BrushedParallCoords (renderValue, range, reset)
+                | _ -> failwith ""
+            ))
+ 
         let inputView dispText inValue updateFunc minV maxV = 
             span [] [
             span [style "padding: 3px"] [text dispText]
@@ -448,6 +714,17 @@ module App =
                             br []
 
                             div [style "width: 90%"] [ 
+                                simplecheckbox { 
+                                    attributes [clazz "ui inverted checkbox"]
+                                    state m.discardPoints
+                                    toggle TogglePointDiscarded
+                                    content [ text "Discard Out of Range?"]  
+                                }
+                            ]
+
+                            br []
+
+                            div [clazz "colorRange"; style "width: 90%"] [ 
                                 span [style "padding: 2px; padding-inline-end: 20px"] [text "Out of Range Color:"]
                                 ColorPicker.view m.colorValue |> UI.map SetColorValue
                             ]
@@ -461,6 +738,7 @@ module App =
                             
                                 let steps = 
                                     let range = Math.Abs(initRange.max - initRange.min)
+                                    
                                     if range <= 0.01 then
                                         0.001, 0.005
                                     else if range <= 0.1 then
@@ -481,23 +759,23 @@ module App =
                                 yield span [style "padding: 4px"] [text "Min: "]
                                 yield simplenumeric {
                                         attributes [style "width: 80%; padding: 2px"]
-                                        value (m.dataRange |> AVal.map (fun r -> r.min))
-                                        update (fun v -> SetDataRange (Min, v))
+                                        value (m.dataRange |> AVal.map (fun r -> (roundXdecimal r.min 2.0)))
+                                        update (fun v -> SetDataRange (Min, (roundXdecimal v 2.0)))
                                         step (fst steps)
                                         largeStep (snd steps)
-                                        min initRange.min
-                                        max initRange.max
+                                        min (roundXdecimal initRange.min 2.0)
+                                        max (roundXdecimal initRange.max 2.0)
                                         }
 
                                 yield span [style "padding: 3px"] [text "Max: "]
                                 yield simplenumeric {
                                         attributes [style "width: 80%; padding: 2px"]
-                                        value (m.dataRange |> AVal.map (fun r -> r.max))
-                                        update (fun v -> SetDataRange (Max, v))
+                                        value (m.dataRange |> AVal.map (fun r -> (roundXdecimal r.max 2.0)))
+                                        update (fun v -> SetDataRange (Max, (roundXdecimal v 2.0)))
                                         step (fst steps)
                                         largeStep (snd steps)
-                                        min initRange.min
-                                        max initRange.max
+                                        min (roundXdecimal initRange.min 2.0)
+                                        max (roundXdecimal initRange.max 2.0)
                                         }    
                                }
                             )
@@ -533,28 +811,30 @@ module App =
                                 style "width: 168px; height: 0px; background-color: #ffffff; margin-block-start: 3px; margin-block-end: 0px; margin-inline-start: 0px"
                             ]
 
-                            yield span [style "position: relative; font-size: 0.8em; right: 10px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> r.min.ToString()))] 
-                            yield span [style "position: inherit; font-size: 0.8em; right: 10px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> r.max.ToString()))]
+                            yield span [style "position: relative; font-size: 0.8em; right: 10px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundXdecimal r.min 2.0).ToString()))] 
+                            yield span [style "position: inherit; font-size: 0.8em; right: 10px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundXdecimal r.max 2.0).ToString()))]
                             }
                         )
-
-                        div [clazz "temp"; style "position: fixed; bottom: 220px; right: 20px"] [
-                            Html.SemUi.accordion "Histogram" "chart bar" true [
-                                onBoot' [("data", dataChannel)] updateChart ( // when div [histogram etc] is constructed updateChart is called.
-                                            div [onBrushed; clazz "histogram"; style "position: fixed; bottom: 20px; right: 20px; width:350px; height: 200px; z-index: 1000"] []          
+                        
+                        let histogram = 
+                                onBoot' [("data", dataChannel); ("transition", transitionChannel)] updateChart ( // when div [histogram etc] is constructed updateChart is called.
+                                            div [onBrushed; clazz "histogram"; style "position: fixed; bottom: 20px; right: 20px; width:400px; height: 230px; z-index: 1000"] []          
                                 )
-                            ]
-                        ]
+                            
 
-                        div [clazz "temp"; style "position: fixed; bottom: 220px; right: 130px"] [
-                            Html.SemUi.accordion "Parall Coords" "chart bar" false [
-                            ]
-                        ]
+                        let parallCoords = 
+                                    onBoot' [("dataPath", pathChannel)] updateParallCoords (
+                                            div [onParallCoordsBrushed; clazz "parallCoords"; style "position: fixed; bottom: 20px; right: 20px; width:400px; height: 230px; z-index: 1000"] []          
+                                    )
+
+                        Html.SemUi.tabbed [clazz "temp"; style "position: fixed; bottom: 220px; right: 20px" ] [
+                            ("Histogram", histogram)
+                            ("ParallCoords", parallCoords)
+                        ] "Histogram"
                     ]
                 )  
             ]
             )
-
     let threads (state : Model) =
          let pool = ThreadPool.empty
     

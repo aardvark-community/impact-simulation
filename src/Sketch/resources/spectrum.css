@@ -5,6 +5,11 @@ Author: Brian Grinstead
 License: MIT
 ***/
 
+
+/*.colorRange {
+    opacity: 0.5
+}*/
+
 .sp-container {
     position:absolute;
     top:0;

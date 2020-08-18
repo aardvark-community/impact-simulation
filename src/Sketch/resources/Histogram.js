@@ -15,7 +15,6 @@ let brush = undefined;
 let brushOverlay = undefined;
 let min = undefined;
 let max = undefined;
-let temp = undefined;
 let bars_container = undefined;
 let bars = undefined;
 let xAxis = undefined;
@@ -24,26 +23,26 @@ let lowerLimit = undefined;
 let upperLimit = undefined;
 let dataSet = undefined;
 let chart_data = undefined;
+let targetID = undefined;
+let shouldUseTransition = undefined;
 
 let svg_margin = { top: 20, right: 20, bottom: 25, left: 20 };
-let svg_width = 340;
-let svg_height = 190;
+let svg_width = 395;
+let svg_height = 220;
 let bar_width = 0;
 let tooltip_visible = false;
 
 function initHisto(id) {
     color = "steelblue";
 
-    // Generate a 1000 data points using normal distribution with mean=20, deviation=5
+    targetID = id;
     let values = d3.range(0);
-    //let values = d3.range(1000).map(d3.randomUniform(20, 5));
 
     // A formatter for counts.
     formatCount = d3.format(".2s");
 
     width = svg_width - svg_margin.left - svg_margin.right;
     height = svg_height - svg_margin.top - svg_margin.bottom;
-
 
     max = Math.ceil(d3.max(values));
     min = Math.floor(d3.min(values));
@@ -58,18 +57,15 @@ function initHisto(id) {
     let _max = max + toAdd;
     let bins = (_max - min) / breite;
 
-    // console.log(rest, toAdd, bins, min, max, _max);
-
     x = d3.scaleLinear()
         .domain([min, max])
         .range([0, width]);
 
-    // Generate a histogram using twenty uniformly-spaced bins.
+    // Generate a histogram using uniformly-spaced bins.
     let data_ = d3.histogram()
         .value(d => d)
         .domain(x.domain())
         .thresholds(d3.range(x.domain()[0], x.domain()[1], (x.domain()[1] - x.domain()[0]) / bins));
-    //.thresholds(x.ticks(10));
     chart_data = data_(values);
 
     let yMax = d3.max(chart_data, function (d) { return d.length });
@@ -77,7 +73,7 @@ function initHisto(id) {
     colorScale = d3.scaleLinear()
         .domain([yMin, yMax])
         .range(["#00c6ff", "#2b44ff"])
-        .interpolate(d3.interpolateHcl); //interpolateHsl interpolateHcl interpolateRgb
+        .interpolate(d3.interpolateHcl);
 
     y = d3.scaleLinear()
         .domain([0, yMax])
@@ -111,32 +107,6 @@ function initHisto(id) {
         .attr("class", "bars")
         .attr("clip-path", "url(#clip)");
 
-    /*if (values.length > 0) {
-        bar = svg.append("g")
-            .attr("clip-path", "url(#clip)")
-            .selectAll(".bar")
-            .data(chart_data)
-            .enter().append("g")
-            .attr("class", "bar")
-            .attr("transform", function (d) { return "translate(" + x(d.x0) + "," + y(d.length) + ")"; })
-            .on("mouseover", showTooltip)
-            .on("mousemove", moveTooltip)
-            .on("mouseleave", hideTooltip);
-
-        bar.append("rect")
-            .attr("x", 1)
-            .attr("width", d => { let _new = x(d.x1) - x(d.x0) - 1; return _new < 0 ? 0 : _new; })
-            .attr("height", function (d) { return height - y(d.length); })
-            .attr("fill", function (d) { return colorScale(d.length) });
-
-        bar.append("text")
-            .attr("dy", ".75em")
-            .attr("y", -12)
-            .attr("x", d => (x(d.x1) - x(d.x0)) / 2)
-            .attr("text-anchor", "middle")
-            .text(function (d) { return formatCount(d.length); });
-    }*/
-
     g.append("g")
         .attr("class", "x axis")
         .attr("transform", "translate(0," + height + ")")
@@ -159,7 +129,6 @@ function initHisto(id) {
         .style("padding", "10px")
         .style("position", "absolute")
 
-
     // mouse move event to check for tooltip
     d3.select(".overlay").on("mousemove", overlayMouseMove);
     d3.select(".overlay").on("mouseleave", hideTooltip);
@@ -170,7 +139,6 @@ function initHisto(id) {
     function brushed(data) {
 
         var extent = d3.event.selection;
-        //aardvark.processEvent("Brushing", extent);
         if (!extent) {
             if (!idleTimeout) return idleTimeout = setTimeout(idled, 350); // This allows to wait a little bit
             if (lowerLimit && upperLimit) {
@@ -182,18 +150,8 @@ function initHisto(id) {
             svg.selectAll("g.x.axis")
                 .call(x);
 
-            console.log(chart_data, extent, x.invert(extent[0]), x.invert(extent[1]));
-
             lowerLimit = x.invert(extent[0]);
             upperLimit = x.invert(extent[1]);
-
-            var range = [lowerLimit, upperLimit];
-            console.log("Range: ", range);
-
-
-            //SEND BRUSHED DATA TO APP
-
-            aardvark.processEvent(id.id, "brushing", lowerLimit, upperLimit);
 
             refresh(dataSet);
 
@@ -201,24 +159,6 @@ function initHisto(id) {
         }
 
     }
-
-    function mouseevent(e) {
-        var x = e.clientX;
-        var y = e.clientY;
-        console.log("mouseX: " + x + " mouseY: " + y);
-    }
-
-    /*
-       if (!extent) {
-        if (!idleTimeout) return idleTimeout = setTimeout(idled, 350); // This allows to wait a little bit
-        x.domain([min, max])
-    } else {
-        x = d3.scaleLinear()
-            .domain([x(Math.floor(extent[0])), x(Math.ceil(extent[1]))])
-            .range([0, width]);
-
-        temp.select(".brush").call(brush.move, null) // This remove the grey brush area as soon as the selection has been done
-    }*/
 }
 
 function overlayMouseMove(event) {
@@ -227,21 +167,14 @@ function overlayMouseMove(event) {
     var mouseX = mouseCoords[0];
     var mouseY = mouseCoords[1];
 
-    // Get x & y co-ordinates
-    //console.log(mouseCoords);
-
-    //let bar_width = svg_width / chart_data.length;
-
     let hovered = chart_data.filter((d, i) => {
 
         let x1 = x(d.x0);
         let x2 = x(d.x1);
         let y1 = y(0);
         let y2 = y(d.length);
-        //console.log(d, x1, x2, mouseX, y1, y2, mouseY, x1 <= mouseX && mouseX <= x2);
         return x1 <= mouseX && mouseX <= x2; // && y1 <= mouseY <= y2;
     });
-    //console.log(hovered, hovered[0], hovered[0].x0, hovered[0].x1);
 
     if (hovered.length == 1 && !tooltip_visible) {
         showTooltip(hovered[0], mouseCoords);
@@ -251,7 +184,6 @@ function overlayMouseMove(event) {
 };
 
 function showTooltip(d, mouseCoords) {
-    //console.log("show", d);
     tooltip
         .transition()
         .duration(100)
@@ -265,16 +197,13 @@ function showTooltip(d, mouseCoords) {
 }
 
 function moveTooltip(d, mouseCoords) {
-    //console.log("move", d);
     tooltip
         .html("Range: " + formatCount(d.x0) + " - " + formatCount(d.x1))
         .style("left", (mouseCoords[0] + 20 + svg_margin.left) + "px")
         .style("top", (mouseCoords[1] - 30 + svg_margin.top) + "px")
-    //console.log("x: " + mouseCoords[0], "y: " + mouseCoords[1]);
 }
 
 function hideTooltip(d, mouseCoords) {
-    //console.log("hide", d);
     tooltip
         .transition()
         .duration(100)
@@ -286,30 +215,21 @@ function hideTooltip(d, mouseCoords) {
 /*
 * Adding refresh method to reload new data
 */
-function refresh(values) { // normalized values 
-    console.log("refresh", values, !values, !values || values.length == 0);
+function refresh(values) { 
     if (values.length == 0) {
         lowerLimit = undefined;
         upperLimit = undefined;
     }
-    //if (!values || values.length == 0) {
-    //    // Hide histogram
-    //    //svg.attr("display", "none");
-    //    container.style("display", "none");
-    //    return;
-    //}
-    //else {
-    //    // Show histogram
-    //    //svg.attr("display", "block");
-    //    container.style("display", "block");
-    //}
 
     dataSet = values;
 
-    // let values = d3.range(1000).map(d3.random.normal(20, 5));
-    console.log("Limits", upperLimit, lowerLimit);
     max = upperLimit ? upperLimit : Math.ceil(d3.max(values));
     min = lowerLimit ? lowerLimit : Math.floor(d3.min(values));
+
+    //SEND BRUSHED DATA TO APP
+    if (!isNaN(min) && !isNaN(max)) {
+        aardvark.processEvent(targetID.id, "brushing", min, max);
+    }
 
     let range = max - min;
     let breite = (range / 10) < 0.5 ? 1 : Math.round(range / 10);
@@ -321,8 +241,6 @@ function refresh(values) { // normalized values
     let _max = max + toAdd;
     let bins = (_max - min) / breite;
 
-    //console.log(rest, toAdd, bins, min, max, _max);
-
     x = d3.scaleLinear()
         .domain([min, max])
         .range([0, width]).nice();
@@ -331,7 +249,6 @@ function refresh(values) { // normalized values
         .value(d => d)
         .domain(x.domain())
         .thresholds(d3.range(x.domain()[0], x.domain()[1], (x.domain()[1] - x.domain()[0]) / bins));
-    //.thresholds(x.ticks(10));
     chart_data = data_(values);
     console.log(chart_data);
 
@@ -343,7 +260,7 @@ function refresh(values) { // normalized values
     colorScale = d3.scaleLinear()
         .domain([yMin, yMax])
         .range(["#00c6ff", "#2b44ff"])
-        .interpolate(d3.interpolateHcl); //interpolateHsl interpolateHcl interpolateRgb
+        .interpolate(d3.interpolateHcl);
 
     xAxis = d3.axisBottom(x)
         .ticks(8)
@@ -354,14 +271,7 @@ function refresh(values) { // normalized values
         .selectAll(".bar")
         .data(chart_data);
 
-
-    // what happens when additional chart_data arrives...
-    //bar.enter().append("rect").append("text") // Add a new rect for each new elements
-
-
-
     if (values.length != 0) {
-
         bars = bar.enter()
             .append("g")
             .attr("class", "bar")
@@ -375,7 +285,7 @@ function refresh(values) { // normalized values
 
         let format = d3.format(",.0f");
 
-        let transitions = false; 
+        let transitions = shouldUseTransition; 
 
         if (transitions) {
             bars.selectAll("rect")

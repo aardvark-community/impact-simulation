@@ -48,6 +48,15 @@ type Range =
     max : float
     }
 
+type Filters =
+    {   
+        filterEnergy     : Range
+        filterCubicRoot  : Range
+        filterStrain     : Range
+        filterAlphaJutzi : Range
+        filterPressure   : Range    
+    }
+
 type DomainRange = 
     {
     x : Range
@@ -79,6 +88,8 @@ type Model =
         clippingPlane : ClippingPlane
         dataRange : Range
         initDataRange : Range
+        discardPoints : bool
+        transition : bool
 
         data : list<float>
         values : float[]
@@ -86,6 +97,11 @@ type Model =
         filter : option<Box3f>
         filtered : list<float> 
         filteredAllFrames : float [] []
+
+        initFilters : Filters
+        currFilters : Filters
+
+        dataPath : string 
     }
 
 module DataLoader = 
