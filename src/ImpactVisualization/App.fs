@@ -34,7 +34,7 @@ type Message =
     
 module App =    
 
-    let tfsDir = @"..\..\..\src\Sketch\resources\transfer"
+    let tfsDir = @"..\..\..\src\ImpactVisualization\resources\transfer"
 
     let transferFunctions = 
         Directory.EnumerateFiles tfsDir  
@@ -100,7 +100,7 @@ module App =
             renderValue = RenderValue.Energy
             colorValue = { c = C4b.Gray}
             colorMaps = listWithValues
-            currentMap = @"..\..\..\src\Sketch\resources\transfer\map-03.png"
+            currentMap = @"..\..\..\src\ImpactVisualization\resources\transfer\map-03.png"
             domainRange = {
                 x = {min = -16.0; max = 16.0}; 
                 y = {min = -16.0; max = 30.0}; 
@@ -526,7 +526,7 @@ module App =
         //______UNCOMMENT FOLLOWING LINES TO STORE THE .CSV DATA__________    
             
         //let csvData = encodeToCSVData frames
-        //let path = @"..\..\..\src\Sketch\resources\dataFilter3.csv"
+        //let path = @"..\..\..\src\ImpactVisualization\resources\dataFilter3.csv"
         //File.writeAllText path csvData
         
         let frustum = 
