@@ -25,6 +25,6 @@ Wheel Button | Changes the position of the camera in 2D (no depth)
 Data type | Path
 --- | ---
 Hera data | [..\impact-simulation\data](https://github.com/aardvark-community/impact-simulation/tree/master/data)
-.csv files | [..\impact-simulation\src\ImpactVisualization\resources](https://github.com/aardvark-community/impact-simulation/tree/master/src/ImpactVisualization/resources)
 JavaScript and .css files | [..\impact-simulation\src\ImpactVisualization\resources](https://github.com/aardvark-community/impact-simulation/tree/master/src/ImpactVisualization/resources)
+.csv files | [..\impact-simulation\src\ImpactVisualization\resources\csv](https://github.com/aardvark-community/impact-simulation/tree/master/src/ImpactVisualization/resources/csv)
 Transfer functions | [..\impact-simulation\src\ImpactVisualization\resources\transfer](https://github.com/aardvark-community/impact-simulation/tree/master/src/ImpactVisualization/resources/transfer)
