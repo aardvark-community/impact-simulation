@@ -14,17 +14,17 @@
     <RunWorkingDirectory>$(OutputPath)\netcoreapp2.1</RunWorkingDirectory>
   </PropertyGroup>
   <ItemGroup>
-	<None Include="resources\dataFilter1.csv" />
-	<EmbeddedResource Include="resources\data.csv">
+	<None Include="resources\csv\dataFilter1.csv" />
+	<EmbeddedResource Include="resources\csv\data.csv">
 		<CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
-	<EmbeddedResource Include="resources\dataFilter1.csv">
+	<EmbeddedResource Include="resources\csv\dataFilter1.csv">
 		<CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	</EmbeddedResource>
-	<EmbeddedResource Include="resources\dataFilter2.csv">
+	<EmbeddedResource Include="resources\csv\dataFilter2.csv">
 		<CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	</EmbeddedResource>
-	<EmbeddedResource Include="resources\dataFilter3.csv">
+	<EmbeddedResource Include="resources\csv\dataFilter3.csv">
 		<CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	</EmbeddedResource>
 	<EmbeddedResource Include="resources\ParallCoords.css">
