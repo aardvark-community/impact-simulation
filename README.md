@@ -11,6 +11,18 @@ build.cmd/build.sh, then run the ImpactVisualization.exe in bin/Release/netcorea
 # Run from VisualStudio
 src/Impact-Visualization.sln
 
+# UI Controls and Tools
+**1. Animation flow** - Play or pause the animation and activate All Frames animation for the histogram  
+**2. Change point size** - Changes the sizes of the 3D points  
+**3. Change color map** - Dropdown menu to change the current color map/transfer function  
+**4. Change attribute** - Dropdown menu to change the current attribute  
+**5. Set clipping planes and domain range** - Clipping planes to restrict the extent of the point cloud and three axes to control the domain range  
+**6. Handle out of range data** - Either discard or color the points that are out of range  
+**7. Change data range** - Sets the min and max values for the current attribute  
+**8. Set a probe** - Choose a probe (each one is a cube placed at the center of the visualization and has a different size) to activate the histogram and parallel coordinates visualizations  
+**9. Legend** - Show the current color map and the respective min and max values  
+**10. Visualization techniques** - Histogram and Parallel Coordinates to explore data and apply brushing to filter out the data in the 3D view
+
 # Controls
  Control   | Description
 --- | ---
