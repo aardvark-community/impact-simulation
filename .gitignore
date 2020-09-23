@@ -13,3 +13,5 @@ bin/Debug
 /.paket
 /Aardvark.log
 /src/Sketch/*.domaincache
+/data/*
+!/data/transfer/
