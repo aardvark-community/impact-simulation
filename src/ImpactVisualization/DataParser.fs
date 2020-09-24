@@ -1,4 +1,4 @@
-namespace HackyParser
+namespace DataParser
 
 open System
 open System.IO
