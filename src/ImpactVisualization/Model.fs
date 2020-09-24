@@ -112,7 +112,7 @@ module DataLoader =
     
         let serializer = MBrace.FsPickler.FsPickler.CreateBinarySerializer()
     
-        let prepareData (d : Parser.Data) : Frame = 
+        let prepareData (d : HackyParser.Parser.Data) : Frame = 
             let frame = {
                 vertices    = runtime.PrepareBuffer (ArrayBuffer d.vertices) :> IBuffer
                 velocities  = runtime.PrepareBuffer (ArrayBuffer d.velocities) :> IBuffer
@@ -137,14 +137,14 @@ module DataLoader =
         let convertToCacheFile (fileName : string) =
             let cacheName = fileName + cachedFileEnding
             if not (File.Exists cacheName) then
-                let d,b = Parser.parseFile fileName
+                let d,b = HackyParser.Parser.parseFile fileName
                 let data = serializer.Pickle((d,b))
                 File.writeAllBytes cacheName data
         
         let loadDataAndCache (fileName : string) =
             if fileName.EndsWith(cachedFileEnding) then
                 let bytes = File.readAllBytes fileName
-                let (d : Parser.Data, b : Box3f) = serializer.UnPickle(bytes) // exception hier wenn nicht richtiger inhalt... 
+                let (d : HackyParser.Parser.Data, b : Box3f) = serializer.UnPickle(bytes) // exception hier wenn nicht richtiger inhalt... 
 
                 let buffer = prepareData(d)
                 let vertexCount = d.vertices.Length

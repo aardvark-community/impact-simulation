@@ -261,7 +261,8 @@ module App =
                 let isCurrentFilterSet = 
                     match m.filter with 
                     | None -> false
-                    | Some -> true
+                    | Some(_) -> true
+                    
 
                 let currData = 
                     if isCurrentFilterSet && m.animateAllFrames then  

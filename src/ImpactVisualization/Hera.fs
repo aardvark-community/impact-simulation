@@ -1,4 +1,4 @@
-module Hera
+namespace Hera
 
 open System
 open System.IO
@@ -177,52 +177,55 @@ module Shaders =
             return color
         }
 
-let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) (renderValue : aval<RenderValue>) (tfPath : aval<string>) (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) (filter : aval<option<Box3f>>) (currFilters : aval<Filters>) (dataRange : aval<Range>) (colorValue : aval<C4b>) (frames : Frame[], bb : Box3f, vertexCount : int)  = 
-    let dci = DrawCallInfo(vertexCount, InstanceCount = 1)
 
-    let filterNew = filter |> AVal.map (fun f -> match f with
-                                                 | Some i -> i
-                                                 | None -> Box3f.Infinite)
+module Hera =
 
-    let currentBuffers = frame |> AVal.map (fun i -> frames.[i % frames.Length]) 
+    let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) (renderValue : aval<RenderValue>) (tfPath : aval<string>) (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) (filter : aval<option<Box3f>>) (currFilters : aval<Filters>) (dataRange : aval<Range>) (colorValue : aval<C4b>) (frames : Frame[], bb : Box3f, vertexCount : int)  = 
+        let dci = DrawCallInfo(vertexCount, InstanceCount = 1)
 
-    //this conversion is actually not really neccessary
-    let color = colorValue |> AVal.map (fun c -> C4d c) |> AVal.map (fun x -> V4d(x.R, x.G, x.B, x.A))
+        let filterNew = filter |> AVal.map (fun f -> match f with
+                                                     | Some i -> i
+                                                     | None -> Box3f.Infinite)
 
-    let vertices    = currentBuffers |> AVal.map (fun f -> f.vertices)
-    let velocities  = currentBuffers |> AVal.map (fun f -> f.velocities)
-    let energies    = currentBuffers |> AVal.map (fun f -> f.energies)
-    let cubicRoots  = currentBuffers |> AVal.map (fun f -> f.cubicRoots)
-    let strains     = currentBuffers |> AVal.map (fun f -> f.strains)
-    let alphaJutzis = currentBuffers |> AVal.map (fun f -> f.alphaJutzis)
-    let pressures   = currentBuffers |> AVal.map (fun f -> f.pressures)
+        let currentBuffers = frame |> AVal.map (fun i -> frames.[i % frames.Length]) 
 
-    let texture = tfPath |> AVal.map (fun p -> FileTexture(p, TextureParams.empty) :> ITexture )
+        //this conversion is actually not really neccessary
+        let color = colorValue |> AVal.map (fun c -> C4d c) |> AVal.map (fun x -> V4d(x.R, x.G, x.B, x.A))
 
-    Sg.render IndexedGeometryMode.PointList dci
-    // complex, can also handly dynamic vertex data
-    |> Sg.vertexBuffer DefaultSemantic.Positions (BufferView(vertices, typeof<V3f>))
-    |> Sg.vertexBuffer (Sym.ofString "Velocity")  (BufferView(velocities, typeof<V3f>))
-    |> Sg.vertexBuffer (Sym.ofString "Energy") (BufferView(energies, typeof<float32>))
-    |> Sg.vertexBuffer (Sym.ofString "CubicRootOfDamage") (BufferView(cubicRoots, typeof<float32>))
-    |> Sg.vertexBuffer (Sym.ofString "LocalStrain") (BufferView(strains, typeof<float32>))
-    |> Sg.vertexBuffer (Sym.ofString "AlphaJutzi") (BufferView(alphaJutzis, typeof<float32>))
-    |> Sg.vertexBuffer (Sym.ofString "Pressure") (BufferView(pressures, typeof<float32>))
-    |> Sg.shader {  
-            do! DefaultSurfaces.trafo
-            do! Shaders.pointSprite
-           // do! Shaders.vs
-            do! Shaders.fs
-        }
-    |> Sg.uniform "PointSize" pointSize
-    |> Sg.uniform "DiscardPoints" discardPoints
-    |> Sg.uniform "TransferFunction" texture
-    |> Sg.uniform "RenderValue" renderValue
-    |> Sg.uniform "DomainRange" domainRange
-    |> Sg.uniform "ClippingPlane" clippingPlane
-    |> Sg.uniform "Filter" filterNew
-    |> Sg.uniform "CurrFilters" currFilters
-    |> Sg.uniform "DataRange" dataRange
-    |> Sg.uniform "Color" color
+        let vertices    = currentBuffers |> AVal.map (fun f -> f.vertices)
+        let velocities  = currentBuffers |> AVal.map (fun f -> f.velocities)
+        let energies    = currentBuffers |> AVal.map (fun f -> f.energies)
+        let cubicRoots  = currentBuffers |> AVal.map (fun f -> f.cubicRoots)
+        let strains     = currentBuffers |> AVal.map (fun f -> f.strains)
+        let alphaJutzis = currentBuffers |> AVal.map (fun f -> f.alphaJutzis)
+        let pressures   = currentBuffers |> AVal.map (fun f -> f.pressures)
+
+        let texture = tfPath |> AVal.map (fun p -> FileTexture(p, TextureParams.empty) :> ITexture )
+
+        Sg.render IndexedGeometryMode.PointList dci
+        // complex, can also handly dynamic vertex data
+        |> Sg.vertexBuffer DefaultSemantic.Positions (BufferView(vertices, typeof<V3f>))
+        |> Sg.vertexBuffer (Sym.ofString "Velocity")  (BufferView(velocities, typeof<V3f>))
+        |> Sg.vertexBuffer (Sym.ofString "Energy") (BufferView(energies, typeof<float32>))
+        |> Sg.vertexBuffer (Sym.ofString "CubicRootOfDamage") (BufferView(cubicRoots, typeof<float32>))
+        |> Sg.vertexBuffer (Sym.ofString "LocalStrain") (BufferView(strains, typeof<float32>))
+        |> Sg.vertexBuffer (Sym.ofString "AlphaJutzi") (BufferView(alphaJutzis, typeof<float32>))
+        |> Sg.vertexBuffer (Sym.ofString "Pressure") (BufferView(pressures, typeof<float32>))
+        |> Sg.shader {  
+                do! DefaultSurfaces.trafo
+                do! Shaders.pointSprite
+               // do! Shaders.vs
+                do! Shaders.fs
+            }
+        |> Sg.uniform "PointSize" pointSize
+        |> Sg.uniform "DiscardPoints" discardPoints
+        |> Sg.uniform "TransferFunction" texture
+        |> Sg.uniform "RenderValue" renderValue
+        |> Sg.uniform "DomainRange" domainRange
+        |> Sg.uniform "ClippingPlane" clippingPlane
+        |> Sg.uniform "Filter" filterNew
+        |> Sg.uniform "CurrFilters" currFilters
+        |> Sg.uniform "DataRange" dataRange
+        |> Sg.uniform "Color" color
 
   
