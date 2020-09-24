@@ -60,7 +60,7 @@
     <EmbeddedResource Include="resources\transfer\verlauf1.jpg">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
-    <Compile Include="HackyParser.fs" />
+    <Compile Include="DataParser.fs" />
     <Compile Include="Model.fs" />
     <Compile Include="Hera.fs" />
     <Compile Include="App.fs" />
