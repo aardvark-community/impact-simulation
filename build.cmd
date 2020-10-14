@@ -6,7 +6,7 @@ PUSHD %~dp0
 
 if exist boot.fsx (
     if NOT exist .paket\fake.exe (
-        dotnet tool install fake-cli --tool-path .paket --version 5.16.0
+        dotnet tool install fake-cli --tool-path .paket 
         if errorlevel 1 (
           exit /b %errorlevel%
         )

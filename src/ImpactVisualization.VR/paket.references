@@ -17,11 +17,8 @@ Aardvark.UI
 Aardvark.UI.Primitives
 Aardium
 
-Aardvark.GPGPU
-
 Adaptify.MSBuild
 FSharp.Data.Adaptive
 
-FSharp.Data
+Aardvark.VR
 
-Silk.NET.GLFW

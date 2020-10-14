@@ -536,14 +536,16 @@ module App =
 
         let heraSg = 
             data
-            |> Hera.createAnimatedSg m.frame m.pointSize m.discardPoints m.renderValue m.currentMap m.domainRange m.clippingPlane m.filter m.currFilters m.dataRange m.colorValue.c
+            |> Hera.createAnimatedSg m.frame m.pointSize m.discardPoints m.renderValue m.currentMap 
+                        m.domainRange m.clippingPlane m.filter m.currFilters m.dataRange m.colorValue.c m.cameraState.view
+                        runtime
             |> Sg.noEvents
 
         let sg = heraSg
 
         let att =
             [
-                style "position: fixed; left: 0; top: 0; width: 100%; height: 100%"
+                style "position: fixed; left: 0; top: 0; width: 100%; height: 100%; background-color:white"
             ]
 
         let dynamicUI = 

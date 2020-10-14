@@ -114,7 +114,7 @@ module DataLoader =
     
         let prepareData (d : DataParser.Parser.Data) : Frame = 
             let frame = {
-                vertices    = runtime.PrepareBuffer (ArrayBuffer d.vertices) :> IBuffer
+                vertices    = runtime.PrepareBuffer (ArrayBuffer (Array.map (fun v3 -> V4f(v3,1.0f)) d.vertices)) :> IBuffer
                 velocities  = runtime.PrepareBuffer (ArrayBuffer d.velocities) :> IBuffer
                 energies    = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.internalEnergies)) :> IBuffer
                 cubicRoots  = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.cubicRootsOfDamage)) :> IBuffer
