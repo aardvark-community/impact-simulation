@@ -19,6 +19,7 @@ type ThreeDMessage = Nop
 type Message =
     | ThreeD of ThreeDMessage
     | TwoD of AardVolume.Message 
+    | Nop
  
 module Demo =
     open Aardvark.UI.Primitives
@@ -33,7 +34,8 @@ module Demo =
         
     let update (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
         match msg with
-        | ThreeD Nop -> model
+        | ThreeD _ -> model
+        | Nop -> model
         | TwoD msg -> 
             let sup = AardVolume.App.update frames model.twoDModel msg
             { model with twoDModel = sup }
@@ -49,7 +51,7 @@ module Demo =
             []
 
     let ui (runtime : IRuntime) (data : Frame[] * Box3f * int) (info : VrSystemInfo) (m : AdaptiveModel) : DomNode<Message> = // 2D UI
-        AardVolume.App.view runtime data m.twoDModel |> UI.map TwoD
+        AardVolume.App.view runtime data m.twoDModel |> UI.map (fun x -> printfn "%A" x; Nop)
 
     let vr (runtime : IRuntime) (data : Frame[] * Box3f * int) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
         Sg.empty

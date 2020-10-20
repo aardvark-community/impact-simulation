@@ -235,44 +235,44 @@ module Hera =
         let pressures   = currentBuffers |> AVal.map (fun f -> f.pressures)
 
 
-        let cnt = frames.[0].positions.Length
+        //let cnt = frames.[0].positions.Length
 
-        let idx = frame |> AVal.map (fun f -> Array.init frames.[f].positions.Length id) 
+        //let idx = frame |> AVal.map (fun f -> Array.init frames.[f].positions.Length id) 
 
-        let bi = new BitonicSorter<V4f>(runtime, <@ fun (l : V4f) (r : V4f) -> l.Z <= r.Z @>)
-        let sorter = bi.NewInstance(cnt)
+        //let bi = new BitonicSorter<V4f>(runtime, <@ fun (l : V4f) (r : V4f) -> l.Z <= r.Z @>)
+        //let sorter = bi.NewInstance(cnt)
 
 
-        let input = runtime.CreateComputeShader(Compute.transform)
-        let inputBinding = runtime.NewInputBinding(input)
-        let target = runtime.CreateBuffer<V4f>(cnt)
-        let perm = runtime.CreateBuffer<int>(cnt)
-        inputBinding.["dst"] <- target.Buffer
-        inputBinding.["cnt"] <- cnt
-        let sw = System.Diagnostics.Stopwatch()
-        let mutable iter = 0
-        let run (src : IBackendBuffer) (vp : Trafo3d) = 
-            sw.Start()
-            inputBinding.["src"] <- src
-            inputBinding.["view"] <- vp.Forward
-            inputBinding.Flush()
-            runtime.Run [
-                ComputeCommand.Bind(input)
-                ComputeCommand.SetInput inputBinding
-                ComputeCommand.Dispatch(ceilDiv cnt 64)
-                ComputeCommand.Sync(target.Buffer)
-            ]
-            sorter.Run(target, perm)
-            sw.Stop()
+        //let input = runtime.CreateComputeShader(Compute.transform)
+        //let inputBinding = runtime.NewInputBinding(input)
+        //let target = runtime.CreateBuffer<V4f>(cnt)
+        //let perm = runtime.CreateBuffer<int>(cnt)
+        //inputBinding.["dst"] <- target.Buffer
+        //inputBinding.["cnt"] <- cnt
+        //let sw = System.Diagnostics.Stopwatch()
+        //let mutable iter = 0
+        //let run (src : IBackendBuffer) (vp : Trafo3d) = 
+        //    sw.Start()
+        //    inputBinding.["src"] <- src
+        //    inputBinding.["view"] <- vp.Forward
+        //    inputBinding.Flush()
+        //    runtime.Run [
+        //        ComputeCommand.Bind(input)
+        //        ComputeCommand.SetInput inputBinding
+        //        ComputeCommand.Dispatch(ceilDiv cnt 64)
+        //        ComputeCommand.Sync(target.Buffer)
+        //    ]
+        //    sorter.Run(target, perm)
+        //    sw.Stop()
 
-            if iter >= 100 then  
-                iter <- 0
-                printfn "%A" (sw.Elapsed.MicroTime / 100.0)
-                sw.Reset()
+        //    if iter >= 100 then  
+        //        iter <- 0
+        //        printfn "%A" (sw.Elapsed.MicroTime / 100.0)
+        //        sw.Reset()
 
-            iter <- iter + 1
+        //    iter <- iter + 1
 
-            perm.Buffer :> IBuffer
+        //    perm.Buffer :> IBuffer
 
 
 
@@ -290,20 +290,20 @@ module Hera =
         //        idx |> Array.copy
         //    )
 
-        let idx = 
-            (cameraView, frame) ||> AVal.map2 (fun c frame -> 
-                let vp = c.ViewTrafo
-                let positions = frames.[frame].positions
-                run (frames.[frame].vertices |> unbox) vp
-            )
+        //let idx = 
+        //    (cameraView, frame) ||> AVal.map2 (fun c frame -> 
+        //        let vp = c.ViewTrafo
+        //        let positions = frames.[frame].positions
+        //        run (frames.[frame].vertices |> unbox) vp
+        //    )
 
         let texture = tfPath |> AVal.map (fun p -> FileTexture(p, TextureParams.empty) :> ITexture )
 
-        let index b (c : ISg)  = Sg.VertexIndexApplicator(BufferView(b, typeof<int>), c) :> ISg
+        //let index b (c : ISg)  = Sg.VertexIndexApplicator(BufferView(b, typeof<int>), c) :> ISg
 
         Sg.render IndexedGeometryMode.PointList dci
         // complex, can also handly dynamic vertex data
-        |> index idx
+        //|> index idx
         //|> Sg.vertexAttribute DefaultSemantic.Positions vertices
         |> Sg.vertexBuffer DefaultSemantic.Positions (BufferView(vertices, typeof<V4f>))
         |> Sg.vertexBuffer (Sym.ofString "Velocity")  (BufferView(velocities, typeof<V3f>))
