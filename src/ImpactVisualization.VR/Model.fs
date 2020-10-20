@@ -1,14 +1,20 @@
-﻿namespace ImpactVisualization
+namespace ImpactVisualization
 
-open Aardvark.Base
-open Aardvark.Vr
-
+open Aardvark.UI
+open Aardvark.UI.Primitives
 open FSharp.Data.Adaptive
 open Adaptify
+open Aardvark.Base
+open System.IO
+
+open FSharp.Data.Adaptive
+
+open AardVolume.Model
+
 
 [<ModelType>]
-type Model =
+type Model = 
     {
-        text    : string
-        vr      : bool
+        text : string
+        twoDModel : AardVolume.Model.Model
     }

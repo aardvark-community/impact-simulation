@@ -11,7 +11,8 @@ let main argv =
     Aardium.init()
 
     let app = VRApplication.create (VRDisplay.OpenVR 1.0) 8 false
-    let mapp = ComposedApp.start app Demo.app
+    let bla = Demo.app app.Runtime
+    let mapp = ComposedApp.start app bla
     
     WebPart.startServerLocalhost 4321 [
         MutableApp.toWebPart app.Runtime mapp

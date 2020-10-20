@@ -9,7 +9,7 @@ open Aardvark.Fake
 
 do Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
 
-DefaultSetup.install ["src/Visualization-Experiments.sln"]
+DefaultSetup.install ["src/Impact-Visualization.sln"]
 
 
 entry()
