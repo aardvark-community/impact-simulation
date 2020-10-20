@@ -329,6 +329,6 @@ module Hera =
         |> Sg.uniform "DataRange" dataRange
         |> Sg.uniform "Color" color
         |> Sg.uniform "Alpha" ~~0.01
-        |> Sg.depthTest ~~DepthTestMode.None
-        |> Sg.blendMode ~~mode
+        //|> Sg.depthTest ~~DepthTestMode.None
+        //|> Sg.blendMode ~~mode
   

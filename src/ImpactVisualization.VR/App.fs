@@ -51,10 +51,46 @@ module Demo =
             []
 
     let ui (runtime : IRuntime) (data : Frame[] * Box3f * int) (info : VrSystemInfo) (m : AdaptiveModel) : DomNode<Message> = // 2D UI
-        AardVolume.App.view runtime data m.twoDModel |> UI.map (fun x -> printfn "%A" x; Nop)
+        AardVolume.App.view runtime data m.twoDModel |> UI.map TwoD
 
     let vr (runtime : IRuntime) (data : Frame[] * Box3f * int) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
-        Sg.empty
+
+        let deviceSgs = 
+            info.state.devices |> AMap.toASet |> ASet.chooseA (fun (_,d) ->
+                d.model |> AVal.map (fun m ->
+                    match m.Value with
+                    | Some sg -> 
+                        sg 
+                        |> Sg.noEvents 
+                        |> Sg.trafo d.pose.deviceToWorld
+                        |> Sg.onOff d.pose.isValid
+                        |> Some
+                    | None -> 
+                        None 
+                )
+            )
+            |> Sg.set
+            |> Sg.shader {
+                do! DefaultSurfaces.trafo
+                do! DefaultSurfaces.diffuseTexture
+                do! DefaultSurfaces.simpleLighting
+            }
+
+        let world = 
+            Sg.textWithConfig TextConfig.Default m.text
+            |> Sg.noEvents
+            |> Sg.andAlso deviceSgs
+
+        let heraSg =    
+            let m = m.twoDModel
+            data
+            |> Hera.Hera.createAnimatedSg 
+                m.frame m.pointSize m.discardPoints m.renderValue m.currentMap 
+                m.domainRange m.clippingPlane m.filter m.currFilters m.dataRange m.colorValue.c m.cameraState.view
+                 runtime
+            |> Sg.noEvents
+
+        Sg.ofSeq [ world; heraSg ]
 
         
     let pause (info : VrSystemInfo) (m : AdaptiveModel) =
