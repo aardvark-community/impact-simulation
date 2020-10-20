@@ -174,7 +174,7 @@ module Shaders =
             let alpha : float = uniform?Alpha
             //return V4d((v.velocity * 0.5 + V3d.Half).XYZ,1.0) // color according to velocity
             //return V4d(V3d(v.cubicRoots), 1.0) // color according to cubic Roots
-            let color = V4d(v.pointColor.XYZ, alpha)
+            let color = V4d(v.pointColor.XYZ, 1.0)
             return color
         }
 
