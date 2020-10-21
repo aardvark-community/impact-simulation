@@ -12,6 +12,8 @@ open Hera
 
 open FSharp.Data.Adaptive
 
+type EmbeddedRessource = EmbeddedRessource // THIS IS NECESSARY
+
 type Message =
     | ToggleModel
     | CameraMessage of FreeFlyController.Message

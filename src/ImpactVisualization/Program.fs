@@ -6,7 +6,6 @@ open Suave
 open Aardvark.Base
 open System
 
-type EmbeddedRessource = EmbeddedRessource // THIS IS NECESSARY
 
 [<EntryPoint>]
 let main args =
@@ -22,7 +21,7 @@ let main args =
 
     WebPart.startServer 4321 [
         MutableApp.toWebPart' app.Runtime false (App.start media)
-        Reflection.assemblyWebPart typeof<EmbeddedRessource>.Assembly
+        Reflection.assemblyWebPart typeof<AardVolume.EmbeddedRessource>.Assembly
     ] |> ignore
     
     Aardium.run {

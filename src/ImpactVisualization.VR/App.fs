@@ -20,6 +20,7 @@ type Message =
     | ThreeD of ThreeDMessage
     | TwoD of AardVolume.Message 
     | Nop
+    | StartVr
  
 module Demo =
     open Aardvark.UI.Primitives
@@ -39,19 +40,25 @@ module Demo =
         | TwoD msg -> 
             let sup = AardVolume.App.update frames model.twoDModel msg
             { model with twoDModel = sup }
+        
+        | StartVr -> vr.start(); model
 
     let threads (model : Model) =
-        ThreadPool.empty
+        AardVolume.App.threads model.twoDModel |> ThreadPool.map TwoD
         
     let input (msg : VrMessage) =
         match msg with
-        | VrMessage.PressButton(_,1) ->
-            []
+        | VrMessage.PressButton(d,1) ->
+            printf "Controller: %i " d
         | _ -> 
-            []
+            1
 
     let ui (runtime : IRuntime) (data : Frame[] * Box3f * int) (info : VrSystemInfo) (m : AdaptiveModel) : DomNode<Message> = // 2D UI
-        AardVolume.App.view runtime data m.twoDModel |> UI.map TwoD
+        div [] [
+            button [onClick (fun _ -> StartVr)] [text "start vr"]
+            br []
+            AardVolume.App.view runtime data m.twoDModel |> UI.map TwoD
+        ]
 
     let vr (runtime : IRuntime) (data : Frame[] * Box3f * int) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
 
@@ -89,6 +96,8 @@ module Demo =
                 m.domainRange m.clippingPlane m.filter m.currFilters m.dataRange m.colorValue.c m.cameraState.view
                  runtime
             |> Sg.noEvents
+            |> Sg.scale 0.1
+            |> Sg.translate 0.0 0.0 0.5
 
         Sg.ofSeq [ world; heraSg ]
 
