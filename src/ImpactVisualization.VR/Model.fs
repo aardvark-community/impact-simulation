@@ -17,4 +17,7 @@ type Model =
     {
         text : string
         twoDModel : AardVolume.Model.Model
+
+        grabTrafo : Option<Trafo3d>
+        grabberId : Option<int>
     }

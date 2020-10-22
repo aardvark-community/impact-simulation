@@ -21,6 +21,9 @@ type Message =
     | TwoD of AardVolume.Message 
     | Nop
     | StartVr
+    | Grab of int
+    | Ungrab
+    | MoveController of int * Trafo3d
  
 module Demo =
     open Aardvark.UI.Primitives
@@ -30,6 +33,8 @@ module Demo =
         {   
             twoDModel = AardVolume.App.initial frames
             text = "hello" 
+            grabTrafo = None
+            grabberId = None
         }
 
         
@@ -40,22 +45,40 @@ module Demo =
         | TwoD msg -> 
             let sup = AardVolume.App.update frames model.twoDModel msg
             { model with twoDModel = sup }
-        
         | StartVr -> vr.start(); model
+        | Grab id -> {model with grabberId = Some id}
+        | Ungrab -> {model with grabberId = None}
+        | MoveController (id, trafo) -> 
+            match model.grabberId with 
+                | Some i -> if i = id then {model with grabTrafo = Some(trafo)} else model
+                | None -> model
+            
 
     let threads (model : Model) =
         AardVolume.App.threads model.twoDModel |> ThreadPool.map TwoD
         
     let input (msg : VrMessage) =
         match msg with
-        | VrMessage.PressButton(d,1) ->
-            printf "Controller: %i " d
+        | VrMessage.PressButton(controllerId, buttonId) ->
+            printf "press button: %A " (controllerId, buttonId)
+            if buttonId = 1 then
+                [Grab controllerId]
+            else 
+                []
+        | VrMessage.UnpressButton(controllerId, buttonId) ->
+            printf "press button: %A " (controllerId, buttonId)
+            if buttonId = 1 then
+                [Ungrab]
+            else 
+                []
+        | VrMessage.UpdatePose(controllerId, pose) ->
+            if pose.isValid then [MoveController (controllerId, pose.deviceToWorld)] else []
         | _ -> 
-            1
+            []
 
     let ui (runtime : IRuntime) (data : Frame[] * Box3f * int) (info : VrSystemInfo) (m : AdaptiveModel) : DomNode<Message> = // 2D UI
         div [] [
-            button [onClick (fun _ -> StartVr)] [text "start vr"]
+            button [style "z-index : 1000; position: absolute"; onClick (fun _ -> StartVr)] [text "start vr"]
             br []
             AardVolume.App.view runtime data m.twoDModel |> UI.map TwoD
         ]
@@ -88,6 +111,14 @@ module Demo =
             |> Sg.noEvents
             |> Sg.andAlso deviceSgs
 
+
+        let grabTrafo =
+            m.grabTrafo |> AVal.map (fun t ->
+                match t with 
+                | Some trafo -> trafo
+                | None -> Trafo3d.Identity
+                )
+
         let heraSg =    
             let m = m.twoDModel
             data
@@ -98,6 +129,7 @@ module Demo =
             |> Sg.noEvents
             |> Sg.scale 0.1
             |> Sg.translate 0.0 0.0 0.5
+            |> Sg.trafo grabTrafo
 
         Sg.ofSeq [ world; heraSg ]
 
