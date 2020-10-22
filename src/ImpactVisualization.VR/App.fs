@@ -22,7 +22,7 @@ type Message =
     | Nop
     | StartVr
     | Grab of int
-    | Ungrab
+    | Ungrab of int
     | MoveController of int * Trafo3d
  
 module Demo =
@@ -35,8 +35,6 @@ module Demo =
             text = "hello" 
             grabTrafo = None
             grabberId = None
-            leftGrab = false
-            rightGrab = false 
         }
 
         
@@ -48,8 +46,14 @@ module Demo =
             let sup = AardVolume.App.update frames model.twoDModel msg
             { model with twoDModel = sup }
         | StartVr -> vr.start(); model
-        | Grab id -> {model with grabberId = Some id}
-        | Ungrab -> {model with grabberId = None}
+        | Grab id ->
+            match model.grabberId with 
+                | Some i -> model
+                | None -> {model with grabberId = Some id}
+        | Ungrab id -> 
+            match model.grabberId with 
+                | Some i -> if i = id then {model with grabberId = None} else model
+                | None -> model
         | MoveController (id, trafo) -> 
             match model.grabberId with 
                 | Some i -> if i = id then {model with grabTrafo = Some(trafo)} else model
@@ -62,31 +66,31 @@ module Demo =
     let input (msg : VrMessage) =
         match msg with
         | VrMessage.PressButton(controllerId, buttonId) ->
-            printf "press button: %A " (controllerId, buttonId)
+           // printf "press button: %A " (controllerId, buttonId)
             if buttonId = 1 then
                 [Grab controllerId]
             else 
                 []
         | VrMessage.UnpressButton(controllerId, buttonId) ->
-            printf "unpress button: %A " (controllerId, buttonId)
+            //printf "unpress button: %A " (controllerId, buttonId)
             if buttonId = 1 then
-                [Ungrab]
+                [Ungrab controllerId]
             else 
                 []
         | VrMessage.Press(controllerId, buttonId) ->
-            printf "press: %A " (controllerId, buttonId)
+            //printf "press: %A " (controllerId, buttonId)
             []
         | VrMessage.Unpress(controllerId, buttonId) ->
-            printf "unpress: %A " (controllerId, buttonId)
+          //  printf "unpress: %A " (controllerId, buttonId)
             []
         | VrMessage.Touch(controllerId, buttonId) ->
-            printf "touch: %A " (controllerId, buttonId)
+           // printf "touch: %A " (controllerId, buttonId)
             []
         | VrMessage.Untouch(controllerId, buttonId) ->
-            printf "untouch: %A " (controllerId, buttonId)
+           // printf "untouch: %A " (controllerId, buttonId)
             []
         | VrMessage.ValueChange(controllerId, buttonId, value) ->
-            printf "value change: %A " (controllerId, buttonId, value)
+           // printf "value change: %A " (controllerId, buttonId, value)
             []
         | VrMessage.UpdatePose(controllerId, pose) ->
             if pose.isValid then [MoveController (controllerId, pose.deviceToWorld)] else []
