@@ -20,4 +20,7 @@ type Model =
 
         grabTrafo : Option<Trafo3d>
         grabberId : Option<int>
+
+        leftGrab : bool
+        rightGrab : bool 
     }

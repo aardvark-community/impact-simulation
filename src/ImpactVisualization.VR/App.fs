@@ -35,6 +35,8 @@ module Demo =
             text = "hello" 
             grabTrafo = None
             grabberId = None
+            leftGrab = false
+            rightGrab = false 
         }
 
         
@@ -66,20 +68,33 @@ module Demo =
             else 
                 []
         | VrMessage.UnpressButton(controllerId, buttonId) ->
-            printf "press button: %A " (controllerId, buttonId)
+            printf "unpress button: %A " (controllerId, buttonId)
             if buttonId = 1 then
                 [Ungrab]
             else 
                 []
+        | VrMessage.Press(controllerId, buttonId) ->
+            printf "press: %A " (controllerId, buttonId)
+            []
+        | VrMessage.Unpress(controllerId, buttonId) ->
+            printf "unpress: %A " (controllerId, buttonId)
+            []
+        | VrMessage.Touch(controllerId, buttonId) ->
+            printf "touch: %A " (controllerId, buttonId)
+            []
+        | VrMessage.Untouch(controllerId, buttonId) ->
+            printf "untouch: %A " (controllerId, buttonId)
+            []
+        | VrMessage.ValueChange(controllerId, buttonId, value) ->
+            printf "value change: %A " (controllerId, buttonId, value)
+            []
         | VrMessage.UpdatePose(controllerId, pose) ->
             if pose.isValid then [MoveController (controllerId, pose.deviceToWorld)] else []
-        | _ -> 
-            []
 
     let ui (runtime : IRuntime) (data : Frame[] * Box3f * int) (info : VrSystemInfo) (m : AdaptiveModel) : DomNode<Message> = // 2D UI
         div [] [
-            button [style "z-index : 1000; position: absolute"; onClick (fun _ -> StartVr)] [text "start vr"]
-            br []
+            //button [style "z-index : 1000; position: absolute"; onClick (fun _ -> StartVr)] [text "start vr"]
+            //br []
             AardVolume.App.view runtime data m.twoDModel |> UI.map TwoD
         ]
 

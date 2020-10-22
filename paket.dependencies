@@ -9,7 +9,7 @@ nuget Aardvark.Base                         ~> 5.0.24
 nuget Aardvark.Base.Incremental             ~> 5.0.24
 nuget Aardvark.Base.FSharp                  ~> 5.0.24
 
-nuget Aardvark.VR                           ~> 5.0.2
+nuget Aardvark.VR                           ~> 5.0.4
                                             
 nuget Aardvark.Base.Rendering               ~> 5.0.16
 nuget Aardvark.SceneGraph                   ~> 5.0.16
