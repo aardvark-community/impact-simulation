@@ -18,6 +18,11 @@ type Model =
         text : string
         twoDModel : AardVolume.Model.Model
 
+        modelTrafo : Option<Trafo3d>
         grabTrafo : Option<Trafo3d>
         grabberId : Option<int>
+
+        scalingFactor : float
+
+        sphereProbe : bool 
     }

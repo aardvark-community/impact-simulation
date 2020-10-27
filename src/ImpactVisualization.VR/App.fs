@@ -23,7 +23,10 @@ type Message =
     | StartVr
     | Grab of int
     | Ungrab of int
+    | ScaleUp
+    | ScaleDown 
     | MoveController of int * Trafo3d
+    | CreateSphere 
  
 module Demo =
     open Aardvark.UI.Primitives
@@ -35,6 +38,9 @@ module Demo =
             text = "hello" 
             grabTrafo = None
             grabberId = None
+            modelTrafo = None
+            scalingFactor = 0.05
+            sphereProbe = false
         }
 
         
@@ -52,12 +58,20 @@ module Demo =
                 | None -> {model with grabberId = Some id}
         | Ungrab id -> 
             match model.grabberId with 
-                | Some i -> if i = id then {model with grabberId = None} else model
+                | Some i -> 
+                    if i = id then 
+                        {model with 
+                            grabberId = None
+                            modelTrafo = model.grabTrafo} 
+                    else model
                 | None -> model
+        | ScaleUp -> {model with scalingFactor = model.scalingFactor * 1.05}
+        | ScaleDown -> {model with scalingFactor = model.scalingFactor * 0.95}
         | MoveController (id, trafo) -> 
             match model.grabberId with 
                 | Some i -> if i = id then {model with grabTrafo = Some(trafo)} else model
                 | None -> model
+        | CreateSphere -> {model with sphereProbe = not model.sphereProbe}
             
 
     let threads (model : Model) =
@@ -67,13 +81,15 @@ module Demo =
         match msg with
         | VrMessage.PressButton(controllerId, buttonId) ->
            // printf "press button: %A " (controllerId, buttonId)
-            if buttonId = 1 then
+            if buttonId = 1 then 
+                [CreateSphere]
+            else if buttonId = 2 then
                 [Grab controllerId]
             else 
                 []
         | VrMessage.UnpressButton(controllerId, buttonId) ->
             //printf "unpress button: %A " (controllerId, buttonId)
-            if buttonId = 1 then
+            if buttonId = 2 then
                 [Ungrab controllerId]
             else 
                 []
@@ -90,10 +106,17 @@ module Demo =
            // printf "untouch: %A " (controllerId, buttonId)
             []
         | VrMessage.ValueChange(controllerId, buttonId, value) ->
-           // printf "value change: %A " (controllerId, buttonId, value)
-            []
+            //printf "value change: %A " (controllerId, buttonId, value)
+            if buttonId = 0 then 
+                if value.X >= 0.0 then 
+                    [ScaleUp]
+                else 
+                    [ScaleDown]
+            else 
+                []
         | VrMessage.UpdatePose(controllerId, pose) ->
             if pose.isValid then [MoveController (controllerId, pose.deviceToWorld)] else []
+        | _ -> []
 
     let ui (runtime : IRuntime) (data : Frame[] * Box3f * int) (info : VrSystemInfo) (m : AdaptiveModel) : DomNode<Message> = // 2D UI
         div [] [
@@ -138,6 +161,17 @@ module Demo =
                 | None -> Trafo3d.Identity
                 )
 
+        let modelTrafo =
+            m.modelTrafo |> AVal.map (fun t ->
+                match t with 
+                | Some trafo -> trafo
+                | None -> Trafo3d.Identity
+                )
+
+        let scaleTrafo = m.scalingFactor |> AVal.map(fun s -> Trafo3d (Scale3d(s)))
+        
+        let scaledTrafo = AVal.map2 (fun t s -> s * t) grabTrafo scaleTrafo
+
         let heraSg =    
             let m = m.twoDModel
             data
@@ -146,11 +180,32 @@ module Demo =
                 m.domainRange m.clippingPlane m.filter m.currFilters m.dataRange m.colorValue.c m.cameraState.view
                  runtime
             |> Sg.noEvents
-            |> Sg.scale 0.1
-            |> Sg.translate 0.0 0.0 0.5
+            //|> Sg.translate 0.0 0.0 0.7
+            |> Sg.scale 0.05
+            |> Sg.trafo modelTrafo
             |> Sg.trafo grabTrafo
 
-        Sg.ofSeq [ world; heraSg ]
+        //let sphereProbe = 
+        //    Sg.sphere' 9 C4b.White 1.0
+        //    |> Sg.noEvents
+        //    |> Sg.onOff
+
+        //    Trafo3d.fr
+
+        //let objects = 
+        //    m.sphereProbe |> AVal.map (fun s ->
+        //        if s then 
+        //            [world ; sphereProbe]
+        //        else 
+        //            [world])
+
+        //Sg.dynamic objects
+
+        Sg.ofSeq [ world; heraSg]
+            |> Sg.shader {
+                do! DefaultSurfaces.trafo
+                do! DefaultSurfaces.simpleLighting
+            }
 
         
     let pause (info : VrSystemInfo) (m : AdaptiveModel) =
