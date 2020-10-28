@@ -23,10 +23,11 @@ type Message =
     | StartVr
     | Grab of int
     | Ungrab of int
-    | ScaleUp
-    | ScaleDown 
+    | ScaleUp of float 
+    | ScaleDown of float 
     | MoveController of int * Trafo3d
     | CreateSphere 
+    | ResetHera 
  
 module Demo =
     open Aardvark.UI.Primitives
@@ -36,15 +37,20 @@ module Demo =
         {   
             twoDModel = AardVolume.App.initial frames
             text = "hello" 
-            grabTrafo = None
+            devicesTrafos = HashMap.Empty
+            controllerTrafo = None
+            heraTrafo = Some Trafo3d.Identity
+            heraToControllerTrafo = None
             grabberId = None
-            modelTrafo = None
             scalingFactor = 0.05
             sphereProbe = false
         }
-
         
     let update (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
+        let trafoOrIdentity trafo = 
+                match trafo with 
+                | Some t -> t
+                | None -> Trafo3d.Identity
         match msg with
         | ThreeD _ -> model
         | Nop -> model
@@ -55,23 +61,39 @@ module Demo =
         | Grab id ->
             match model.grabberId with 
                 | Some i -> model
-                | None -> {model with grabberId = Some id}
+                | None -> 
+                    let currentContrTr = model.devicesTrafos.TryFind(id)
+                    let controlT = trafoOrIdentity currentContrTr
+                    let heraT = trafoOrIdentity model.heraTrafo
+                    let controlHeraT = heraT * controlT.Inverse
+                    {model with 
+                                grabberId = Some id
+                                controllerTrafo = currentContrTr
+                                heraToControllerTrafo = Some(controlHeraT)}
         | Ungrab id -> 
             match model.grabberId with 
                 | Some i -> 
+                    let controlT = trafoOrIdentity model.controllerTrafo
+                    let heraToControlT = trafoOrIdentity model.heraToControllerTrafo
+                    let heraT = heraToControlT * controlT
                     if i = id then 
                         {model with 
                             grabberId = None
-                            modelTrafo = model.grabTrafo} 
+                            heraTrafo = Some(heraT)}
                     else model
                 | None -> model
-        | ScaleUp -> {model with scalingFactor = model.scalingFactor * 1.05}
-        | ScaleDown -> {model with scalingFactor = model.scalingFactor * 0.95}
-        | MoveController (id, trafo) -> 
+        | ScaleUp f -> {model with scalingFactor = model.scalingFactor * (f*f + 1.0) }
+        | ScaleDown f -> {model with scalingFactor = model.scalingFactor * (1.0 - f*f)}
+        | MoveController (id, (trafo : Trafo3d)) -> 
+            let newInput = model.devicesTrafos.Add(id, trafo)
             match model.grabberId with 
-                | Some i -> if i = id then {model with grabTrafo = Some(trafo)} else model
-                | None -> model
+            | Some i -> if i = id then {model with 
+                                            devicesTrafos = newInput
+                                            controllerTrafo = Some(trafo)} 
+                        else {model with devicesTrafos = newInput}
+            | None -> {model with devicesTrafos = newInput}
         | CreateSphere -> {model with sphereProbe = not model.sphereProbe}
+        | ResetHera -> initial frames
             
 
     let threads (model : Model) =
@@ -82,7 +104,7 @@ module Demo =
         | VrMessage.PressButton(controllerId, buttonId) ->
            // printf "press button: %A " (controllerId, buttonId)
             if buttonId = 1 then 
-                [CreateSphere]
+                [ResetHera]
             else if buttonId = 2 then
                 [Grab controllerId]
             else 
@@ -108,10 +130,11 @@ module Demo =
         | VrMessage.ValueChange(controllerId, buttonId, value) ->
             //printf "value change: %A " (controllerId, buttonId, value)
             if buttonId = 0 then 
-                if value.X >= 0.0 then 
-                    [ScaleUp]
+                let x = value.X
+                if x >=  0.0 then 
+                    [ScaleUp x]
                 else 
-                    [ScaleDown]
+                    [ScaleDown x]
             else 
                 []
         | VrMessage.UpdatePose(controllerId, pose) ->
@@ -154,23 +177,35 @@ module Demo =
             |> Sg.andAlso deviceSgs
 
 
-        let grabTrafo =
-            m.grabTrafo |> AVal.map (fun t ->
-                match t with 
-                | Some trafo -> trafo
-                | None -> Trafo3d.Identity
-                )
+        //let grabTrafo =
+        //    m.grabTrafo |> AVal.map (fun t ->
+        //        match t with 
+        //        | Some trafo -> trafo
+        //        | None -> Trafo3d.Identity
+        //        )
 
-        let modelTrafo =
-            m.modelTrafo |> AVal.map (fun t ->
-                match t with 
-                | Some trafo -> trafo
-                | None -> Trafo3d.Identity
-                )
+        //let modelTrafo =
+        //    m.modelTrafo |> AVal.map (fun t ->
+        //        match t with 
+        //        | Some trafo -> trafo
+        //        | None -> Trafo3d.Identity
+        //        )
+
+        let trafoOrIdentity trafo = 
+            match trafo with 
+            | Some t -> t
+            | None -> Trafo3d.Identity
+
+        let trafo = 
+            AVal.map2 (fun contr heraContr -> 
+                                    let contrTrafo = trafoOrIdentity contr 
+                                    let heraContrTrafo = trafoOrIdentity heraContr
+                                    heraContrTrafo * contrTrafo) m.controllerTrafo m.heraToControllerTrafo
+
 
         let scaleTrafo = m.scalingFactor |> AVal.map(fun s -> Trafo3d (Scale3d(s)))
         
-        let scaledTrafo = AVal.map2 (fun t s -> s * t) grabTrafo scaleTrafo
+        //let scaledTrafo = AVal.map2 (fun t s -> s * t) grabTrafo scaleTrafo
 
         let heraSg =    
             let m = m.twoDModel
@@ -181,9 +216,11 @@ module Demo =
                  runtime
             |> Sg.noEvents
             //|> Sg.translate 0.0 0.0 0.7
-            |> Sg.scale 0.05
-            |> Sg.trafo modelTrafo
-            |> Sg.trafo grabTrafo
+            //|> Sg.scale 0.05
+            |> Sg.trafo scaleTrafo
+            |> Sg.trafo trafo
+            //|> Sg.trafo modelTrafo
+
 
         //let sphereProbe = 
         //    Sg.sphere' 9 C4b.White 1.0

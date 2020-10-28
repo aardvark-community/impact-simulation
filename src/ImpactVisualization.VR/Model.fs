@@ -18,8 +18,11 @@ type Model =
         text : string
         twoDModel : AardVolume.Model.Model
 
-        modelTrafo : Option<Trafo3d>
-        grabTrafo : Option<Trafo3d>
+        devicesTrafos : HashMap<int, Trafo3d>
+
+        controllerTrafo : Option<Trafo3d>
+        heraTrafo : Option<Trafo3d>
+        heraToControllerTrafo : Option<Trafo3d>
         grabberId : Option<int>
 
         scalingFactor : float
