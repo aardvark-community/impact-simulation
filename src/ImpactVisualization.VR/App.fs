@@ -26,7 +26,8 @@ type Message =
     | ScaleUp of float 
     | ScaleDown of float 
     | MoveController of int * Trafo3d
-    | CreateSphere 
+    | CreateSphere of int
+    | ReleaseSphere
     | ResetHera 
  
 module Demo =
@@ -42,6 +43,8 @@ module Demo =
             heraTrafo = Some Trafo3d.Identity
             heraToControllerTrafo = None
             grabberId = None
+            sphereControllerTrafo = Some Trafo3d.Identity
+            sphereControllerId = None
             scalingFactor = 0.05
             sphereProbe = false
         }
@@ -82,17 +85,39 @@ module Demo =
                             heraTrafo = Some(heraT)}
                     else model
                 | None -> model
-        | ScaleUp f -> {model with scalingFactor = model.scalingFactor * (f*f + 1.0) }
-        | ScaleDown f -> {model with scalingFactor = model.scalingFactor * (1.0 - f*f)}
+        | ScaleUp f -> 
+            let maxScale = 1.0
+            let currScale = model.scalingFactor * (f*f/5.0 + 1.0)
+            let newScale = if currScale >= maxScale then maxScale else currScale
+            {model with scalingFactor = newScale}
+        | ScaleDown f -> 
+            let minScale = 0.001
+            let currScale = model.scalingFactor * (1.0 - f*f/5.0)
+            let newScale = if currScale <= minScale then minScale else currScale
+            {model with scalingFactor = newScale}
         | MoveController (id, (trafo : Trafo3d)) -> 
             let newInput = model.devicesTrafos.Add(id, trafo)
-            match model.grabberId with 
-            | Some i -> if i = id then {model with 
-                                            devicesTrafos = newInput
-                                            controllerTrafo = Some(trafo)} 
-                        else {model with devicesTrafos = newInput}
-            | None -> {model with devicesTrafos = newInput}
-        | CreateSphere -> {model with sphereProbe = not model.sphereProbe}
+            let sphereContrTrafo = 
+                match model.sphereControllerId with 
+                | Some i -> if i = id then Some(trafo) else model.sphereControllerTrafo
+                | None -> model.sphereControllerTrafo
+            let contrTrafo = 
+                match model.grabberId with 
+                | Some i -> if i = id then Some(trafo) else model.controllerTrafo
+                | None -> model.controllerTrafo
+            {model with 
+                controllerTrafo = contrTrafo
+                sphereControllerTrafo = sphereContrTrafo
+                devicesTrafos = newInput}
+        | CreateSphere id -> 
+            let sphereContrTrafo = model.devicesTrafos.TryFind(id)
+            {model with 
+                sphereProbe = true
+                sphereControllerTrafo = sphereContrTrafo
+                sphereControllerId = Some id}
+        | ReleaseSphere ->
+            {model with
+                sphereControllerId = None}
         | ResetHera -> initial frames
             
 
@@ -117,10 +142,16 @@ module Demo =
                 []
         | VrMessage.Press(controllerId, buttonId) ->
             //printf "press: %A " (controllerId, buttonId)
-            []
+            if buttonId = 1 then
+                [CreateSphere controllerId]
+            else
+                []
         | VrMessage.Unpress(controllerId, buttonId) ->
           //  printf "unpress: %A " (controllerId, buttonId)
-            []
+            if buttonId = 1 then
+                [ReleaseSphere]
+            else
+                []
         | VrMessage.Touch(controllerId, buttonId) ->
            // printf "touch: %A " (controllerId, buttonId)
             []
@@ -204,6 +235,26 @@ module Demo =
 
 
         let scaleTrafo = m.scalingFactor |> AVal.map(fun s -> Trafo3d (Scale3d(s)))
+
+        //let sphereTrafo =
+        //    AVal.map2 (fun b t -> 
+        //        if b then 
+        //            match t with 
+        //            | Some trafo -> trafo
+        //            | None -> Trafo3d.Identity
+        //        else 
+        //            Trafo3d.Identity             
+        //    ) m.sphereProbe m.sphereControllerTrafo 
+
+
+        let sphereTrafo =
+            m.sphereControllerTrafo |> AVal.map (fun t ->
+                match t with 
+                | Some trafo -> trafo
+                | None -> Trafo3d.Identity
+                )
+
+           
         
         //let scaledTrafo = AVal.map2 (fun t s -> s * t) grabTrafo scaleTrafo
 
@@ -215,17 +266,18 @@ module Demo =
                 m.domainRange m.clippingPlane m.filter m.currFilters m.dataRange m.colorValue.c m.cameraState.view
                  runtime
             |> Sg.noEvents
-            //|> Sg.translate 0.0 0.0 0.7
             //|> Sg.scale 0.05
             |> Sg.trafo scaleTrafo
+            |> Sg.translate 0.0 0.0 0.7
             |> Sg.trafo trafo
             //|> Sg.trafo modelTrafo
 
 
-        //let sphereProbe = 
-        //    Sg.sphere' 9 C4b.White 1.0
-        //    |> Sg.noEvents
-        //    |> Sg.onOff
+        let sphereProbe = 
+            Sg.sphere' 9 C4b.White 0.2
+            |> Sg.noEvents
+            |> Sg.trafo sphereTrafo
+            |> Sg.onOff m.sphereProbe
 
         //    Trafo3d.fr
 
@@ -238,7 +290,7 @@ module Demo =
 
         //Sg.dynamic objects
 
-        Sg.ofSeq [ world; heraSg]
+        Sg.ofSeq [ world; heraSg; sphereProbe]
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting

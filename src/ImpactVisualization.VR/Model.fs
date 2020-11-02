@@ -25,6 +25,9 @@ type Model =
         heraToControllerTrafo : Option<Trafo3d>
         grabberId : Option<int>
 
+        sphereControllerTrafo: Option<Trafo3d>
+        sphereControllerId: Option<int>
+
         scalingFactor : float
 
         sphereProbe : bool 
