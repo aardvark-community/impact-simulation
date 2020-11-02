@@ -27,6 +27,7 @@ type Message =
     | ScaleDown of float 
     | MoveController of int * Trafo3d
     | CreateSphere of int
+    | ScaleSphere of int
     | ReleaseSphere
     | ResetHera 
  
@@ -45,6 +46,8 @@ module Demo =
             grabberId = None
             sphereControllerTrafo = Some Trafo3d.Identity
             sphereControllerId = None
+            sphereScalerTrafo = None
+            sphereScalerId = None
             scalingFactor = 0.05
             sphereProbe = false
         }
@@ -101,6 +104,12 @@ module Demo =
                 match model.sphereControllerId with 
                 | Some i -> if i = id then Some(trafo) else model.sphereControllerTrafo
                 | None -> model.sphereControllerTrafo
+            let sphereScTrafo = 
+                if model.sphereControllerId.IsSome then 
+                    match model.sphereScalerId with 
+                    | Some i -> if i = id then Some(trafo) else model.sphereScalerTrafo
+                    | None -> model.sphereScalerTrafo
+                else model.sphereScalerTrafo
             let contrTrafo = 
                 match model.grabberId with 
                 | Some i -> if i = id then Some(trafo) else model.controllerTrafo
@@ -108,6 +117,7 @@ module Demo =
             {model with 
                 controllerTrafo = contrTrafo
                 sphereControllerTrafo = sphereContrTrafo
+                sphereScalerTrafo = sphereScTrafo
                 devicesTrafos = newInput}
         | CreateSphere id -> 
             let sphereContrTrafo = model.devicesTrafos.TryFind(id)
@@ -117,14 +127,23 @@ module Demo =
                 sphereControllerId = Some id}
         | ReleaseSphere ->
             {model with
-                sphereControllerId = None}
+                sphereControllerId = None
+                sphereScalerId = None}
+        | ScaleSphere id -> 
+            let sphereScTrafo = model.devicesTrafos.TryFind(id)
+            //let distance = 
+            //    match model.sphereControllerTrafo with 
+            //        |Some t -> match model.sphereScalerTrafo
+            {model with 
+                sphereScalerId = Some id
+                sphereScalerTrafo = sphereScTrafo} 
         | ResetHera -> initial frames
             
 
     let threads (model : Model) =
         AardVolume.App.threads model.twoDModel |> ThreadPool.map TwoD
         
-    let input (msg : VrMessage) =
+    let input (m : Model) (msg : VrMessage) =
         match msg with
         | VrMessage.PressButton(controllerId, buttonId) ->
            // printf "press button: %A " (controllerId, buttonId)
@@ -143,7 +162,7 @@ module Demo =
         | VrMessage.Press(controllerId, buttonId) ->
             //printf "press: %A " (controllerId, buttonId)
             if buttonId = 1 then
-                [CreateSphere controllerId]
+                if m.sphereControllerId.IsSome then [ScaleSphere controllerId] else [CreateSphere controllerId]
             else
                 []
         | VrMessage.Unpress(controllerId, buttonId) ->

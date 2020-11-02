@@ -27,6 +27,8 @@ type Model =
 
         sphereControllerTrafo: Option<Trafo3d>
         sphereControllerId: Option<int>
+        sphereScalerTrafo : Option<Trafo3d>
+        sphereScalerId : Option<int>
 
         scalingFactor : float
 
