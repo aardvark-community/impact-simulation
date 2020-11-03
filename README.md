@@ -17,7 +17,7 @@ This work was carried out by Elitza Vasileva in the context of an internship @ [
 
 # License
 
-The source code is free while the data included is courtasy of Thomas Maindl and Christoph Schäfer.
+The source code is free while the data included is used in courtesy of Thomas Maindl and Christoph Schäfer.
 
 # How to build
 build.cmd/build.sh, then run the ImpactVisualization.exe in bin/Release/netcoreapp2.1/win-x64.
