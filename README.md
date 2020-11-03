@@ -7,9 +7,13 @@ The project's goal was to visualize and explore multivariate [data](https://www.
 
 # The simulation data
 
-The simulation data is provided by:
- - Thomas Maindl, recently at [Astronomer at University of Vienna](https://homepage.univie.ac.at/thomas.maindl/) and [SDB Science-Driven Business Ltd.](https://sdb.ltd/)
+The simulation data, insight and great support was provided by:
+ - Thomas Maindl, recently at [Astronomer at University of Vienna](https://homepage.univie.ac.at/thomas.maindl/) and now [CEO @ SDB Science-Driven Business Ltd.](https://sdb.ltd/)
  - Christoph Schäfer, [Computational Physicist at University of Tübingen](https://www.tat.physik.uni-tuebingen.de/~schaefer/)
+
+# Authors
+
+This work was carried out by Elitza Vasileva in the context of an internship @ [VRVis](https://www.vrvis.at/). The will be continued towards a virtual reality application as part of Elitza's master thesis, supervised by [Harald Steinlechner](https://www.vrvis.at/ueber-uns/team/infos/steinlechner-harald).
 
 # How to build
 build.cmd/build.sh, then run the ImpactVisualization.exe in bin/Release/netcoreapp2.1/win-x64.
