@@ -5,6 +5,12 @@ The project's goal was to visualize and explore multivariate [data](https://www.
 
 ![](https://github.com/aardvark-community/impact-simulation/blob/master/src/ImpactVisualization/resources/impactvis.jpg)
 
+# The simulation data
+
+The simulation data is provided by:
+ - Thomas Maindl, recently at [Astronomer at University of Vienna](https://homepage.univie.ac.at/thomas.maindl/) and [SDB Science-Driven Business Ltd.](https://sdb.ltd/)
+ - Christoph Schäfer, [Computational Physicist at University of Tübingen](https://www.tat.physik.uni-tuebingen.de/~schaefer/)
+
 # How to build
 build.cmd/build.sh, then run the ImpactVisualization.exe in bin/Release/netcoreapp2.1/win-x64.
 
