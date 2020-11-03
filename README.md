@@ -15,6 +15,10 @@ The simulation data, insight and great support was provided by:
 
 This work was carried out by Elitza Vasileva in the context of an internship @ [VRVis](https://www.vrvis.at/). The will be continued towards a virtual reality application as part of Elitza's master thesis, supervised by [Harald Steinlechner](https://www.vrvis.at/ueber-uns/team/infos/steinlechner-harald).
 
+# License
+
+The source code is free while the data included is courtasy of Thomas Maindl and Christoph Schäfer.
+
 # How to build
 build.cmd/build.sh, then run the ImpactVisualization.exe in bin/Release/netcoreapp2.1/win-x64.
 
