@@ -30,7 +30,7 @@ type Model =
         sphereScalerTrafo : Option<Trafo3d>
         sphereScalerId : Option<int>
 
-        scalingFactor : float
+        scalingFactorHera : float
 
-        sphereProbe : bool 
+        sphereProbeCreated : bool 
     }
