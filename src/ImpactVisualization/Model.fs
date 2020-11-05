@@ -98,6 +98,8 @@ type Model =
         filtered : list<float> 
         filteredAllFrames : float [] []
 
+        boxColor : C4b
+
         initFilters : Filters
         currFilters : Filters
 

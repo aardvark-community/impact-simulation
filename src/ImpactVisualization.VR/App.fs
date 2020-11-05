@@ -143,7 +143,7 @@ module Demo =
     let threads (model : Model) =
         AardVolume.App.threads model.twoDModel |> ThreadPool.map TwoD
         
-    let input (m : Model) (msg : VrMessage) =
+    let input (msg : VrMessage) (m : Model) =
         match msg with
         | VrMessage.PressButton(controllerId, buttonId) ->
            // printf "press button: %A " (controllerId, buttonId)
@@ -272,8 +272,6 @@ module Demo =
                 | Some trafo -> trafo
                 | None -> Trafo3d.Identity
                 )
-
-           
         
         //let scaledTrafo = AVal.map2 (fun t s -> s * t) grabTrafo scaleTrafo
 
@@ -333,7 +331,7 @@ module Demo =
             initial = initial frames
             update = update frames
             threads = threads
-            input = input
+            input = input 
             ui = ui runtime data
             vr = vr runtime data
             pauseScene = Some pause

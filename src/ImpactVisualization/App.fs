@@ -129,6 +129,7 @@ module App =
             filtered = []
             filteredAllFrames = Array.empty
             dataPath = "data.csv"
+            boxColor = C4b.White
             }
         model
 
@@ -223,6 +224,7 @@ module App =
                                 | RenderValue.Strain -> frames.[i].values.strains
                                 | RenderValue.AlphaJutzi -> frames.[i].values.alphaJutzis
                                 | RenderValue.Pressure -> frames.[i].values.pressures 
+                                | _ -> frames.[i].values.energies
                             let currFilteredData = filterData filter positions renderValues
                             currFilteredData
             )
@@ -295,6 +297,7 @@ module App =
                     | RenderValue.Strain -> frames.[m.frame].values.strains
                     | RenderValue.AlphaJutzi -> frames.[m.frame].values.alphaJutzis
                     | RenderValue.Pressure -> frames.[m.frame].values.pressures
+                    | _ -> frames.[m.frame].values.energies
                 let range = renderValues.GetBoundingRange()
                 let minValue = range.Min
                 let maxValue = range.Max
@@ -494,7 +497,9 @@ module App =
                                     max = r.max
                                 }
                             }
+                    | _ -> filters
                 {m with currFilters = newFilters}
+                | _ -> m
 
     let renderValues = AMap.ofArray((Enum.GetValues typeof<RenderValue> :?> (RenderValue [])) |> Array.map (fun c -> (c, text (Enum.GetName(typeof<RenderValue>, c)) )))
 
@@ -543,7 +548,26 @@ module App =
                         runtime
             |> Sg.noEvents
 
-        let sg = heraSg
+        let currentBox = 
+            m.filter |> AVal.map (fun b ->
+                match b with 
+                    | Some box -> box.BoundingBox3d
+                    | None -> Box3d.Infinite
+                )
+
+        let boxSg = 
+            Sg.box m.boxColor currentBox
+            |> Sg.noEvents
+            |> Sg.fillMode (FillMode.Line |> AVal.constant)
+
+
+        let sg = 
+            Sg.ofSeq [heraSg; boxSg]
+            |> Sg.shader {
+                do! DefaultSurfaces.trafo
+                do! DefaultSurfaces.simpleLighting
+            }
+
 
         let att =
             [
