@@ -143,7 +143,7 @@ module Demo =
     let threads (model : Model) =
         AardVolume.App.threads model.twoDModel |> ThreadPool.map TwoD
         
-    let input (msg : VrMessage) (m : Model) =
+    let input (msg : VrMessage) =
         match msg with
         | VrMessage.PressButton(controllerId, buttonId) ->
            // printf "press button: %A " (controllerId, buttonId)
@@ -162,7 +162,7 @@ module Demo =
         | VrMessage.Press(controllerId, buttonId) ->
             //printf "press: %A " (controllerId, buttonId)
             if buttonId = 1 then
-                if m.sphereControllerId.IsSome then [ScaleSphere controllerId] else [CreateSphere controllerId]
+                [CreateSphere controllerId]
             else
                 []
         | VrMessage.Unpress(controllerId, buttonId) ->
