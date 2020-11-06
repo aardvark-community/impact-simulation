@@ -31,6 +31,9 @@ type Model =
         sphereScalerId : Option<int>
 
         scalingFactorHera : float
+        sphereScale : float 
+        sphereRadius : float 
+        sphereColor : C4b
 
         sphereProbeCreated : bool 
     }

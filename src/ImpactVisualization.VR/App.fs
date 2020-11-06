@@ -1,5 +1,6 @@
 ﻿namespace ImpactVisualization
 
+open System
 open Aardvark.Base
 open Aardvark.Rendering.Text
 open Aardvark.Vr
@@ -48,14 +49,28 @@ module Demo =
             sphereScalerTrafo = None
             sphereScalerId = None
             scalingFactorHera = 0.05
+            sphereScale = 1.0
+            sphereRadius = 0.2
+            sphereColor = C4b.White
             sphereProbeCreated = false
         }
         
     let update (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
         let trafoOrIdentity trafo = 
-                match trafo with 
-                | Some t -> t
-                | None -> Trafo3d.Identity
+            match trafo with 
+            | Some t -> t
+            | None -> Trafo3d.Identity
+
+        let newOrOldTrafo (id : int) (trafo : Trafo3d) (contrId : Option<int>) (contrTrafo : Option<Trafo3d>) =
+            match contrId with 
+            | Some i -> if i = id then Some(trafo) else contrTrafo
+            | None -> contrTrafo
+
+        let idIsSet (contrId : Option<int>) = 
+            match contrId with
+            | Some id -> true
+            | None -> false
+            
         match msg with
         | ThreeD _ -> model
         | Nop -> model
@@ -99,24 +114,29 @@ module Demo =
             {model with scalingFactorHera = newScale}
         | MoveController (id, (trafo : Trafo3d)) -> 
             let newInput = model.devicesTrafos.Add(id, trafo)
-            let sphereContrTrafo = 
-                match model.sphereControllerId with 
-                | Some i -> if i = id then Some(trafo) else model.sphereControllerTrafo
-                | None -> model.sphereControllerTrafo
+            let contrTrafo = newOrOldTrafo id trafo model.grabberId model.controllerTrafo
+            let sphereContrTrafo = newOrOldTrafo id trafo model.sphereControllerId model.sphereControllerTrafo
             let sphereScTrafo = 
                 if model.sphereControllerId.IsSome then 
-                    match model.sphereScalerId with 
-                    | Some i -> if i = id then Some(trafo) else model.sphereScalerTrafo
-                    | None -> model.sphereScalerTrafo
+                    newOrOldTrafo id trafo model.sphereScalerId model.sphereScalerTrafo
                 else model.sphereScalerTrafo
-            let contrTrafo = 
-                match model.grabberId with 
-                | Some i -> if i = id then Some(trafo) else model.controllerTrafo
-                | None -> model.controllerTrafo
+            let scalingFactor = 
+                if not (idIsSet model.sphereControllerId && idIsSet model.sphereScalerId) then
+                    model.sphereScale
+                else 
+                    let mainContrTrafo = trafoOrIdentity model.sphereControllerTrafo 
+                    let scaleContrTrafo = trafoOrIdentity model.sphereScalerTrafo
+                    let contrPos = mainContrTrafo.Forward.TransformPos(V3d.OOO)
+                    let scalerPos = scaleContrTrafo.Forward.TransformPos(V3d.OOO)
+                    let distance = contrPos.Distance(scalerPos)
+                    let newScale = (4.0/3.0)*Math.PI*Math.Pow((distance + model.sphereRadius), 3.0)
+                    printf "distance %f" distance
+                    newScale + model.sphereRadius/2.0
             {model with 
                 controllerTrafo = contrTrafo
                 sphereControllerTrafo = sphereContrTrafo
                 sphereScalerTrafo = sphereScTrafo
+                sphereScale = scalingFactor
                 devicesTrafos = newInput}
         | ControlSphere id -> 
             let currTrafo = model.devicesTrafos.TryFind(id)
@@ -141,9 +161,8 @@ module Demo =
                                 sphereControllerId = None
                                 sphereScalerId = None}
                         else
-                            {model with 
-                                sphereScalerId = None}
-            | None -> model
+                            {model with sphereScalerId = None}
+            | None -> {model with sphereScalerId = None}
         | ResetHera -> initial frames
             
 
@@ -262,17 +281,41 @@ module Demo =
 
         let scaleTrafo = m.scalingFactorHera |> AVal.map(fun s -> Trafo3d (Scale3d(s)))
 
+        let sphereScaleTrafo = m.sphereScale |> AVal.map(fun s -> Trafo3d (Scale3d(s)))
 
-        let controllersDistance = 
-            AVal.map2 (fun mainContr scaleContr -> 
-                let mainContrTrafo = trafoOrIdentity mainContr 
-                let scaleContrTrafo = trafoOrIdentity scaleContr
-                if mainContrTrafo.Forward.IsIdentity() || scaleContrTrafo.Forward.IsIdentity() then
-                    1.0 
-                else
-                    mainContrTrafo.Forward.Distance2(scaleContrTrafo.Forward)) m.sphereControllerTrafo m.sphereScalerTrafo
+        //let sphereScaleTrafo = 
+        //    let lastScale = 
+        //        AVal.map2 (fun mainContrId scaleContrId ->
+        //            let mainIdSet =
+        //                match mainContrId with
+        //                | Some id -> true
+        //                | None -> false
+        //            let scaleIdSet = 
+        //                match scaleContrId with 
+        //                | Some id -> true
+        //                | None -> false
+        //            not (mainIdSet && scaleIdSet)                    
+        //        ) m.sphereControllerId m.sphereScalerId
 
-        let sphereScaleTrafo = controllersDistance |> AVal.map(fun s -> Trafo3d (Scale3d(s)))
+        //    AVal.map3 (fun mainContr scaleContr lastScale -> 
+        //        let mainContrTrafo = trafoOrIdentity mainContr 
+        //        let scaleContrTrafo = trafoOrIdentity scaleContr
+        //        // printf "controller Trafo: %A \n " mainContrTrafo
+        //        // printf "scaler Trafo: %A \n" scaleContrTrafo
+        //        if lastScale then
+        //            printf "IDENTITY \n"
+        //            Trafo3d.Identity
+        //        else
+        //            let scale = mainContrTrafo.Forward.Distance2(scaleContrTrafo.Forward)
+        //            let contrPos = mainContrTrafo.Forward.TransformPos(V3d.OOO)
+        //            let scalerPos = scaleContrTrafo.Forward.TransformPos(V3d.OOO)
+        //            let distance = contrPos.Distance(scalerPos)
+        //            let trafo = Trafo3d (Scale3d(distance))
+        //            printf "SCALED \n"
+        //            trafo) m.sphereControllerTrafo m.sphereScalerTrafo lastScale
+
+
+       // let sphereScaleTrafo = controllersDistance |> AVal.map(fun s -> Trafo3d (Scale3d(s)))
 
         //let sphereTrafo =
         //    AVal.map2 (fun b t -> 
@@ -310,11 +353,13 @@ module Demo =
 
 
         let sphereProbe = 
-            Sg.sphere' 9 C4b.White 0.2
+            Sg.sphere 9 m.sphereColor m.sphereRadius
             |> Sg.noEvents
             |> Sg.trafo sphereScaleTrafo
             |> Sg.trafo sphereTrafo
             |> Sg.onOff m.sphereProbeCreated
+
+        
 
         //    Trafo3d.fr
 
