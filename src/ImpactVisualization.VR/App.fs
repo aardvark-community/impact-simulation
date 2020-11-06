@@ -29,6 +29,8 @@ type Message =
     | MoveController of int * Trafo3d
     | ControlSphere of int
     | ReleaseSphere of int 
+    | ActivateRay of int
+    | DeactivateRay of int
     | ResetHera 
  
 module Demo =
@@ -53,6 +55,10 @@ module Demo =
             sphereRadius = 0.2
             sphereColor = C4b.White
             sphereProbeCreated = false
+            rayDeviceId = None
+            rayStartPoint = V3d.OOO
+            rayEndPoint = V3d.OOO
+            rayColor = new C4b(178, 223, 138)
         }
         
     let update (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
@@ -130,14 +136,25 @@ module Demo =
                     let scalerPos = scaleContrTrafo.Forward.TransformPos(V3d.OOO)
                     let distance = contrPos.Distance(scalerPos)
                     let newScale = (4.0/3.0)*Math.PI*Math.Pow((distance + model.sphereRadius), 3.0)
-                    printf "distance %f" distance
+                   // printf "distance %f" distance
                     newScale + model.sphereRadius/2.0
+            let positions = 
+                match model.rayDeviceId with    
+                | Some id ->
+                    let currDevice = model.devicesTrafos.TryFind(id)
+                    let currDeviceTrafo = trafoOrIdentity currDevice
+                    let contrPos = currDeviceTrafo.Forward.TransformPos(V3d.OOO)
+                    let secondPos = currDeviceTrafo.Forward.TransformPos(V3d.OIO)
+                    [|contrPos; secondPos|]
+                | None -> [|V3d.OOO; V3d.OOO|]                
             {model with 
                 controllerTrafo = contrTrafo
                 sphereControllerTrafo = sphereContrTrafo
                 sphereScalerTrafo = sphereScTrafo
                 sphereScale = scalingFactor
-                devicesTrafos = newInput}
+                devicesTrafos = newInput
+                rayStartPoint = positions.[0]
+                rayEndPoint = positions.[1]}
         | ControlSphere id -> 
             let currTrafo = model.devicesTrafos.TryFind(id)
             match model.sphereControllerId with 
@@ -163,6 +180,15 @@ module Demo =
                         else
                             {model with sphereScalerId = None}
             | None -> {model with sphereScalerId = None}
+        | ActivateRay id -> 
+            let currDevice = model.devicesTrafos.TryFind(id)
+            let currDeviceTrafo = trafoOrIdentity currDevice
+            let contrPos = currDeviceTrafo.Forward.TransformPos(V3d.OOO)
+            let secondPos = currDeviceTrafo.Forward.TransformPos(V3d.OIO)
+            {model with 
+                    rayDeviceId = Some id
+                    rayStartPoint = contrPos
+                    rayEndPoint = secondPos}
         | ResetHera -> initial frames
             
 
@@ -198,8 +224,11 @@ module Demo =
             else
                 []
         | VrMessage.Touch(controllerId, buttonId) ->
-           // printf "touch: %A " (controllerId, buttonId)
-            []
+            printf "touch: %A " (controllerId, buttonId)
+            if buttonId = 0 then 
+                [ActivateRay controllerId]
+            else 
+                []
         | VrMessage.Untouch(controllerId, buttonId) ->
            // printf "untouch: %A " (controllerId, buttonId)
             []
@@ -352,14 +381,31 @@ module Demo =
             //|> Sg.trafo modelTrafo
 
 
-        let sphereProbe = 
+        let sphereProbeSg = 
             Sg.sphere 9 m.sphereColor m.sphereRadius
             |> Sg.noEvents
             |> Sg.trafo sphereScaleTrafo
             |> Sg.trafo sphereTrafo
             |> Sg.onOff m.sphereProbeCreated
 
-        
+        let lines = 
+            AVal.map2 (fun startP endP -> 
+                let line = new Line3d(startP, endP)
+                [|line|]) m.rayStartPoint m.rayEndPoint
+
+        let ray =
+            lines
+                |> Sg.lines (AVal.constant C4b.Red)
+                |> Sg.noEvents
+                |> Sg.uniform "LineWidth" (AVal.constant 5)
+                |> Sg.effect [
+                    toEffect DefaultSurfaces.trafo
+                    toEffect DefaultSurfaces.vertexColor
+                    toEffect DefaultSurfaces.thickLine
+                    ]
+                |> Sg.pass (RenderPass.after "lines" RenderPassOrder.Arbitrary RenderPass.main)
+                |> Sg.depthTest (AVal.constant DepthTestMode.None)
+                
 
         //    Trafo3d.fr
 
@@ -372,7 +418,7 @@ module Demo =
 
         //Sg.dynamic objects
 
-        Sg.ofSeq [ world; heraSg; sphereProbe]
+        Sg.ofSeq [world; heraSg; sphereProbeSg; ray]
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting

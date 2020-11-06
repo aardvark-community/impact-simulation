@@ -35,5 +35,11 @@ type Model =
         sphereRadius : float 
         sphereColor : C4b
 
+        rayDeviceId : Option<int>
+        rayStartPoint : V3d
+        rayEndPoint : V3d 
+        rayColor : C4b
+
+
         sphereProbeCreated : bool 
     }
