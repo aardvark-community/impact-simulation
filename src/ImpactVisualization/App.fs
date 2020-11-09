@@ -4,6 +4,7 @@ open System
 open System.IO
 open Aardvark.Base
 open Aardvark.SceneGraph
+open Aardvark.SceneGraph.IO
 open Aardvark.UI
 open Aardvark.UI.Primitives
 open Aardvark.Base.Rendering

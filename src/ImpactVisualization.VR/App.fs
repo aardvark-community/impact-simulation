@@ -5,6 +5,7 @@ open Aardvark.Base
 open Aardvark.Rendering.Text
 open Aardvark.Vr
 open Aardvark.SceneGraph
+open Aardvark.SceneGraph.IO
 open Aardvark.UI
 open Aardvark.UI.Primitives
 open Aardvark.UI.Generic
@@ -423,6 +424,24 @@ module Demo =
                             ]
                 )
             quad |> Sg.ofIndexedGeometry
+
+
+        let tvSg = 
+            Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"tv";"tv.fbx"])
+                |> Sg.adapter
+
+                |> Sg.transform (Trafo3d.Scale(1.0, 1.0, -1.0))
+                |> Sg.scale 0.1
+                |> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0))
+                |> Sg.translate 3.0 0.0 2.0
+
+                |> Sg.shader {
+                    do! DefaultSurfaces.trafo
+                    do! DefaultSurfaces.diffuseTexture
+                    do! DefaultSurfaces.normalMap
+                    do! DefaultSurfaces.simpleLighting
+                }
+            
                 
         //    Trafo3d.fr
 
@@ -435,7 +454,7 @@ module Demo =
 
         //Sg.dynamic objects
 
-        Sg.ofSeq [world; heraSg; sphereProbeSg; quadSg; ray]
+        Sg.ofSeq [world; sphereProbeSg; tvSg; quadSg; ray]
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
