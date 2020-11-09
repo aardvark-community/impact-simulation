@@ -217,7 +217,9 @@ module Demo =
                 []
         | VrMessage.Press(controllerId, buttonId) ->
             //printf "press: %A " (controllerId, buttonId)
-            if buttonId = 1 then
+            if buttonId = 0 then 
+                [ActivateRay controllerId]
+            else if buttonId = 1 then
                 [ControlSphere controllerId]
             else
                 []
@@ -228,11 +230,8 @@ module Demo =
             else
                 []
         | VrMessage.Touch(controllerId, buttonId) ->
-            printf "touch: %A " (controllerId, buttonId)
-            if buttonId = 0 then 
-                [ActivateRay controllerId]
-            else 
-                []
+           // printf "touch: %A " (controllerId, buttonId)
+            []
         | VrMessage.Untouch(controllerId, buttonId) ->
            // printf "untouch: %A " (controllerId, buttonId)
             []
@@ -284,6 +283,7 @@ module Demo =
             Sg.textWithConfig TextConfig.Default m.text
             |> Sg.noEvents
             |> Sg.andAlso deviceSgs
+
 
 
         //let grabTrafo =
@@ -409,8 +409,21 @@ module Demo =
                     ]
                 |> Sg.pass (RenderPass.after "lines" RenderPassOrder.Arbitrary RenderPass.main)
                 |> Sg.depthTest (AVal.constant DepthTestMode.None)
-                
 
+        let quadSg = 
+            let quad =  
+                IndexedGeometry(
+                    Mode = IndexedGeometryMode.TriangleList,
+                    IndexArray = ([|0;1;2; 0;2;3|] :> System.Array),
+                    IndexedAttributes = 
+                        SymDict.ofList [
+                            DefaultSemantic.Positions,                  [| V3f(-25,-20,-8); V3f(-25,10,-8); V3f(-25,10,12); V3f(-25,-20,12) |] :> Array
+                            DefaultSemantic.Normals,                    [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |] :> Array
+                            DefaultSemantic.DiffuseColorCoordinates,    [| V2f.OO; V2f.IO; V2f.II; V2f.OI |] :> Array
+                            ]
+                )
+            quad |> Sg.ofIndexedGeometry
+                
         //    Trafo3d.fr
 
         //let objects = 
@@ -422,12 +435,12 @@ module Demo =
 
         //Sg.dynamic objects
 
-        Sg.ofSeq [world; heraSg; sphereProbeSg; ray]
+        Sg.ofSeq [world; heraSg; sphereProbeSg; quadSg; ray]
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
+                do! DefaultSurfaces.constantColor C4f.White
             }
-
         
     let pause (info : VrSystemInfo) (m : AdaptiveModel) =
         Sg.box' C4b.Red Box3d.Unit
