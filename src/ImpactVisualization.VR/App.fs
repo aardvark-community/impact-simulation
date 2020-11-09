@@ -46,6 +46,7 @@ module Demo =
             heraTrafo = Some Trafo3d.Identity
             heraToControllerTrafo = None
             grabberId = None
+            allowHeraScaling = false
             sphereControllerTrafo = Some Trafo3d.Identity
             sphereControllerId = None
             sphereScalerTrafo = None
@@ -95,7 +96,8 @@ module Demo =
                     {model with 
                                 grabberId = Some id
                                 controllerTrafo = currentContrTr
-                                heraToControllerTrafo = Some(controlHeraT)}
+                                heraToControllerTrafo = Some(controlHeraT)
+                                allowHeraScaling = true}
         | Ungrab id -> 
             match model.grabberId with 
                 | Some i -> 
@@ -105,17 +107,18 @@ module Demo =
                     if i = id then 
                         {model with 
                             grabberId = None
-                            heraTrafo = Some(heraT)}
+                            heraTrafo = Some(heraT)
+                            allowHeraScaling = false}
                     else model
                 | None -> model
         | ScaleUp f -> 
             let maxScale = 1.0
-            let currScale = model.scalingFactorHera * (f*f/5.0 + 1.0)
+            let currScale = if model.allowHeraScaling then model.scalingFactorHera * (f*f/5.0 + 1.0) else model.scalingFactorHera
             let newScale = if currScale >= maxScale then maxScale else currScale
             {model with scalingFactorHera = newScale}
         | ScaleDown f -> 
             let minScale = 0.001
-            let currScale = model.scalingFactorHera * (1.0 - f*f/5.0)
+            let currScale = if model.allowHeraScaling then model.scalingFactorHera * (1.0 - f*f/5.0) else model.scalingFactorHera
             let newScale = if currScale <= minScale then minScale else currScale
             {model with scalingFactorHera = newScale}
         | MoveController (id, (trafo : Trafo3d)) -> 
@@ -189,6 +192,7 @@ module Demo =
                     rayDeviceId = Some id
                     rayStartPoint = contrPos
                     rayEndPoint = secondPos}
+
         | ResetHera -> initial frames
             
 
