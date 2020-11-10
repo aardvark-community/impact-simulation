@@ -37,10 +37,11 @@ type Model =
         sphereColor : C4b
 
         rayDeviceId : Option<int>
-        rayStartPoint : V3d
-        rayEndPoint : V3d 
+        ray : Ray3d
         rayColor : C4b
 
+        flatScreen : Quad3d
+        screenIntersection : bool
 
         sphereProbeCreated : bool 
     }
