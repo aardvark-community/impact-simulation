@@ -32,6 +32,7 @@ type Message =
     | ReleaseSphere of int 
     | ActivateRay of int
     | DeactivateRay of int
+    | ActivatePlane of int
     | ResetHera 
  
 module Demo =
@@ -62,9 +63,22 @@ module Demo =
             flatScreen = Quad3d(V3d(-25,-20,-8), V3d(-25,10,-8), V3d(-25,10,12), V3d(-25,-20,12))
             rayColor = new C4b(178, 223, 138)
             screenIntersection = false
+            clippingPlaneDeviceId = None
+            planeCorners = {
+                c0 = V3d()
+                c1 = V3d()
+                c2 = V3d()
+                c3 = V3d()
+                }
+            controllerClippingPlane = Plane3d.Invalid
         }
         
     let update (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
+        let planePos0 = V3d(-0.1, 0.05, -0.1)
+        let planePos1 = V3d(-0.1, 0.05, 0.1)
+        let planePos2 = V3d(0.1, 0.05, 0.1)
+        let planePos3 = V3d(0.1, 0.05, -0.1)
+
         let trafoOrIdentity trafo = 
             match trafo with 
             | Some t -> t
@@ -153,7 +167,30 @@ module Demo =
                     Ray3d(origin, direction)
                 | None -> Ray3d.Invalid    
             let intersect = currRay.Intersects(model.flatScreen)
-            if intersect then printf "INTERSECT"
+            //if intersect then printf "INTERSECT"
+            let currCorners = 
+                match model.clippingPlaneDeviceId with
+                | Some id ->
+                    let currDevice = model.devicesTrafos.TryFind(id)
+                    let currDeviceTrafo = trafoOrIdentity currDevice
+                    let p0 = currDeviceTrafo.Forward.TransformPos(planePos0)
+                    let p1 = currDeviceTrafo.Forward.TransformPos(planePos1)
+                    let p2 = currDeviceTrafo.Forward.TransformPos(planePos2)
+                    let p3 = currDeviceTrafo.Forward.TransformPos(planePos3)
+                    let corners =  {
+                        c0 = p0 
+                        c1 = p1
+                        c2 = p2 
+                        c3 = p3
+                        }
+                    corners
+                | None ->   {
+                            c0 = V3d()
+                            c1 = V3d()
+                            c2 = V3d()
+                            c3 = V3d()
+                            }
+            let plane = Plane3d(currCorners.c0, currCorners.c1, currCorners.c2)
             {model with 
                 controllerTrafo = contrTrafo
                 sphereControllerTrafo = sphereContrTrafo
@@ -161,6 +198,8 @@ module Demo =
                 sphereScale = scalingFactor
                 devicesTrafos = newInput
                 ray = currRay
+                planeCorners = currCorners
+                controllerClippingPlane = plane
                 screenIntersection = intersect}
         | ControlSphere id -> 
             let currTrafo = model.devicesTrafos.TryFind(id)
@@ -192,11 +231,27 @@ module Demo =
             let currDeviceTrafo = trafoOrIdentity currDevice
             let origin = currDeviceTrafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
             let direction = currDeviceTrafo.Forward.TransformPos(V3d.OIO * 10.0) 
-            let plane = Quad3d
             {model with 
                     rayDeviceId = Some id
                     ray = Ray3d(origin, direction)}
-
+        | ActivatePlane id ->
+            let currDevice = model.devicesTrafos.TryFind(id)
+            let currDeviceTrafo = trafoOrIdentity currDevice
+            let p0 = currDeviceTrafo.Forward.TransformPos(planePos0)
+            let p1 = currDeviceTrafo.Forward.TransformPos(planePos1)
+            let p2 = currDeviceTrafo.Forward.TransformPos(planePos2)
+            let p3 = currDeviceTrafo.Forward.TransformPos(planePos3)
+            let plane = Plane3d(p0, p1, p2)
+            {model with 
+                    planeCorners = {
+                        c0 = p0 
+                        c1 = p1
+                        c2 = p2 
+                        c3 = p3
+                        }
+                    clippingPlaneDeviceId = Some id 
+                    controllerClippingPlane = plane
+                    }
         | ResetHera -> initial frames
             
 
@@ -235,7 +290,10 @@ module Demo =
                 []
         | VrMessage.Touch(controllerId, buttonId) ->
            // printf "touch: %A " (controllerId, buttonId)
-            []
+            if buttonId = 0 then 
+                [ActivatePlane controllerId]
+            else 
+                []
         | VrMessage.Untouch(controllerId, buttonId) ->
            // printf "untouch: %A " (controllerId, buttonId)
             []
@@ -255,8 +313,6 @@ module Demo =
 
     let ui (runtime : IRuntime) (data : Frame[] * Box3f * int) (info : VrSystemInfo) (m : AdaptiveModel) : DomNode<Message> = // 2D UI
         div [] [
-            //button [style "z-index : 1000; position: absolute"; onClick (fun _ -> StartVr)] [text "start vr"]
-            //br []
             AardVolume.App.view runtime data m.twoDModel |> UI.map TwoD
         ]
 
@@ -288,22 +344,6 @@ module Demo =
             |> Sg.noEvents
             |> Sg.andAlso deviceSgs
 
-
-
-        //let grabTrafo =
-        //    m.grabTrafo |> AVal.map (fun t ->
-        //        match t with 
-        //        | Some trafo -> trafo
-        //        | None -> Trafo3d.Identity
-        //        )
-
-        //let modelTrafo =
-        //    m.modelTrafo |> AVal.map (fun t ->
-        //        match t with 
-        //        | Some trafo -> trafo
-        //        | None -> Trafo3d.Identity
-        //        )
-
         let trafoOrIdentity trafo = 
             match trafo with 
             | Some t -> t
@@ -320,51 +360,6 @@ module Demo =
 
         let sphereScaleTrafo = m.sphereScale |> AVal.map(fun s -> Trafo3d (Scale3d(s)))
 
-        //let sphereScaleTrafo = 
-        //    let lastScale = 
-        //        AVal.map2 (fun mainContrId scaleContrId ->
-        //            let mainIdSet =
-        //                match mainContrId with
-        //                | Some id -> true
-        //                | None -> false
-        //            let scaleIdSet = 
-        //                match scaleContrId with 
-        //                | Some id -> true
-        //                | None -> false
-        //            not (mainIdSet && scaleIdSet)                    
-        //        ) m.sphereControllerId m.sphereScalerId
-
-        //    AVal.map3 (fun mainContr scaleContr lastScale -> 
-        //        let mainContrTrafo = trafoOrIdentity mainContr 
-        //        let scaleContrTrafo = trafoOrIdentity scaleContr
-        //        // printf "controller Trafo: %A \n " mainContrTrafo
-        //        // printf "scaler Trafo: %A \n" scaleContrTrafo
-        //        if lastScale then
-        //            printf "IDENTITY \n"
-        //            Trafo3d.Identity
-        //        else
-        //            let scale = mainContrTrafo.Forward.Distance2(scaleContrTrafo.Forward)
-        //            let contrPos = mainContrTrafo.Forward.TransformPos(V3d.OOO)
-        //            let scalerPos = scaleContrTrafo.Forward.TransformPos(V3d.OOO)
-        //            let distance = contrPos.Distance(scalerPos)
-        //            let trafo = Trafo3d (Scale3d(distance))
-        //            printf "SCALED \n"
-        //            trafo) m.sphereControllerTrafo m.sphereScalerTrafo lastScale
-
-
-       // let sphereScaleTrafo = controllersDistance |> AVal.map(fun s -> Trafo3d (Scale3d(s)))
-
-        //let sphereTrafo =
-        //    AVal.map2 (fun b t -> 
-        //        if b then 
-        //            match t with 
-        //            | Some trafo -> trafo
-        //            | None -> Trafo3d.Identity
-        //        else 
-        //            Trafo3d.Identity             
-        //    ) m.sphereProbe m.sphereControllerTrafo 
-
-
         let sphereTrafo =
             m.sphereControllerTrafo |> AVal.map (fun t ->
                 match t with 
@@ -372,8 +367,6 @@ module Demo =
                 | None -> Trafo3d.Identity
                 )
         
-        //let scaledTrafo = AVal.map2 (fun t s -> s * t) grabTrafo scaleTrafo
-
         let heraSg =    
             let m = m.twoDModel
             data
@@ -382,12 +375,9 @@ module Demo =
                 m.domainRange m.clippingPlane m.filter m.currFilters m.dataRange m.colorValue.c m.cameraState.view
                  runtime
             |> Sg.noEvents
-            //|> Sg.scale 0.05
             |> Sg.trafo scaleTrafo
             |> Sg.translate 0.0 0.0 0.7
             |> Sg.trafo trafo
-            //|> Sg.trafo modelTrafo
-
 
         let sphereProbeSg = 
             Sg.sphere 9 m.sphereColor m.sphereRadius
@@ -433,6 +423,20 @@ module Demo =
         //        do! DefaultSurfaces.constantColor C4f.White
         //    }
 
+        let planePositions = m.planeCorners |> AVal.map (fun q -> [|q.c0.ToV3f(); q.c1.ToV3f(); q.c2.ToV3f(); q.c3.ToV3f()|])
+
+        let clipPlaneSg = 
+            Sg.draw IndexedGeometryMode.TriangleList
+                |> Sg.vertexAttribute DefaultSemantic.Positions planePositions
+                |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
+                |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
+                |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
+                |> Sg.shader {
+                    do! DefaultSurfaces.trafo
+                    do! DefaultSurfaces.simpleLighting
+                    do! DefaultSurfaces.constantColor C4f.Blue
+                }
+
         let quadPositions = m.flatScreen |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
 
         let quadSg = 
@@ -463,19 +467,7 @@ module Demo =
                     do! DefaultSurfaces.simpleLighting
                 }
             
-                
-        //    Trafo3d.fr
-
-        //let objects = 
-        //    m.sphereProbe |> AVal.map (fun s ->
-        //        if s then 
-        //            [world ; sphereProbe]
-        //        else 
-        //            [world])
-
-        //Sg.dynamic objects
-
-        Sg.ofSeq [world; heraSg; sphereProbeSg; tvSg; quadSg; ray]
+        Sg.ofSeq [world; heraSg; sphereProbeSg; tvSg; clipPlaneSg; quadSg; ray]
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting

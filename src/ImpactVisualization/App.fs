@@ -561,19 +561,6 @@ module App =
             |> Sg.noEvents
             |> Sg.fillMode (FillMode.Line |> AVal.constant)
 
-        let quadSg = 
-            let quad =  
-                IndexedGeometry(
-                    Mode = IndexedGeometryMode.TriangleList,
-                    IndexArray = ([|0;1;2; 0;2;3|] :> System.Array),
-                    IndexedAttributes = 
-                        SymDict.ofList [
-                            DefaultSemantic.Positions,                  [| V3f(-30,-15,-5); V3f(-30,15,-5); V3f(-30,15,15); V3f(-30,-15,15) |] :> Array
-                            DefaultSemantic.Normals,                    [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |] :> Array
-                            DefaultSemantic.DiffuseColorCoordinates,    [| V2f.OO; V2f.IO; V2f.II; V2f.OI |] :> Array
-                            ]
-                )
-            quad |> Sg.ofIndexedGeometry
 
         let sg = 
             Sg.ofSeq [heraSg; boxSg]

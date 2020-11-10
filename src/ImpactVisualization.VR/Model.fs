@@ -12,6 +12,14 @@ open FSharp.Data.Adaptive
 open AardVolume.Model
 
 
+type PlaneCorners = 
+    {
+    c0 : V3d
+    c1 : V3d
+    c2 : V3d
+    c3 : V3d
+    }
+
 [<ModelType>]
 type Model = 
     {
@@ -43,5 +51,9 @@ type Model =
         flatScreen : Quad3d
         screenIntersection : bool
 
-        sphereProbeCreated : bool 
+        sphereProbeCreated : bool
+        
+        clippingPlaneDeviceId : Option<int>
+        planeCorners : PlaneCorners
+        controllerClippingPlane : Plane3d
     }
