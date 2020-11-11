@@ -55,7 +55,7 @@ module Demo =
             sphereScalerId = None
             scalingFactorHera = 0.05
             sphereScale = 1.0
-            sphereRadius = 0.2
+            sphereRadius = 1.0
             sphereColor = C4b.White
             sphereProbeCreated = false
             rayDeviceId = None
@@ -149,8 +149,8 @@ module Demo =
                     let scalerPos = scaleContrTrafo.Forward.TransformPos(V3d.OOO)
                     let distance = contrPos.Distance(scalerPos)
                     let newScale = (4.0/3.0)*Math.PI*Math.Pow((distance + model.sphereRadius), 3.0)
-                   // printf "distance %f" distance
                     newScale + model.sphereRadius/2.0
+            //printf "scale %f \n" scalingFactor
             let currRay = 
                 match model.rayDeviceId with    
                 | Some id ->
@@ -332,12 +332,18 @@ module Demo =
 
         let scaleTrafo = m.scalingFactorHera |> AVal.map(fun s -> Trafo3d (Scale3d(s)))
 
-        let sphereScaleTrafo = m.sphereScale |> AVal.map(fun s -> Trafo3d (Scale3d(s)))
+        let sphereScaleTrafo = 
+            m.sphereScale 
+            |> AVal.map(fun s -> 
+                printf "radius %A \n" (0.2 * s)
+                Trafo3d (Scale3d(s)))
 
         let sphereTrafo =
             m.sphereControllerTrafo |> AVal.map (fun t ->
                 match t with 
-                | Some trafo -> trafo
+                | Some trafo -> 
+                    //printf "spherePos %A \n" (trafo.Forward.TransformPos(V3d.OOO))
+                    trafo
                 | None -> Trafo3d.Identity
                 )
 
@@ -357,12 +363,15 @@ module Demo =
             |> Sg.translate 0.0 0.0 0.7
             |> Sg.trafo trafo
 
+        
         let sphereProbeSg = 
-            Sg.sphere 9 m.sphereColor m.sphereRadius
+            Sg.sphere 7 m.sphereColor m.sphereRadius
             |> Sg.noEvents
             |> Sg.trafo sphereScaleTrafo
             |> Sg.trafo sphereTrafo
             |> Sg.onOff m.sphereProbeCreated
+            |> Sg.fillMode (FillMode.Line |> AVal.constant)
+
 
         let lines = m.ray |> AVal.map (fun r -> 
                                     let line = new Line3d(r.Origin, r.Direction)
