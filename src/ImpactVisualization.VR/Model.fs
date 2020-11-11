@@ -54,6 +54,5 @@ type Model =
         sphereProbeCreated : bool
         
         clippingPlaneDeviceId : Option<int>
-        planeCorners : PlaneCorners
-        controllerClippingPlane : Plane3d
-    }
+        planeCorners : Quad3d
+}

@@ -139,23 +139,29 @@ module Shaders =
             let max = filter.Max
 
             let pos = V3f(wp)
+            let pointPos = V3d(wp)
 
             let minRange = dataRange.min
             let maxRange = dataRange.max
+            let isInsideMinMaxRange = min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z
 
             let plane = uniform?ClippingPlane
-
+            let controllerPlane : Plane3d = uniform?ControllerClippingPlane
+            let isOutsideControllerPlane = 
+                if controllerPlane.Normal = V3d.Zero then
+                    true
+                else 
+                    Vec.Dot(controllerPlane.Normal, pointPos) - controllerPlane.Distance >= 0.0
 
             let color = 
-                if (notDiscardByFilters && min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z && minRange <= linearCoord && linearCoord <= maxRange) then
+                if (notDiscardByFilters && isInsideMinMaxRange && minRange <= linearCoord && linearCoord <= maxRange) then
                     transferFunc
                 else
                     colorValue
-
             if (wp.X >= dm.x.min && wp.X <= dm.x.max && wp.Y >= dm.y.min && wp.Y <= dm.y.max && wp.Z >= dm.z.min && wp.Z <= dm.z.max) &&
-                (wp.X <= plane.x && wp.Y <= plane.y && wp.Z <= plane.z) then
+                (wp.X <= plane.x && wp.Y <= plane.y && wp.Z <= plane.z) && isOutsideControllerPlane then
                 if (discardPoints) then
-                    if (notDiscardByFilters && min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z && minRange <= linearCoord && linearCoord <= maxRange) then
+                    if (notDiscardByFilters && isInsideMinMaxRange && minRange <= linearCoord && linearCoord <= maxRange) then
                         yield  { p.Value with 
                                     pointColor = color
                                     pointSize = uniform?PointSize}
@@ -200,6 +206,7 @@ module Hera =
     let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>)  
                          (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
                          (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
+                         (contrClippingPlane : aval<Plane3d>)
                          (filter : aval<option<Box3f>>) (currFilters : aval<Filters>) 
                          (dataRange : aval<Range>) (colorValue : aval<C4b>) 
                          (cameraView : aval<CameraView>)
@@ -324,7 +331,8 @@ module Hera =
         |> Sg.uniform "RenderValue" renderValue
         |> Sg.uniform "DomainRange" domainRange
         |> Sg.uniform "ClippingPlane" clippingPlane
-        |> Sg.uniform "Filter" filterNew
+        |> Sg.uniform "ControllerClippingPlane" contrClippingPlane
+        |> Sg.uniform "Filter" filterNew 
         |> Sg.uniform "CurrFilters" currFilters
         |> Sg.uniform "DataRange" dataRange
         |> Sg.uniform "Color" color

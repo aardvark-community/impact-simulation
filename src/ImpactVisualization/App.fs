@@ -537,6 +537,8 @@ module App =
         //let csvData = encodeToCSVData frames
         //let path = @"..\..\..\src\ImpactVisualization\resources\dataFilter3.csv"
         //File.writeAllText path csvData
+
+        let contrClippingPlane = Plane3d.Invalid |> (AVal.constant)
         
         let frustum = 
             Frustum.perspective 60.0 0.1 100.0 1.0 
@@ -545,7 +547,7 @@ module App =
         let heraSg = 
             data
             |> Hera.createAnimatedSg m.frame m.pointSize m.discardPoints m.renderValue m.currentMap 
-                        m.domainRange m.clippingPlane m.filter m.currFilters m.dataRange m.colorValue.c m.cameraState.view
+                        m.domainRange m.clippingPlane contrClippingPlane m.filter m.currFilters m.dataRange m.colorValue.c m.cameraState.view
                         runtime
             |> Sg.noEvents
 

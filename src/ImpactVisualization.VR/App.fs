@@ -64,20 +64,14 @@ module Demo =
             rayColor = new C4b(178, 223, 138)
             screenIntersection = false
             clippingPlaneDeviceId = None
-            planeCorners = {
-                c0 = V3d()
-                c1 = V3d()
-                c2 = V3d()
-                c3 = V3d()
-                }
-            controllerClippingPlane = Plane3d.Invalid
+            planeCorners = Quad3d(V3d(), V3d(), V3d(), V3d())
         }
         
     let update (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
-        let planePos0 = V3d(-0.1, 0.05, -0.1)
-        let planePos1 = V3d(-0.1, 0.05, 0.1)
-        let planePos2 = V3d(0.1, 0.05, 0.1)
-        let planePos3 = V3d(0.1, 0.05, -0.1)
+        let planePos0 = V3d(-0.7, 0.05, -0.5)
+        let planePos1 = V3d(-0.7, 0.05, 0.5)
+        let planePos2 = V3d(0.7, 0.05, 0.5)
+        let planePos3 = V3d(0.7, 0.05, -0.5)
 
         let trafoOrIdentity trafo = 
             match trafo with 
@@ -177,20 +171,8 @@ module Demo =
                     let p1 = currDeviceTrafo.Forward.TransformPos(planePos1)
                     let p2 = currDeviceTrafo.Forward.TransformPos(planePos2)
                     let p3 = currDeviceTrafo.Forward.TransformPos(planePos3)
-                    let corners =  {
-                        c0 = p0 
-                        c1 = p1
-                        c2 = p2 
-                        c3 = p3
-                        }
-                    corners
-                | None ->   {
-                            c0 = V3d()
-                            c1 = V3d()
-                            c2 = V3d()
-                            c3 = V3d()
-                            }
-            let plane = Plane3d(currCorners.c0, currCorners.c1, currCorners.c2)
+                    Quad3d(p0, p1, p2, p3)
+                | None -> Quad3d(V3d(), V3d(), V3d(), V3d())
             {model with 
                 controllerTrafo = contrTrafo
                 sphereControllerTrafo = sphereContrTrafo
@@ -199,7 +181,6 @@ module Demo =
                 devicesTrafos = newInput
                 ray = currRay
                 planeCorners = currCorners
-                controllerClippingPlane = plane
                 screenIntersection = intersect}
         | ControlSphere id -> 
             let currTrafo = model.devicesTrafos.TryFind(id)
@@ -241,16 +222,9 @@ module Demo =
             let p1 = currDeviceTrafo.Forward.TransformPos(planePos1)
             let p2 = currDeviceTrafo.Forward.TransformPos(planePos2)
             let p3 = currDeviceTrafo.Forward.TransformPos(planePos3)
-            let plane = Plane3d(p0, p1, p2)
             {model with 
-                    planeCorners = {
-                        c0 = p0 
-                        c1 = p1
-                        c2 = p2 
-                        c3 = p3
-                        }
+                    planeCorners = Quad3d(p0, p1, p2, p3)
                     clippingPlaneDeviceId = Some id 
-                    controllerClippingPlane = plane
                     }
         | ResetHera -> initial frames
             
@@ -366,13 +340,17 @@ module Demo =
                 | Some trafo -> trafo
                 | None -> Trafo3d.Identity
                 )
+
+        let contrClippingPlane = 
+            m.planeCorners |> AVal.map (fun c ->
+                Plane3d(c.P0, c.P1, c.P2))
         
         let heraSg =    
             let m = m.twoDModel
             data
             |> Hera.Hera.createAnimatedSg 
                 m.frame m.pointSize m.discardPoints m.renderValue m.currentMap 
-                m.domainRange m.clippingPlane m.filter m.currFilters m.dataRange m.colorValue.c m.cameraState.view
+                m.domainRange m.clippingPlane contrClippingPlane m.filter m.currFilters m.dataRange m.colorValue.c m.cameraState.view
                  runtime
             |> Sg.noEvents
             |> Sg.trafo scaleTrafo
@@ -423,7 +401,7 @@ module Demo =
         //        do! DefaultSurfaces.constantColor C4f.White
         //    }
 
-        let planePositions = m.planeCorners |> AVal.map (fun q -> [|q.c0.ToV3f(); q.c1.ToV3f(); q.c2.ToV3f(); q.c3.ToV3f()|])
+        let planePositions = m.planeCorners |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
 
         let clipPlaneSg = 
             Sg.draw IndexedGeometryMode.TriangleList
@@ -436,6 +414,7 @@ module Demo =
                     do! DefaultSurfaces.simpleLighting
                     do! DefaultSurfaces.constantColor C4f.Blue
                 }
+                |> Sg.fillMode (FillMode.Line |> AVal.constant)
 
         let quadPositions = m.flatScreen |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
 
