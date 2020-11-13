@@ -532,7 +532,8 @@ module Demo =
         let probeContrSg = 
             Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"probe";"probe.obj"])
                 |> Sg.adapter
-                |> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, 210.0))
+                |> Sg.transform (Trafo3d.Scale(1.0, 1.0, -1.0))
+                |> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, 30.0))
                 |> Sg.trafo probeScaleTrafo 
                 |> Sg.trafo contrOrientation
                 |> Sg.translate' probeContrPos
@@ -555,7 +556,8 @@ module Demo =
         let laserContrSg = 
             Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"laser";"laser.obj"])
                 |> Sg.adapter
-                |> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, 180.0))
+                |> Sg.transform (Trafo3d.Scale(1.0, 1.0, -1.0))
+                |> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, 0.0))
                 |> Sg.trafo rayScaleTrafo
                 |> Sg.trafo contrOrientation
                 |> Sg.translate' laserContrPos
@@ -578,7 +580,8 @@ module Demo =
         let clippingContrSg = 
             Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"clipping";"clipping.obj"])
                 |> Sg.adapter
-                |> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, 150.0))
+                |> Sg.transform (Trafo3d.Scale(1.0, 1.0, -1.0))
+                |> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, -30.0))
                 |> Sg.trafo clippingScaleTrafo
                 |> Sg.trafo contrOrientation
                 |> Sg.translate' clippingContrPos
