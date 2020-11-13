@@ -33,6 +33,10 @@ type Message =
     | ActivateRay of int
     | DeactivateRay of int
     | ActivatePlane of int
+    | ToggleControllerMenu
+    | OpenControllerMenu of int
+    | ChangeTouchpadPos of float
+    | ChangeControllerMode of int
     | ResetHera 
  
 module Demo =
@@ -55,7 +59,7 @@ module Demo =
             sphereScalerId = None
             scalingFactorHera = 0.05
             sphereScale = 1.0
-            sphereRadius = 1.0
+            sphereRadius = 0.2
             sphereColor = C4b.White
             sphereProbeCreated = false
             rayDeviceId = None
@@ -65,6 +69,11 @@ module Demo =
             screenIntersection = false
             clippingPlaneDeviceId = None
             planeCorners = Quad3d(V3d(), V3d(), V3d(), V3d())
+            controllerMenuOpen = false
+            menuControllerTrafo = None
+            menuControllerId = None
+            controllerMode = ControllerMode.Probe
+            touchPadCurrPosX = 0.0
         }
         
     let update (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
@@ -173,6 +182,7 @@ module Demo =
                     let p3 = currDeviceTrafo.Forward.TransformPos(planePos3)
                     Quad3d(p0, p1, p2, p3)
                 | None -> Quad3d(V3d(), V3d(), V3d(), V3d())
+            let currMenuTrafo = newOrOldTrafo id trafo model.menuControllerId model.menuControllerTrafo
             {model with 
                 controllerTrafo = contrTrafo
                 sphereControllerTrafo = sphereContrTrafo
@@ -181,7 +191,8 @@ module Demo =
                 devicesTrafos = newInput
                 ray = currRay
                 planeCorners = currCorners
-                screenIntersection = intersect}
+                screenIntersection = intersect
+                menuControllerTrafo = currMenuTrafo}
         | ControlSphere id -> 
             let currTrafo = model.devicesTrafos.TryFind(id)
             match model.sphereControllerId with 
@@ -226,6 +237,51 @@ module Demo =
                     planeCorners = Quad3d(p0, p1, p2, p3)
                     clippingPlaneDeviceId = Some id 
                     }
+        | ToggleControllerMenu -> 
+            if model.touchPadCurrPosX >= -0.3 && model.touchPadCurrPosX <= 0.3 then
+                {model with controllerMenuOpen = not model.controllerMenuOpen}
+            else  
+                model
+        | OpenControllerMenu id ->
+            let currDevice = model.devicesTrafos.TryFind(id)
+            let currDeviceTrafo = trafoOrIdentity currDevice
+            if model.controllerMenuOpen then 
+                {model with 
+                    menuControllerTrafo = Some currDeviceTrafo
+                    menuControllerId = Some id}
+            else    
+                {model with 
+                    menuControllerId = None}
+        | ChangeControllerMode id -> 
+            match model.menuControllerId with  
+            | Some i -> 
+                if i = id then 
+                    let pos = model.touchPadCurrPosX
+                    let mode = 
+                        match model.controllerMode with 
+                        | ControllerMode.Probe -> 0 
+                        | ControllerMode.Ray -> 1 
+                        | ControllerMode.Clipping -> 2
+                        | _ -> 0
+                    let nextModeInt = 
+                        if pos <= -0.5 then
+                            if mode = 0 then 2 else (mode - 1)
+                        else if pos >= 0.5 then         
+                            if mode = 2 then 0 else (mode + 1)
+                        else
+                            mode
+                    let nextMode = 
+                        match nextModeInt with 
+                        | 0 -> ControllerMode.Probe
+                        | 1 -> ControllerMode.Ray
+                        | 2 -> ControllerMode.Clipping
+                        | _ -> ControllerMode.Probe
+                    printf "nextmMode %A" nextMode
+                    {model with controllerMode = nextMode}
+                else 
+                    model
+            | None -> model
+        | ChangeTouchpadPos pos -> {model with touchPadCurrPosX = pos}
         | ResetHera -> initial frames
             
 
@@ -251,7 +307,8 @@ module Demo =
         | VrMessage.Press(controllerId, buttonId) ->
             //printf "press: %A " (controllerId, buttonId)
             if buttonId = 0 then 
-                [ActivateRay controllerId]
+                [ToggleControllerMenu; OpenControllerMenu controllerId; ChangeControllerMode controllerId]
+                //[ActivateRay controllerId]
             else if buttonId = 1 then
                 [ControlSphere controllerId]
             else
@@ -263,22 +320,23 @@ module Demo =
             else
                 []
         | VrMessage.Touch(controllerId, buttonId) ->
-           // printf "touch: %A " (controllerId, buttonId)
+            printf "touch: %A " (controllerId, buttonId)
             if buttonId = 0 then 
-                [ActivatePlane controllerId]
+                []
+                //[ActivatePlane controllerId]
             else 
                 []
         | VrMessage.Untouch(controllerId, buttonId) ->
-           // printf "untouch: %A " (controllerId, buttonId)
+            printf "untouch: %A " (controllerId, buttonId)
             []
         | VrMessage.ValueChange(controllerId, buttonId, value) ->
             //printf "value change: %A " (controllerId, buttonId, value)
             if buttonId = 0 then 
                 let x = value.X
                 if x >=  0.0 then 
-                    [ScaleUp x]
+                    [ChangeTouchpadPos x; ScaleUp x]
                 else 
-                    [ScaleDown x]
+                    [ChangeTouchpadPos x; ScaleDown x]
             else 
                 []
         | VrMessage.UpdatePose(controllerId, pose) ->
@@ -335,7 +393,7 @@ module Demo =
         let sphereScaleTrafo = 
             m.sphereScale 
             |> AVal.map(fun s -> 
-                printf "radius %A \n" (0.2 * s)
+               // printf "radius %A \n" (0.2 * s)
                 Trafo3d (Scale3d(s)))
 
         let sphereTrafo =
@@ -390,26 +448,6 @@ module Demo =
                 |> Sg.pass (RenderPass.after "lines" RenderPassOrder.Arbitrary RenderPass.main)
                 |> Sg.depthTest (AVal.constant DepthTestMode.None)
 
-        //let quadSg = 
-        //    let quad =  
-        //        IndexedGeometry(
-        //            Mode = IndexedGeometryMode.TriangleList,
-        //            IndexArray = ([|0;1;2; 0;2;3|] :> System.Array),
-        //            IndexedAttributes = 
-        //                SymDict.ofList [
-        //                    DefaultSemantic.Positions,                  [| V3f(-25,-20,-8); V3f(-25,10,-8); V3f(-25,10,12); V3f(-25,-20,12) |] :> Array
-        //                    DefaultSemantic.Normals,                    [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |] :> Array
-        //                    DefaultSemantic.DiffuseColorCoordinates,    [| V2f.OO; V2f.IO; V2f.II; V2f.OI |] :> Array
-        //                    ]
-        //        )
-        //    quad 
-        //    |> Sg.ofIndexedGeometry
-        //    |> Sg.shader {
-        //        do! DefaultSurfaces.trafo
-        //        do! DefaultSurfaces.simpleLighting
-        //        do! DefaultSurfaces.constantColor C4f.White
-        //    }
-
         let planePositions = m.planeCorners |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
 
         let clipPlaneSg = 
@@ -454,8 +492,106 @@ module Demo =
                     do! DefaultSurfaces.normalMap
                     do! DefaultSurfaces.simpleLighting
                 }
+
+        let contrOrientation = 
+            m.menuControllerTrafo  
+            |> AVal.map (fun t -> 
+                let trafo = trafoOrIdentity t
+                trafo.GetOrthoNormalOrientation()
+                ) 
+
+        let probeContrPos = 
+            m.menuControllerTrafo  
+            |> AVal.map (fun t -> 
+                let trafo = trafoOrIdentity t
+                trafo.Forward.TransformPos(V3d(-0.12, 0.11, 0.0))
+                ) 
+
+        let probeScaleTrafo = 
+            m.controllerMode |> AVal.map (fun m ->
+                if m = ControllerMode.Probe then
+                    Trafo3d (Scale3d(0.7))
+                else
+                    Trafo3d (Scale3d(0.5)))
+
+        let rayScaleTrafo = 
+            m.controllerMode |> AVal.map (fun m ->
+                if m = ControllerMode.Ray then
+                    Trafo3d (Scale3d(0.7))
+                else
+                    Trafo3d (Scale3d(0.5)))
+
+        let clippingScaleTrafo = 
+            m.controllerMode |> AVal.map (fun m ->
+                if m = ControllerMode.Clipping then
+                    Trafo3d (Scale3d(0.7))
+                else
+                    Trafo3d (Scale3d(0.5)))
+                
+
+        let probeContrSg = 
+            Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"probe";"probe.obj"])
+                |> Sg.adapter
+                |> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, 210.0))
+                |> Sg.trafo probeScaleTrafo 
+                |> Sg.trafo contrOrientation
+                |> Sg.translate' probeContrPos
+                |> Sg.onOff m.controllerMenuOpen
+
+                |> Sg.shader {
+                    do! DefaultSurfaces.trafo
+                    do! DefaultSurfaces.diffuseTexture
+                    do! DefaultSurfaces.normalMap
+                    do! DefaultSurfaces.simpleLighting
+                }
+
+        let laserContrPos = 
+            m.menuControllerTrafo  
+            |> AVal.map (fun t -> 
+                let trafo = trafoOrIdentity t
+                trafo.Forward.TransformPos(V3d(0.0, 0.15, 0.0))
+                ) 
+
+        let laserContrSg = 
+            Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"laser";"laser.obj"])
+                |> Sg.adapter
+                |> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, 180.0))
+                |> Sg.trafo rayScaleTrafo
+                |> Sg.trafo contrOrientation
+                |> Sg.translate' laserContrPos
+                |> Sg.onOff m.controllerMenuOpen
+
+                |> Sg.shader {
+                    do! DefaultSurfaces.trafo
+                    do! DefaultSurfaces.diffuseTexture
+                    do! DefaultSurfaces.normalMap
+                    do! DefaultSurfaces.simpleLighting
+                }
+
+        let clippingContrPos = 
+            m.menuControllerTrafo  
+            |> AVal.map (fun t -> 
+                let trafo = trafoOrIdentity t
+                trafo.Forward.TransformPos(V3d(0.12, 0.11, 0.0))
+                ) 
+
+        let clippingContrSg = 
+            Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"clipping";"clipping.obj"])
+                |> Sg.adapter
+                |> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, 150.0))
+                |> Sg.trafo clippingScaleTrafo
+                |> Sg.trafo contrOrientation
+                |> Sg.translate' clippingContrPos
+                |> Sg.onOff m.controllerMenuOpen
+
+                |> Sg.shader {
+                    do! DefaultSurfaces.trafo
+                    do! DefaultSurfaces.diffuseTexture
+                    do! DefaultSurfaces.normalMap
+                    do! DefaultSurfaces.simpleLighting
+                }
             
-        Sg.ofSeq [world; heraSg; sphereProbeSg; tvSg; clipPlaneSg; quadSg; ray]
+        Sg.ofSeq [world; heraSg; sphereProbeSg; tvSg; clipPlaneSg; quadSg; probeContrSg; laserContrSg; clippingContrSg; ray]
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting

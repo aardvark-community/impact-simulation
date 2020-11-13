@@ -12,13 +12,10 @@ open FSharp.Data.Adaptive
 open AardVolume.Model
 
 
-type PlaneCorners = 
-    {
-    c0 : V3d
-    c1 : V3d
-    c2 : V3d
-    c3 : V3d
-    }
+type ControllerMode = 
+    | Probe = 0
+    | Ray = 1
+    | Clipping = 2
 
 [<ModelType>]
 type Model = 
@@ -55,4 +52,11 @@ type Model =
         
         clippingPlaneDeviceId : Option<int>
         planeCorners : Quad3d
+
+        controllerMenuOpen : bool
+        menuControllerTrafo : Option<Trafo3d>
+        menuControllerId : Option<int>
+        controllerMode : ControllerMode
+
+        touchPadCurrPosX : float
 }
