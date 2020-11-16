@@ -396,6 +396,7 @@ module Demo =
                // printf "radius %A \n" (0.2 * s)
                 Trafo3d (Scale3d(s)))
 
+        //TODO : use trafoOrIdentity func
         let sphereTrafo =
             m.sphereControllerTrafo |> AVal.map (fun t ->
                 match t with 
@@ -421,7 +422,6 @@ module Demo =
             |> Sg.translate 0.0 0.0 0.7
             |> Sg.trafo trafo
 
-        
         let sphereProbeSg = 
             Sg.sphere 7 m.sphereColor m.sphereRadius
             |> Sg.noEvents
@@ -430,10 +430,7 @@ module Demo =
             |> Sg.onOff m.sphereProbeCreated
             |> Sg.fillMode (FillMode.Line |> AVal.constant)
 
-
-        let lines = m.ray |> AVal.map (fun r -> 
-                                    let line = new Line3d(r.Origin, r.Direction)
-                                    [|line|]) 
+        let lines = m.ray |> AVal.map (fun r -> [|Line3d(r.Origin, r.Direction)|]) 
 
         let ray =
             lines
@@ -447,35 +444,25 @@ module Demo =
                     ]
                 |> Sg.pass (RenderPass.after "lines" RenderPassOrder.Arbitrary RenderPass.main)
                 |> Sg.depthTest (AVal.constant DepthTestMode.None)
+      
+        let planeSg positions color fillmode =
+            Sg.draw IndexedGeometryMode.TriangleList
+                |> Sg.vertexAttribute DefaultSemantic.Positions positions
+                |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
+                |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
+                |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
+                |> Sg.shader {
+                    do! DefaultSurfaces.trafo
+                    do! DefaultSurfaces.simpleLighting
+                    do! DefaultSurfaces.constantColor color
+                }
+                |> Sg.fillMode (fillmode |> AVal.constant)
 
         let planePositions = m.planeCorners |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
-
-        let clipPlaneSg = 
-            Sg.draw IndexedGeometryMode.TriangleList
-                |> Sg.vertexAttribute DefaultSemantic.Positions planePositions
-                |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
-                |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
-                |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
-                |> Sg.shader {
-                    do! DefaultSurfaces.trafo
-                    do! DefaultSurfaces.simpleLighting
-                    do! DefaultSurfaces.constantColor C4f.Blue
-                }
-                |> Sg.fillMode (FillMode.Line |> AVal.constant)
-
         let quadPositions = m.flatScreen |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
 
-        let quadSg = 
-            Sg.draw IndexedGeometryMode.TriangleList
-                |> Sg.vertexAttribute DefaultSemantic.Positions quadPositions
-                |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
-                |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
-                |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
-                |> Sg.shader {
-                    do! DefaultSurfaces.trafo
-                    do! DefaultSurfaces.simpleLighting
-                    do! DefaultSurfaces.constantColor C4f.White
-                }
+        let clipPlaneSg = planeSg planePositions C4f.Blue FillMode.Line
+        let quadSg = planeSg quadPositions C4f.White FillMode.Fill
 
         let tvSg = 
             Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"tv";"tv.obj"])
@@ -500,99 +487,55 @@ module Demo =
                 trafo.GetOrthoNormalOrientation()
                 ) 
 
-        let probeContrPos = 
+        let controllerPos position = 
             m.menuControllerTrafo  
             |> AVal.map (fun t -> 
                 let trafo = trafoOrIdentity t
-                trafo.Forward.TransformPos(V3d(-0.12, 0.11, 0.0))
+                trafo.Forward.TransformPos(position)
                 ) 
 
-        let probeScaleTrafo = 
+        let probeContrPos = controllerPos (V3d(-0.12, 0.11, 0.0))
+        let rayContrPos = controllerPos (V3d(0.0, 0.15, 0.0))
+        let clippingContrPos = controllerPos (V3d(0.12, 0.11, 0.0))
+
+        let scaleTrafo mode = 
             m.controllerMode |> AVal.map (fun m ->
-                if m = ControllerMode.Probe then
+                if m = mode then
                     Trafo3d (Scale3d(0.7))
                 else
                     Trafo3d (Scale3d(0.5)))
 
-        let rayScaleTrafo = 
-            m.controllerMode |> AVal.map (fun m ->
-                if m = ControllerMode.Ray then
-                    Trafo3d (Scale3d(0.7))
-                else
-                    Trafo3d (Scale3d(0.5)))
-
-        let clippingScaleTrafo = 
-            m.controllerMode |> AVal.map (fun m ->
-                if m = ControllerMode.Clipping then
-                    Trafo3d (Scale3d(0.7))
-                else
-                    Trafo3d (Scale3d(0.5)))
-                
+        let probeScaleTrafo = scaleTrafo ControllerMode.Probe
+        let rayScaleTrafo = scaleTrafo ControllerMode.Ray
+        let clippingScaleTrafo = scaleTrafo ControllerMode.Clipping
+              
+        let controllerSg path rotX rotY rotZ scTrafo contrPos = 
+            Loader.Assimp.load (Path.combine path)
+            |> Sg.adapter
+            |> Sg.transform (Trafo3d.Scale(1.0, 1.0, -1.0))
+            |> Sg.transform (Trafo3d.RotationEulerInDegrees(rotX, rotY, rotZ))
+            |> Sg.trafo scTrafo 
+            |> Sg.trafo contrOrientation
+            |> Sg.translate' contrPos
+            |> Sg.onOff m.controllerMenuOpen
+            |> Sg.shader {
+                do! DefaultSurfaces.trafo
+                do! DefaultSurfaces.diffuseTexture
+                do! DefaultSurfaces.normalMap
+                do! DefaultSurfaces.simpleLighting
+            }
 
         let probeContrSg = 
-            Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"probe";"probe.obj"])
-                |> Sg.adapter
-                |> Sg.transform (Trafo3d.Scale(1.0, 1.0, -1.0))
-                |> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, 30.0))
-                |> Sg.trafo probeScaleTrafo 
-                |> Sg.trafo contrOrientation
-                |> Sg.translate' probeContrPos
-                |> Sg.onOff m.controllerMenuOpen
-
-                |> Sg.shader {
-                    do! DefaultSurfaces.trafo
-                    do! DefaultSurfaces.diffuseTexture
-                    do! DefaultSurfaces.normalMap
-                    do! DefaultSurfaces.simpleLighting
-                }
-
-        let laserContrPos = 
-            m.menuControllerTrafo  
-            |> AVal.map (fun t -> 
-                let trafo = trafoOrIdentity t
-                trafo.Forward.TransformPos(V3d(0.0, 0.15, 0.0))
-                ) 
-
+            let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"probe";"probe.obj"]
+            controllerSg path 90.0 0.0 30.0 probeScaleTrafo probeContrPos
+           
         let laserContrSg = 
-            Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"laser";"laser.obj"])
-                |> Sg.adapter
-                |> Sg.transform (Trafo3d.Scale(1.0, 1.0, -1.0))
-                |> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, 0.0))
-                |> Sg.trafo rayScaleTrafo
-                |> Sg.trafo contrOrientation
-                |> Sg.translate' laserContrPos
-                |> Sg.onOff m.controllerMenuOpen
-
-                |> Sg.shader {
-                    do! DefaultSurfaces.trafo
-                    do! DefaultSurfaces.diffuseTexture
-                    do! DefaultSurfaces.normalMap
-                    do! DefaultSurfaces.simpleLighting
-                }
-
-        let clippingContrPos = 
-            m.menuControllerTrafo  
-            |> AVal.map (fun t -> 
-                let trafo = trafoOrIdentity t
-                trafo.Forward.TransformPos(V3d(0.12, 0.11, 0.0))
-                ) 
+            let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"laser";"laser.obj"]
+            controllerSg path 90.0 0.0 0.0 rayScaleTrafo rayContrPos
 
         let clippingContrSg = 
-            Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"clipping";"clipping.obj"])
-                |> Sg.adapter
-                |> Sg.transform (Trafo3d.Scale(1.0, 1.0, -1.0))
-                |> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, -30.0))
-                |> Sg.trafo clippingScaleTrafo
-                |> Sg.trafo contrOrientation
-                |> Sg.translate' clippingContrPos
-                |> Sg.onOff m.controllerMenuOpen
-
-                |> Sg.shader {
-                    do! DefaultSurfaces.trafo
-                    do! DefaultSurfaces.diffuseTexture
-                    do! DefaultSurfaces.normalMap
-                    do! DefaultSurfaces.simpleLighting
-                }
+            let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"clipping";"clipping.obj"]
+            controllerSg path 90.0 0.0 -30.0 clippingScaleTrafo clippingContrPos
             
         Sg.ofSeq [world; heraSg; sphereProbeSg; tvSg; clipPlaneSg; quadSg; probeContrSg; laserContrSg; clippingContrSg; ray]
             |> Sg.shader {
