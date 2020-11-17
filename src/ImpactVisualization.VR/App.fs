@@ -480,6 +480,15 @@ module Demo =
                 )
 
         let contrClippingPlane = m.planeCorners |> AVal.map (fun c -> Plane3d(c.P0, c.P1, c.P2))
+
+        let mutable mode = BlendMode(true)
+        mode.Enabled <- true
+        mode.Operation <- BlendOperation.Add
+        mode.AlphaOperation <- BlendOperation.Add
+        mode.SourceFactor <- BlendFactor.SourceAlpha
+        mode.DestinationFactor <- BlendFactor.InvSourceAlpha
+        mode.SourceAlphaFactor <- BlendFactor.One
+        mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
         
         let heraSg =    
             let m = m.twoDModel
@@ -492,6 +501,8 @@ module Demo =
             |> Sg.trafo scaleTrafo
             |> Sg.translate 0.0 0.0 0.7
             |> Sg.trafo trafo
+            |> Sg.blendMode (AVal.constant mode)
+
 
         let sphereProbeSg = 
             Sg.sphere 7 m.sphereColor m.sphereRadius
@@ -500,6 +511,7 @@ module Demo =
             |> Sg.trafo sphereTrafo
             |> Sg.onOff m.sphereProbeCreated
             |> Sg.fillMode (FillMode.Line |> AVal.constant)
+            |> Sg.blendMode (AVal.constant mode)
 
         let lines = m.ray |> AVal.map (fun r -> [|Line3d(r.Origin, r.Direction)|]) 
 
@@ -513,8 +525,8 @@ module Demo =
                     toEffect DefaultSurfaces.vertexColor
                     toEffect DefaultSurfaces.thickLine
                     ]
-                |> Sg.pass (RenderPass.after "lines" RenderPassOrder.Arbitrary RenderPass.main)
-                |> Sg.depthTest (AVal.constant DepthTestMode.None)
+                //|> Sg.pass (RenderPass.after "lines" RenderPassOrder.Arbitrary RenderPass.main)
+                //|> Sg.depthTest (AVal.constant DepthTestMode.None)
       
         let planeSg positions color fillmode =
             Sg.draw IndexedGeometryMode.TriangleList
