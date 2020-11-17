@@ -115,6 +115,7 @@ module Shaders =
             let discardPoints = uniform?DiscardPoints
             let renderValue = uniform?RenderValue
             let colorValue = uniform?Color
+            let sphereProbe : Sphere3d = uniform?SphereProbe
 
 
             let value renderValue = 
@@ -139,7 +140,16 @@ module Shaders =
             let max = filter.Max
 
             let pos = V3f(wp)
-            let pointPos = V3d(wp)
+            let pPos = V3d(wp)
+
+            let spPos = sphereProbe.Center
+            let radius = sphereProbe.Radius
+
+            let isNotInsideSphere = 
+                if radius < 0.0 then 
+                    true
+                else 
+                    (pPos.X - spPos.X) ** 2.0 + (pPos.Y - spPos.Y) ** 2.0 + (pPos.Z - spPos.Z) ** 2.0 <= radius ** 2.0
 
             let minRange = dataRange.min
             let maxRange = dataRange.max
@@ -151,17 +161,18 @@ module Shaders =
                 if controllerPlane.Normal = V3d.Zero then
                     true
                 else 
-                    Vec.Dot(controllerPlane.Normal, pointPos) - controllerPlane.Distance >= 0.0
+                    Vec.Dot(controllerPlane.Normal, pPos) - controllerPlane.Distance >= 0.0
 
             let color = 
-                if (notDiscardByFilters && isInsideMinMaxRange && minRange <= linearCoord && linearCoord <= maxRange) then
+                if (notDiscardByFilters && isInsideMinMaxRange && isNotInsideSphere && minRange <= linearCoord && linearCoord <= maxRange) then
                     transferFunc
                 else
                     colorValue
+
             if (wp.X >= dm.x.min && wp.X <= dm.x.max && wp.Y >= dm.y.min && wp.Y <= dm.y.max && wp.Z >= dm.z.min && wp.Z <= dm.z.max) &&
                 (wp.X <= plane.x && wp.Y <= plane.y && wp.Z <= plane.z) && isOutsideControllerPlane then
                 if (discardPoints) then
-                    if (notDiscardByFilters && isInsideMinMaxRange && minRange <= linearCoord && linearCoord <= maxRange) then
+                    if (notDiscardByFilters && isInsideMinMaxRange && isNotInsideSphere && minRange <= linearCoord && linearCoord <= maxRange) then
                         yield  { p.Value with 
                                     pointColor = color
                                     pointSize = uniform?PointSize}
@@ -209,6 +220,7 @@ module Hera =
                          (contrClippingPlane : aval<Plane3d>)
                          (filter : aval<option<Box3f>>) (currFilters : aval<Filters>) 
                          (dataRange : aval<Range>) (colorValue : aval<C4b>) 
+                         (sphereProbe : aval<Sphere3d>)
                          (cameraView : aval<CameraView>)
                          (runtime : IRuntime)
                          (frames : Frame[], bb : Box3f, vertexCount : int)  = 
@@ -336,6 +348,7 @@ module Hera =
         |> Sg.uniform "CurrFilters" currFilters
         |> Sg.uniform "DataRange" dataRange
         |> Sg.uniform "Color" color
+        |> Sg.uniform "SphereProbe" sphereProbe
         |> Sg.uniform "Alpha" ~~0.01
         //|> Sg.depthTest ~~DepthTestMode.None
         //|> Sg.blendMode ~~mode

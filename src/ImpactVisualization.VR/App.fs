@@ -479,6 +479,19 @@ module Demo =
                 | None -> Trafo3d.Identity
                 )
 
+        let sphereProbe = 
+            AVal.map3 (fun trafo scale initRadius -> 
+                match trafo with 
+                | Some (t : Trafo3d) -> 
+                    if t.Forward.IsIdentity() then 
+                        Sphere3d.Invalid
+                    else 
+                        let spherePos = t.Forward.TransformPos(V3d.OOO)
+                        let sphereRadius : float = initRadius * scale
+                        Sphere3d(spherePos, sphereRadius)
+                | None -> Sphere3d.Invalid
+                ) m.sphereControllerTrafo m.sphereScale m.sphereRadius
+
         let contrClippingPlane = m.planeCorners |> AVal.map (fun c -> Plane3d(c.P0, c.P1, c.P2))
 
         let mutable mode = BlendMode(true)
@@ -495,8 +508,10 @@ module Demo =
             data
             |> Hera.Hera.createAnimatedSg 
                 m.frame m.pointSize m.discardPoints m.renderValue m.currentMap 
-                m.domainRange m.clippingPlane contrClippingPlane m.filter m.currFilters m.dataRange m.colorValue.c m.cameraState.view
-                 runtime
+                m.domainRange m.clippingPlane contrClippingPlane m.filter m.currFilters m.dataRange m.colorValue.c 
+                sphereProbe
+                m.cameraState.view
+                runtime
             |> Sg.noEvents
             |> Sg.trafo scaleTrafo
             |> Sg.translate 0.0 0.0 0.7
@@ -513,6 +528,7 @@ module Demo =
            // |> Sg.fillMode (FillMode.Fill |> AVal.constant)
             |> Sg.cullMode (CullMode.Back |> AVal.constant)
             |> Sg.blendMode (AVal.constant mode)
+            |> Sg.pass RenderPass.main
             
 
 
@@ -625,7 +641,7 @@ module Demo =
             let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"clipping";"clipping.obj"]
             controllerSg path 90.0 0.0 -30.0 clippingScaleTrafo clippingContrPos
             
-        Sg.ofSeq [world; heraSg; sphereProbeSg; tvSg; clipPlaneSg; quadSg; probeContrSg; laserContrSg; clippingContrSg; ray]
+        Sg.ofSeq [world; sphereProbeSg; heraSg; tvSg; clipPlaneSg; quadSg; probeContrSg; laserContrSg; clippingContrSg; ray]
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
