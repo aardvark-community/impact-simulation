@@ -62,7 +62,7 @@ module Demo =
             scalingFactorHera = 0.05
             sphereScale = 1.0
             sphereRadius = 0.2
-            sphereColor = C4b(1.0,1.0,1.0,0.1)
+            sphereColor = C4b(1.0,1.0,1.0,0.4)
             sphereProbeCreated = false
             rayDeviceId = None
             ray = Ray3d.Invalid
@@ -511,7 +511,7 @@ module Demo =
             |> Sg.trafo sphereTrafo
             |> Sg.onOff m.sphereProbeCreated
             |> Sg.fillMode (FillMode.Fill |> AVal.constant)
-          //  |> Sg.cullMode (CullMode.Back |> AVal.constant)
+            |> Sg.cullMode (CullMode.Back |> AVal.constant)
             |> Sg.blendMode (AVal.constant mode)
             
 
