@@ -103,7 +103,7 @@ module App =
             renderValue = RenderValue.Energy
             colorValue = { c = C4b.Gray}
             colorMaps = listWithValues
-            currentMap = @"..\..\..\src\ImpactVisualization\resources\transfer\map-03.png"
+            currentMap = @"..\..\..\src\ImpactVisualization\resources\transfer\transfer.jpg"
             domainRange = {
                 x = {min = -16.0; max = 16.0}; 
                 y = {min = -16.0; max = 30.0}; 
