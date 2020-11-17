@@ -28,15 +28,17 @@ type Message =
     | ScaleUp of float 
     | ScaleDown of float 
     | MoveController of int * Trafo3d
-    | ControlSphere of int
-    | ReleaseSphere of int 
-    | ActivateRay of int
-    | DeactivateRay of int
-    | ActivatePlane of int
+    //| ControlSphere of int
+    //| ReleaseSphere of int 
+    //| ActivateRay of int
+    //| DeactivateRay of int
+    //| ActivatePlane of int
     | ToggleControllerMenu
     | OpenControllerMenu of int
     | ChangeTouchpadPos of float
     | ChangeControllerMode of int
+    | ActivateControllerMode of int
+    | DeactivateControllerMode of int
     | ResetHera 
  
 module Demo =
@@ -193,53 +195,124 @@ module Demo =
                 planeCorners = currCorners
                 screenIntersection = intersect
                 menuControllerTrafo = currMenuTrafo}
-        | ControlSphere id -> 
-            let currTrafo = model.devicesTrafos.TryFind(id)
-            match model.sphereControllerId with 
-            | Some i -> if i = id then 
+        | ActivateControllerMode id ->
+            let currDevice = model.devicesTrafos.TryFind(id)
+            let currDeviceTrafo = trafoOrIdentity currDevice
+            if not model.controllerMenuOpen then 
+                match model.controllerMode with
+                | ControllerMode.Probe ->
+                    match model.sphereControllerId with 
+                    | Some i -> if i = id then 
+                                    {model with 
+                                        sphereControllerTrafo = currDevice
+                                        sphereControllerId = Some id}
+                                else
+                                    {model with 
+                                        sphereScalerId = Some id
+                                        sphereScalerTrafo = currDevice} 
+                    | None -> 
                             {model with 
-                                sphereControllerTrafo = currTrafo
+                                sphereProbeCreated = true
+                                sphereControllerTrafo = currDevice
                                 sphereControllerId = Some id}
-                        else
-                            {model with 
-                                sphereScalerId = Some id
-                                sphereScalerTrafo = currTrafo} 
-            | None -> 
+                | ControllerMode.Ray ->
+                    let origin = currDeviceTrafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
+                    let direction = currDeviceTrafo.Forward.TransformPos(V3d.OIO * 10.0) 
                     {model with 
-                        sphereProbeCreated = true
-                        sphereControllerTrafo = currTrafo
-                        sphereControllerId = Some id}
-        | ReleaseSphere id ->
-            match model.sphereControllerId with
-            | Some i -> if i = id then 
-                            {model with
-                                sphereControllerId = None
-                                sphereScalerId = None}
-                        else
-                            {model with sphereScalerId = None}
-            | None -> {model with sphereScalerId = None}
-        | ActivateRay id -> 
-            let currDevice = model.devicesTrafos.TryFind(id)
-            let currDeviceTrafo = trafoOrIdentity currDevice
-            let origin = currDeviceTrafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
-            let direction = currDeviceTrafo.Forward.TransformPos(V3d.OIO * 10.0) 
-            {model with 
-                    rayDeviceId = Some id
-                    ray = Ray3d(origin, direction)}
-        | ActivatePlane id ->
-            let currDevice = model.devicesTrafos.TryFind(id)
-            let currDeviceTrafo = trafoOrIdentity currDevice
-            let p0 = currDeviceTrafo.Forward.TransformPos(planePos0)
-            let p1 = currDeviceTrafo.Forward.TransformPos(planePos1)
-            let p2 = currDeviceTrafo.Forward.TransformPos(planePos2)
-            let p3 = currDeviceTrafo.Forward.TransformPos(planePos3)
-            {model with 
-                    planeCorners = Quad3d(p0, p1, p2, p3)
-                    clippingPlaneDeviceId = Some id 
-                    }
+                            rayDeviceId = Some id
+                            ray = Ray3d(origin, direction)}
+                | ControllerMode.Clipping -> 
+                    let p0 = currDeviceTrafo.Forward.TransformPos(planePos0)
+                    let p1 = currDeviceTrafo.Forward.TransformPos(planePos1)
+                    let p2 = currDeviceTrafo.Forward.TransformPos(planePos2)
+                    let p3 = currDeviceTrafo.Forward.TransformPos(planePos3)
+                    {model with 
+                            planeCorners = Quad3d(p0, p1, p2, p3)
+                            clippingPlaneDeviceId = Some id 
+                            }
+                | _ -> model
+            else 
+                { model with 
+                    sphereControllerId = None
+                    sphereScalerId = None
+                    rayDeviceId = None
+                    clippingPlaneDeviceId = None 
+                }
+        | DeactivateControllerMode id ->
+            if not model.controllerMenuOpen then 
+                match model.controllerMode with 
+                | ControllerMode.Probe -> 
+                    match model.sphereControllerId with
+                    | Some i -> if i = id then 
+                                    {model with
+                                        sphereControllerId = None
+                                        sphereScalerId = None}
+                                else
+                                    {model with sphereScalerId = None}
+                    | None -> {model with sphereScalerId = None}
+                | ControllerMode.Ray -> model
+                | ControllerMode.Clipping -> model
+                | _ -> model
+            else 
+                { model with 
+                    sphereControllerId = None
+                    sphereScalerId = None
+                    rayDeviceId = None
+                    clippingPlaneDeviceId = None 
+                }
+            
+        //| ControlSphere id -> 
+        //    let currTrafo = model.devicesTrafos.TryFind(id)
+        //    match model.sphereControllerId with 
+        //    | Some i -> if i = id then 
+        //                    {model with 
+        //                        sphereControllerTrafo = currTrafo
+        //                        sphereControllerId = Some id}
+        //                else
+        //                    {model with 
+        //                        sphereScalerId = Some id
+        //                        sphereScalerTrafo = currTrafo} 
+        //    | None -> 
+        //            {model with 
+        //                sphereProbeCreated = true
+        //                sphereControllerTrafo = currTrafo
+        //                sphereControllerId = Some id}
+        //| ReleaseSphere id ->
+        //    match model.sphereControllerId with
+        //    | Some i -> if i = id then 
+        //                    {model with
+        //                        sphereControllerId = None
+        //                        sphereScalerId = None}
+        //                else
+        //                    {model with sphereScalerId = None}
+        //    | None -> {model with sphereScalerId = None}
+        //| ActivateRay id -> 
+        //    let currDevice = model.devicesTrafos.TryFind(id)
+        //    let currDeviceTrafo = trafoOrIdentity currDevice
+        //    let origin = currDeviceTrafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
+        //    let direction = currDeviceTrafo.Forward.TransformPos(V3d.OIO * 10.0) 
+        //    {model with 
+        //            rayDeviceId = Some id
+        //            ray = Ray3d(origin, direction)}
+        //| ActivatePlane id ->
+        //    let currDevice = model.devicesTrafos.TryFind(id)
+        //    let currDeviceTrafo = trafoOrIdentity currDevice
+        //    let p0 = currDeviceTrafo.Forward.TransformPos(planePos0)
+        //    let p1 = currDeviceTrafo.Forward.TransformPos(planePos1)
+        //    let p2 = currDeviceTrafo.Forward.TransformPos(planePos2)
+        //    let p3 = currDeviceTrafo.Forward.TransformPos(planePos3)
+        //    {model with 
+        //            planeCorners = Quad3d(p0, p1, p2, p3)
+        //            clippingPlaneDeviceId = Some id 
+        //            }
         | ToggleControllerMenu -> 
             if model.touchPadCurrPosX >= -0.3 && model.touchPadCurrPosX <= 0.3 then
-                {model with controllerMenuOpen = not model.controllerMenuOpen}
+                {model with 
+                    controllerMenuOpen = not model.controllerMenuOpen
+                    sphereControllerId = None
+                    sphereScalerId = None
+                    rayDeviceId = None
+                    clippingPlaneDeviceId = None }
             else  
                 model
         | OpenControllerMenu id ->
@@ -310,13 +383,13 @@ module Demo =
                 [ToggleControllerMenu; OpenControllerMenu controllerId; ChangeControllerMode controllerId]
                 //[ActivateRay controllerId]
             else if buttonId = 1 then
-                [ControlSphere controllerId]
+                [ActivateControllerMode controllerId]
             else
                 []
         | VrMessage.Unpress(controllerId, buttonId) ->
           //  printf "unpress: %A " (controllerId, buttonId)
             if buttonId = 1 then
-                [ReleaseSphere controllerId]
+                [DeactivateControllerMode controllerId]
             else
                 []
         | VrMessage.Touch(controllerId, buttonId) ->
@@ -406,9 +479,7 @@ module Demo =
                 | None -> Trafo3d.Identity
                 )
 
-        let contrClippingPlane = 
-            m.planeCorners |> AVal.map (fun c ->
-                Plane3d(c.P0, c.P1, c.P2))
+        let contrClippingPlane = m.planeCorners |> AVal.map (fun c -> Plane3d(c.P0, c.P1, c.P2))
         
         let heraSg =    
             let m = m.twoDModel
@@ -565,4 +636,3 @@ module Demo =
             vr = vr runtime data
             pauseScene = Some pause
         }
-
