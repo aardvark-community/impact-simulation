@@ -510,7 +510,7 @@ module Demo =
             |> Sg.trafo sphereScaleTrafo
             |> Sg.trafo sphereTrafo
             |> Sg.onOff m.sphereProbeCreated
-            |> Sg.fillMode (FillMode.Fill |> AVal.constant)
+           // |> Sg.fillMode (FillMode.Fill |> AVal.constant)
             |> Sg.cullMode (CullMode.Back |> AVal.constant)
             |> Sg.blendMode (AVal.constant mode)
             
@@ -531,7 +531,7 @@ module Demo =
                 //|> Sg.pass (RenderPass.after "lines" RenderPassOrder.Arbitrary RenderPass.main)
                 //|> Sg.depthTest (AVal.constant DepthTestMode.None)
       
-        let planeSg positions color fillmode =
+        let planeSg positions color fillmode blendmode =
             Sg.draw IndexedGeometryMode.TriangleList
                 |> Sg.vertexAttribute DefaultSemantic.Positions positions
                 |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
@@ -542,13 +542,15 @@ module Demo =
                     do! DefaultSurfaces.simpleLighting
                     do! DefaultSurfaces.constantColor color
                 }
-                |> Sg.fillMode (fillmode |> AVal.constant)
+                //|> Sg.fillMode (fillmode |> AVal.constant)
+                |> Sg.blendMode blendmode
+
 
         let planePositions = m.planeCorners |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
         let quadPositions = m.flatScreen |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
 
-        let clipPlaneSg = planeSg planePositions C4f.Blue FillMode.Line
-        let quadSg = planeSg quadPositions C4f.White FillMode.Fill
+        let clipPlaneSg = planeSg planePositions (C4f(0.0,0.0,1.0,0.1)) FillMode.Fill (AVal.constant mode)
+        let quadSg = planeSg quadPositions C4f.White FillMode.Fill (AVal.constant BlendMode.None)
 
         let tvSg = 
             Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"tv";"tv.obj"])
