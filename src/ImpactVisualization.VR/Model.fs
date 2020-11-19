@@ -50,6 +50,7 @@ type Model =
 
         sphereProbeCreated : bool
         
+        clippingPlaneDeviceTrafo : Option<Trafo3d>
         clippingPlaneDeviceId : Option<int>
         planeCorners : Quad3d
 
