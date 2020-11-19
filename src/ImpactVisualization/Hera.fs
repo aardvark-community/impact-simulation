@@ -102,9 +102,70 @@ module Shaders =
     //                pointSize = uniform?PointSize
     //                pointColor = color
     //            }
-    //    }            
-      
+    //    }   
+    
+
     let internal pointSprite (p : Point<Vertex>) = 
+        point {
+            let wp = p.Value.wp
+
+            let dm : DomainRange = uniform?DomainRange
+            let dataRange : Range = uniform?DataRange
+            let filter : Box3f = uniform?Filter
+            let filters : Filters = uniform?CurrFilters
+            let discardPoints = uniform?DiscardPoints
+            let renderValue = uniform?RenderValue
+            let colorValue = uniform?Color
+           
+            let value renderValue = 
+                match renderValue with
+                | RenderValue.Energy -> p.Value.energy
+                | RenderValue.CubicRoot -> p.Value.cubicRoot
+                | RenderValue.Strain -> p.Value.localStrain
+                | RenderValue.AlphaJutzi -> p.Value.alphaJutzi
+                | RenderValue.Pressure -> p.Value.pressure
+                | _ -> p.Value.energy
+            let linearCoord = value renderValue         
+            let transferFunc = transfer.SampleLevel(V2d(linearCoord, 0.0), 0.0)
+
+            let notDiscardByFilters = 
+                    (p.Value.energy >= filters.filterEnergy.min && p.Value.energy <= filters.filterEnergy.max) &&
+                    (p.Value.cubicRoot >= filters.filterCubicRoot.min && p.Value.cubicRoot <= filters.filterCubicRoot.max) &&
+                    (p.Value.localStrain >= filters.filterStrain.min && p.Value.localStrain <= filters.filterStrain.max) &&
+                    (p.Value.alphaJutzi >= filters.filterAlphaJutzi.min && p.Value.alphaJutzi <= filters.filterAlphaJutzi.max) &&
+                    (p.Value.pressure >= filters.filterPressure.min && p.Value.pressure <= filters.filterPressure.max) 
+
+            let min = filter.Min
+            let max = filter.Max
+            let pos = V3f(wp)
+            let minRange = dataRange.min
+            let maxRange = dataRange.max
+            let isInsideMinMaxRange = min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z
+
+            let plane = uniform?ClippingPlane
+
+            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && minRange <= linearCoord && linearCoord <= maxRange
+
+            let color = 
+                if (isInAllRanges) then
+                    transferFunc
+                else
+                    colorValue
+
+            if (wp.X >= dm.x.min && wp.X <= dm.x.max && wp.Y >= dm.y.min && wp.Y <= dm.y.max && wp.Z >= dm.z.min && wp.Z <= dm.z.max) &&
+                (wp.X <= plane.x && wp.Y <= plane.y && wp.Z <= plane.z) then
+                if (discardPoints) then
+                    if (isInAllRanges) then
+                        yield  { p.Value with 
+                                    pointColor = color
+                                    pointSize = uniform?PointSize}
+                else
+                    yield { p.Value with 
+                                pointColor = color
+                                pointSize = uniform?PointSize}
+        }
+      
+    let internal pointSpriteVr (p : Point<Vertex>) = 
         point {
             let wp = p.Value.wp
 
@@ -155,6 +216,7 @@ module Shaders =
             let isInsideMinMaxRange = min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z
 
             let plane = uniform?ClippingPlane
+
             let controllerPlane : Plane3d = uniform?ControllerClippingPlane
 
             let isOutsideControllerPlane = 
@@ -163,8 +225,10 @@ module Shaders =
                 else 
                     Vec.Dot(controllerPlane.Normal, pPos) - controllerPlane.Distance >= 0.0
 
+            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && isNotInsideSphere && minRange <= linearCoord && linearCoord <= maxRange
+
             let color = 
-                if (notDiscardByFilters && isInsideMinMaxRange && isNotInsideSphere && minRange <= linearCoord && linearCoord <= maxRange) then
+                if (isInAllRanges) then
                     transferFunc
                 else
                     colorValue
@@ -172,7 +236,7 @@ module Shaders =
             if (wp.X >= dm.x.min && wp.X <= dm.x.max && wp.Y >= dm.y.min && wp.Y <= dm.y.max && wp.Z >= dm.z.min && wp.Z <= dm.z.max) &&
                 (wp.X <= plane.x && wp.Y <= plane.y && wp.Z <= plane.z) && isOutsideControllerPlane then
                 if (discardPoints) then
-                    if (notDiscardByFilters && isInsideMinMaxRange && isNotInsideSphere && minRange <= linearCoord && linearCoord <= maxRange) then
+                    if (isInAllRanges) then
                         yield  { p.Value with 
                                     pointColor = color
                                     pointSize = uniform?PointSize}
@@ -390,7 +454,7 @@ module Hera =
         |> Sg.vertexBuffer (Sym.ofString "Pressure") (BufferView(pressures, typeof<float32>))
         |> Sg.shader {  
                 do! DefaultSurfaces.trafo
-                do! Shaders.pointSprite
+                do! Shaders.pointSpriteVr
                 do! Shaders.fs
             }
         |> Sg.uniform "PointSize" pointSize
