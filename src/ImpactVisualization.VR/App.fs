@@ -506,7 +506,7 @@ module Demo =
         let heraSg =    
             let m = m.twoDModel
             data
-            |> Hera.Hera.createAnimatedSg 
+            |> Hera.Hera.createAnimatedVrSg 
                 m.frame m.pointSize m.discardPoints m.renderValue m.currentMap 
                 m.domainRange m.clippingPlane contrClippingPlane m.filter m.currFilters m.dataRange m.colorValue.c 
                 sphereProbe
@@ -545,7 +545,7 @@ module Demo =
                     toEffect DefaultSurfaces.thickLine
                     ]
                 //|> Sg.pass (RenderPass.after "lines" RenderPassOrder.Arbitrary RenderPass.main)
-                //|> Sg.depthTest (AVal.constant DepthTestMode.None)
+                |> Sg.depthTest (AVal.constant DepthTestMode.LessOrEqual)
       
         let planeSg positions color fillmode blendmode =
             Sg.draw IndexedGeometryMode.TriangleList
@@ -560,7 +560,6 @@ module Demo =
                 }
                 //|> Sg.fillMode (fillmode |> AVal.constant)
                 |> Sg.blendMode blendmode
-
 
         let planePositions = m.planeCorners |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
         let quadPositions = m.flatScreen |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])

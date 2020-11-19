@@ -116,8 +116,7 @@ module Shaders =
             let renderValue = uniform?RenderValue
             let colorValue = uniform?Color
             let sphereProbe : Sphere3d = uniform?SphereProbe
-
-
+           
             let value renderValue = 
                 match renderValue with
                 | RenderValue.Energy -> p.Value.energy
@@ -157,6 +156,7 @@ module Shaders =
 
             let plane = uniform?ClippingPlane
             let controllerPlane : Plane3d = uniform?ControllerClippingPlane
+
             let isOutsideControllerPlane = 
                 if controllerPlane.Normal = V3d.Zero then
                     true
@@ -217,10 +217,8 @@ module Hera =
     let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>)  
                          (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
                          (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
-                         (contrClippingPlane : aval<Plane3d>)
                          (filter : aval<option<Box3f>>) (currFilters : aval<Filters>) 
                          (dataRange : aval<Range>) (colorValue : aval<C4b>) 
-                         (sphereProbe : aval<Sphere3d>)
                          (cameraView : aval<CameraView>)
                          (runtime : IRuntime)
                          (frames : Frame[], bb : Box3f, vertexCount : int)  = 
@@ -343,13 +341,67 @@ module Hera =
         |> Sg.uniform "RenderValue" renderValue
         |> Sg.uniform "DomainRange" domainRange
         |> Sg.uniform "ClippingPlane" clippingPlane
+        |> Sg.uniform "Filter" filterNew 
+        |> Sg.uniform "CurrFilters" currFilters
+        |> Sg.uniform "DataRange" dataRange
+        |> Sg.uniform "Color" color
+        |> Sg.uniform "Alpha" ~~0.01
+        //|> Sg.depthTest ~~DepthTestMode.None
+        //|> Sg.blendMode ~~mode
+  
+
+    let createAnimatedVrSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>)  
+                        (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
+                        (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
+                        (contrClippingPlane : aval<Plane3d>)
+                        (filter : aval<option<Box3f>>) (currFilters : aval<Filters>) 
+                        (dataRange : aval<Range>) (colorValue : aval<C4b>) 
+                        (sphereProbe : aval<Sphere3d>)
+                        (cameraView : aval<CameraView>)
+                        (runtime : IRuntime)
+                        (frames : Frame[], bb : Box3f, vertexCount : int)  = 
+        let dci = DrawCallInfo(vertexCount, InstanceCount = 1)
+
+        let filterNew = filter |> AVal.map (fun f -> match f with
+                                | Some i -> i
+                                | None -> Box3f.Infinite)
+
+        let currentBuffers = frame |> AVal.map (fun i -> frames.[i % frames.Length]) 
+        let color = colorValue |> AVal.map (fun c -> C4d c) |> AVal.map (fun x -> V4d(x.R, x.G, x.B, x.A))
+
+        let vertices    = currentBuffers |> AVal.map (fun f -> f.vertices)
+        let velocities  = currentBuffers |> AVal.map (fun f -> f.velocities)
+        let energies    = currentBuffers |> AVal.map (fun f -> f.energies)
+        let cubicRoots  = currentBuffers |> AVal.map (fun f -> f.cubicRoots)
+        let strains     = currentBuffers |> AVal.map (fun f -> f.strains)
+        let alphaJutzis = currentBuffers |> AVal.map (fun f -> f.alphaJutzis)
+        let pressures   = currentBuffers |> AVal.map (fun f -> f.pressures)
+
+        let texture = tfPath |> AVal.map (fun p -> FileTexture(p, TextureParams.empty) :> ITexture )
+
+        Sg.render IndexedGeometryMode.PointList dci
+
+        |> Sg.vertexBuffer DefaultSemantic.Positions (BufferView(vertices, typeof<V4f>))
+        |> Sg.vertexBuffer (Sym.ofString "Velocity")  (BufferView(velocities, typeof<V3f>))
+        |> Sg.vertexBuffer (Sym.ofString "Energy") (BufferView(energies, typeof<float32>))
+        |> Sg.vertexBuffer (Sym.ofString "CubicRootOfDamage") (BufferView(cubicRoots, typeof<float32>))
+        |> Sg.vertexBuffer (Sym.ofString "LocalStrain") (BufferView(strains, typeof<float32>))
+        |> Sg.vertexBuffer (Sym.ofString "AlphaJutzi") (BufferView(alphaJutzis, typeof<float32>))
+        |> Sg.vertexBuffer (Sym.ofString "Pressure") (BufferView(pressures, typeof<float32>))
+        |> Sg.shader {  
+                do! DefaultSurfaces.trafo
+                do! Shaders.pointSprite
+                do! Shaders.fs
+            }
+        |> Sg.uniform "PointSize" pointSize
+        |> Sg.uniform "DiscardPoints" discardPoints
+        |> Sg.uniform "TransferFunction" texture
+        |> Sg.uniform "RenderValue" renderValue
+        |> Sg.uniform "DomainRange" domainRange
+        |> Sg.uniform "ClippingPlane" clippingPlane
         |> Sg.uniform "ControllerClippingPlane" contrClippingPlane
         |> Sg.uniform "Filter" filterNew 
         |> Sg.uniform "CurrFilters" currFilters
         |> Sg.uniform "DataRange" dataRange
         |> Sg.uniform "Color" color
-        |> Sg.uniform "SphereProbe" sphereProbe
-        |> Sg.uniform "Alpha" ~~0.01
-        //|> Sg.depthTest ~~DepthTestMode.None
-        //|> Sg.blendMode ~~mode
-  
+        |> Sg.uniform "SphereProbe" sphereProbe  
