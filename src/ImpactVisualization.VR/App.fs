@@ -61,7 +61,8 @@ module Demo =
             sphereProbeCreated = false
             rayDeviceId = None
             ray = Ray3d.Invalid
-            flatScreen = Quad3d(V3d(-25,-20,-8), V3d(-25,10,-8), V3d(-25,10,12), V3d(-25,-20,12))
+            //flatScreen = Quad3d(V3d(-25,-20,-8), V3d(-25,10,-8), V3d(-25,10,12), V3d(-25,-20,12))
+            flatScreen = Quad3d(V3d(0.732, 0.432, 0.013), V3d(-0.732, 0.432, 0.013), V3d(-0.732, -0.41483, 0.013), V3d(0.732, -0.41483, 0.013))
             rayColor = new C4b(178, 223, 138)
             screenIntersection = false
             clippingPlaneDeviceTrafo = None
@@ -530,7 +531,7 @@ module Demo =
         let quadPositions = m.flatScreen |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
 
         let clipPlaneSg = planeSg planePositions (C4f(0.0,0.0,1.0,0.1)) FillMode.Fill (AVal.constant mode) pass1
-        let quadSg = planeSg quadPositions C4f.White FillMode.Fill (AVal.constant BlendMode.None) pass0
+        let quadSg = planeSg quadPositions C4f.Gray10 FillMode.Fill (AVal.constant BlendMode.None) pass0
 
         let tvSg = 
             Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"tv";"tv.obj"])
@@ -549,6 +550,11 @@ module Demo =
                 }
                 |> Sg.pass pass0
 
+        let flatScreenSg = 
+            Sg.ofSeq [quadSg; tvSg]
+                |> Sg.scale 2.0
+                |> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0))
+                |> Sg.translate 2.5 1.0 1.5
 
         let contrOrientation = 
             m.menuControllerTrafo  
@@ -615,7 +621,7 @@ module Demo =
         //        do! DefaultSurfaces.simpleLighting
         //    }
         //   // |> Sg.blendMode (AVal.constant mode)
-        Sg.ofSeq [tvSg; quadSg]
+        Sg.ofSeq [flatScreenSg]
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
