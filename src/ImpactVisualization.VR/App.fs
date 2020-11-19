@@ -40,6 +40,17 @@ module Demo =
     open Aardvark.UI.Primitives
     open Aardvark.Base.Rendering
 
+    let quadRightUp =   V3d(0.732, 0.432, 0.013)
+    let quadLeftUp =    V3d(-0.732, 0.432, 0.013)
+    let quadLeftDown =  V3d(-0.732, -0.41483, 0.013)
+    let quadRightDown = V3d(0.732, -0.41483, 0.013)
+
+    let flatScreenTrafo = 
+        let scale = Trafo3d(Scale3d(2.0))
+        let rotation = Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0)
+        let translation = Trafo3d.Translation(2.5, 1.0, 1.5)
+        scale * rotation * translation
+
     let initial frames = 
         {   
             twoDModel = AardVolume.App.initial frames
@@ -61,9 +72,15 @@ module Demo =
             sphereProbeCreated = false
             rayDeviceId = None
             ray = Ray3d.Invalid
-            //flatScreen = Quad3d(V3d(-25,-20,-8), V3d(-25,10,-8), V3d(-25,10,12), V3d(-25,-20,12))
-            flatScreen = Quad3d(V3d(0.732, 0.432, 0.013), V3d(-0.732, 0.432, 0.013), V3d(-0.732, -0.41483, 0.013), V3d(0.732, -0.41483, 0.013))
-            rayColor = new C4b(178, 223, 138)
+            //tvQuad = Quad3d(V3d(-25,-20,-8), V3d(-25,10,-8), V3d(-25,10,12), V3d(-25,-20,12))
+            //tvQuad = Quad3d(V3d(0.732, 0.432, 0.013), V3d(-0.732, 0.432, 0.013), V3d(-0.732, -0.41483, 0.013), V3d(0.732, -0.41483, 0.013))
+            tvQuad = 
+                let quadRightUpTransf = flatScreenTrafo.Forward.TransformPos(quadRightUp)
+                let quadLeftUpTransf = flatScreenTrafo.Forward.TransformPos(quadLeftUp)
+                let quadLeftDownTransf = flatScreenTrafo.Forward.TransformPos(quadLeftDown)
+                let quadRightDownTransf = flatScreenTrafo.Forward.TransformPos(quadRightDown)
+                Quad3d(quadRightUpTransf, quadLeftUpTransf, quadLeftDownTransf, quadRightDownTransf)
+            rayColor = C4b.Red
             screenIntersection = false
             clippingPlaneDeviceTrafo = None
             clippingPlaneDeviceId = None
@@ -168,9 +185,9 @@ module Demo =
                     let direction = currDeviceTrafo.Forward.TransformPos(V3d.OIO * 10.0)
                     Ray3d(origin, direction)
                 | None -> Ray3d.Invalid    
-            let intersect = currRay.Intersects(model.flatScreen)
-            //if intersect then printf "INTERSECT"
-
+            let intersect = currRay.Intersects(model.tvQuad)
+            let rColor = 
+                if intersect then C4b.Green else C4b.Red
             let clippingContrTrafo = newOrOldTrafo id trafo model.clippingPlaneDeviceId model.clippingPlaneDeviceTrafo
             let currCorners = 
                 match model.clippingPlaneDeviceId with
@@ -194,7 +211,8 @@ module Demo =
                 clippingPlaneDeviceTrafo = clippingContrTrafo
                 planeCorners = currCorners
                 screenIntersection = intersect
-                menuControllerTrafo = currMenuTrafo}
+                menuControllerTrafo = currMenuTrafo
+                rayColor = rColor}
         | ActivateControllerMode id ->
             let currDevice = model.devicesTrafos.TryFind(id)
             let currDeviceTrafo = trafoOrIdentity currDevice
@@ -499,7 +517,7 @@ module Demo =
 
         let ray =
             lines
-                |> Sg.lines (AVal.constant C4b.Red)
+                |> Sg.lines m.rayColor
                 |> Sg.noEvents
                 |> Sg.uniform "LineWidth" (AVal.constant 5)
                 |> Sg.effect [
@@ -522,23 +540,24 @@ module Demo =
                     do! DefaultSurfaces.simpleLighting
                     do! DefaultSurfaces.constantColor color
                 }
-                //|> Sg.fillMode (fillmode |> AVal.constant)
+                |> Sg.fillMode (fillmode |> AVal.constant)
                 |> Sg.blendMode blendmode
                 |> Sg.pass renderPass
 
 
         let planePositions = m.planeCorners |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
-        let quadPositions = m.flatScreen |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
+        let quadPositions = m.tvQuad |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
 
         let clipPlaneSg = planeSg planePositions (C4f(0.0,0.0,1.0,0.1)) FillMode.Fill (AVal.constant mode) pass1
-        let quadSg = planeSg quadPositions C4f.Gray10 FillMode.Fill (AVal.constant BlendMode.None) pass0
+        let quadSg = planeSg quadPositions C4f.Gray10 FillMode.Line (AVal.constant BlendMode.None) pass0
 
         let tvSg = 
             Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"tv";"tv.obj"])
                 |> Sg.adapter
 
                 |> Sg.transform (Trafo3d.Scale(1.0, 1.0, -1.0))
-                |> Sg.scale 1.0
+                |> Sg.trafo (flatScreenTrafo |> AVal.constant)
+                //|> Sg.scale 1.0
                 //|> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0))
                 //|> Sg.translate 2.5 1.0 1.5
 
@@ -550,11 +569,11 @@ module Demo =
                 }
                 |> Sg.pass pass0
 
-        let flatScreenSg = 
-            Sg.ofSeq [quadSg; tvSg]
-                |> Sg.scale 2.0
-                |> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0))
-                |> Sg.translate 2.5 1.0 1.5
+        //let flatScreenSg = 
+        //    Sg.ofSeq [quadSg; tvSg]
+        //        |> Sg.scale 2.0
+        //        |> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0))
+        //        |> Sg.translate 2.5 1.0 1.5
 
         let contrOrientation = 
             m.menuControllerTrafo  
@@ -615,17 +634,17 @@ module Demo =
             let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"clipping";"clipping.obj"]
             controllerSg path 90.0 0.0 -30.0 clippingScaleTrafo clippingContrPos
             
-        //Sg.ofSeq [deviceSgs; sphereProbeSg; heraSg; tvSg; clipPlaneSg; quadSg; probeContrSg; laserContrSg; clippingContrSg; ray]
-        //    |> Sg.shader {
-        //        do! DefaultSurfaces.trafo
-        //        do! DefaultSurfaces.simpleLighting
-        //    }
-        //   // |> Sg.blendMode (AVal.constant mode)
-        Sg.ofSeq [flatScreenSg]
+        Sg.ofSeq [deviceSgs; sphereProbeSg; heraSg; clipPlaneSg; quadSg; probeContrSg; laserContrSg; clippingContrSg; ray]
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
             }
+        //   // |> Sg.blendMode (AVal.constant mode)
+        //Sg.ofSeq [tvSg; quadSg]
+        //    |> Sg.shader {
+        //        do! DefaultSurfaces.trafo
+        //        do! DefaultSurfaces.simpleLighting
+        //    }
            // |> Sg.blendMode (AVal.constant mode)
 
 

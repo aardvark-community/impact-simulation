@@ -45,7 +45,7 @@ type Model =
         ray : Ray3d
         rayColor : C4b
 
-        flatScreen : Quad3d
+        tvQuad : Quad3d
         screenIntersection : bool
 
         sphereProbeCreated : bool
