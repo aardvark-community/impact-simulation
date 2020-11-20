@@ -79,7 +79,7 @@ module Demo =
                 let quadLeftUpTransf = flatScreenTrafo.Forward.TransformPos(quadLeftUp)
                 let quadLeftDownTransf = flatScreenTrafo.Forward.TransformPos(quadLeftDown)
                 let quadRightDownTransf = flatScreenTrafo.Forward.TransformPos(quadRightDown)
-                Quad3d(quadRightUpTransf, quadLeftUpTransf, quadLeftDownTransf, quadRightDownTransf)
+                Quad3d(quadLeftDownTransf, quadLeftUpTransf, quadRightUpTransf, quadRightDownTransf)
             rayColor = C4b.Red
             screenIntersection = false
             clippingPlaneDeviceTrafo = None
@@ -182,7 +182,7 @@ module Demo =
                     let currDevice = model.devicesTrafos.TryFind(id)
                     let currDeviceTrafo = trafoOrIdentity currDevice
                     let origin = currDeviceTrafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
-                    let direction = currDeviceTrafo.Forward.TransformPos(V3d.OIO * 10.0)
+                    let direction = currDeviceTrafo.Forward.TransformPos(V3d.OIO * 100.0)
                     Ray3d(origin, direction)
                 | None -> Ray3d.Invalid    
             let intersect = currRay.Intersects(model.tvQuad)
@@ -235,7 +235,7 @@ module Demo =
                                 sphereControllerId = Some id}
                 | ControllerMode.Ray ->
                     let origin = currDeviceTrafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
-                    let direction = currDeviceTrafo.Forward.TransformPos(V3d.OIO * 10.0) 
+                    let direction = currDeviceTrafo.Forward.TransformPos(V3d.OIO * 100.0) 
                     {model with 
                             rayDeviceId = Some id
                             ray = Ray3d(origin, direction)}
@@ -549,7 +549,7 @@ module Demo =
         let quadPositions = m.tvQuad |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
 
         let clipPlaneSg = planeSg planePositions (C4f(0.0,0.0,1.0,0.1)) FillMode.Fill (AVal.constant mode) pass1
-        let quadSg = planeSg quadPositions C4f.Gray10 FillMode.Line (AVal.constant BlendMode.None) pass0
+        let quadSg = planeSg quadPositions C4f.Gray10 FillMode.Fill (AVal.constant BlendMode.None) pass0
 
         let tvSg = 
             Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"tv";"tv.obj"])
@@ -634,7 +634,7 @@ module Demo =
             let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"clipping";"clipping.obj"]
             controllerSg path 90.0 0.0 -30.0 clippingScaleTrafo clippingContrPos
             
-        Sg.ofSeq [deviceSgs; sphereProbeSg; heraSg; clipPlaneSg; quadSg; probeContrSg; laserContrSg; clippingContrSg; ray]
+        Sg.ofSeq [deviceSgs; sphereProbeSg; heraSg; clipPlaneSg; tvSg; quadSg; probeContrSg; laserContrSg; clippingContrSg; ray]
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
