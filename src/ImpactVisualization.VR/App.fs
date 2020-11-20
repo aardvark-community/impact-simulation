@@ -82,6 +82,8 @@ module Demo =
                 Quad3d(quadLeftDownTransf, quadLeftUpTransf, quadRightUpTransf, quadRightDownTransf)
             rayColor = C4b.Red
             screenIntersection = false
+            hitPoint = V3d.OOO
+            screenHitPoint = V2d.OO
             clippingPlaneDeviceTrafo = None
             clippingPlaneDeviceId = None
             planeCorners = Quad3d(V3d(), V3d(), V3d(), V3d())
@@ -186,6 +188,9 @@ module Demo =
                     Ray3d(origin, direction)
                 | None -> Ray3d.Invalid    
             let intersect = currRay.Intersects(model.tvQuad)
+            let mutable hit = RayHit3d.MaxRange
+            let hitPoint = currRay.Hits(model.tvQuad, &hit)
+           // if hitPoint then printf "Hit Point %A \n" hit.Point
             let rColor = 
                 if intersect then C4b.Green else C4b.Red
             let clippingContrTrafo = newOrOldTrafo id trafo model.clippingPlaneDeviceId model.clippingPlaneDeviceTrafo
@@ -212,7 +217,9 @@ module Demo =
                 planeCorners = currCorners
                 screenIntersection = intersect
                 menuControllerTrafo = currMenuTrafo
-                rayColor = rColor}
+                rayColor = rColor
+                hitPoint = hit.Point
+                screenHitPoint = hit.Coord}
         | ActivateControllerMode id ->
             let currDevice = model.devicesTrafos.TryFind(id)
             let currDeviceTrafo = trafoOrIdentity currDevice
@@ -569,6 +576,34 @@ module Demo =
                 }
                 |> Sg.pass pass0
 
+        //let message = 
+        //    m.hitPoint 
+        //        |> AVal.map (fun p ->
+        //            let m = 
+        //                "X: " + p.X.ToString() + "\n" +
+        //                "Y: " + p.Y.ToString() + "\n" + 
+        //                "Z: " + p.Z.ToString() + "\n"
+        //            m
+        //            )
+
+        let message = 
+            m.screenHitPoint 
+                |> AVal.map (fun p ->
+                    let m = 
+                        "X: " + p.X.ToString() + "\n" +
+                        "Y: " + p.Y.ToString() + "\n" 
+                    m
+                    )
+
+        let billboardSg = 
+            Sg.markdown MarkdownConfig.light message
+                |> Sg.billboard
+                |> Sg.noEvents
+                |> Sg.scale 0.1
+                |> Sg.trafo (Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0) |> AVal.constant)
+                |> Sg.translate 2.5 2.0 0.5
+                
+
         //let flatScreenSg = 
         //    Sg.ofSeq [quadSg; tvSg]
         //        |> Sg.scale 2.0
@@ -634,11 +669,16 @@ module Demo =
             let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"clipping";"clipping.obj"]
             controllerSg path 90.0 0.0 -30.0 clippingScaleTrafo clippingContrPos
             
-        Sg.ofSeq [deviceSgs; sphereProbeSg; heraSg; clipPlaneSg; tvSg; quadSg; probeContrSg; laserContrSg; clippingContrSg; ray]
+        Sg.ofSeq [deviceSgs; sphereProbeSg; heraSg; clipPlaneSg; tvSg; quadSg; billboardSg; probeContrSg; laserContrSg; clippingContrSg; ray]
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
-            }
+            }    
+        //Sg.ofSeq [billboardSg]
+        //|> Sg.shader {
+        //    do! DefaultSurfaces.trafo
+        //    do! DefaultSurfaces.simpleLighting
+        //}
         //   // |> Sg.blendMode (AVal.constant mode)
         //Sg.ofSeq [tvSg; quadSg]
         //    |> Sg.shader {

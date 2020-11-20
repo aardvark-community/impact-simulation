@@ -47,6 +47,8 @@ type Model =
 
         tvQuad : Quad3d
         screenIntersection : bool
+        hitPoint : V3d
+        screenHitPoint : V2d 
 
         sphereProbeCreated : bool
         
