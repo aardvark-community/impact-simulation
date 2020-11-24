@@ -124,8 +124,8 @@ module App =
             }
             initFilters = filters
             currFilters = filters
-            values = initValues
-            data = []
+            values = VersionedArray.ofArray initValues
+            data = VersionedArray.ofArray [||]
             filter = None
             filtered = []
             filteredAllFrames = Array.empty
@@ -274,7 +274,7 @@ module App =
                         let filteredData = m.filteredAllFrames.[currFrame]
                         filteredData
                     else 
-                        List.toArray m.data
+                        m.data.arr
 
                 //let currData = 
                 //    if isCurrentFilterSet then  
@@ -287,7 +287,8 @@ module App =
                 if m.playAnimation then sw.Start() else sw.Stop()
                 { m with 
                     frame = currFrame 
-                    data = Array.toList currData}
+                    data = { version = m.data.version + 1; arr = currData }
+                }
             | CameraMessage msg ->
                 { m with cameraState = FreeFlyController.update m.cameraState msg }
             | SetRenderValue v -> 
@@ -318,10 +319,10 @@ module App =
 
                 {m with 
                     renderValue = v
-                    values = renderValues
+                    values = { version = m.values.version + 1; arr = renderValues }
                     dataRange = newDataRange
                     initDataRange = newDataRange
-                    data = Array.toList filteredData
+                    data = { version = m.data.version + 1; arr = filteredData }
                     filteredAllFrames = filteredDataAllFrames}
             | SetColorValue a -> 
                 let c = ColorPicker.update m.colorValue a
@@ -394,16 +395,16 @@ module App =
                         let temp : float[] [] = Array.empty
                         temp
                         
-                let filteredData = filterData newFilter positions m.values
+                let filteredData = filterData newFilter positions m.values.arr
 
                 {m with 
                     filter = newFilter
-                    data = Array.toList filteredData
+                    data = { version = m.data.version + 1 ; arr = filteredData }
                     filteredAllFrames = filteredDataAllFrames
                     dataPath = newDataPath}
             | ResetFilter -> {m with 
                                 filter = None
-                                data = []
+                                data = VersionedArray.ofArray [||]
                                 dataRange = m.initDataRange
                                 dataPath = "data.csv"
                                 currFilters = m.initFilters}
@@ -623,7 +624,7 @@ module App =
        // let da = AVal.map2 (fun values animatie -> sprintf "{values = %s; animate = %A}" values animate) m.data m.animateAllFrames
        // let guh = da.Channel
 
-        let dataChannel = m.data.Channel
+        let dataChannel = m.data.arr.Channel
         let transitionChannel = m.transition.Channel
         let updateChart =
             "initHisto(__ID__); data.onmessage = function (values) { refresh(values);  }; transition.onmessage = function (v) { shouldUseTransition = v; }"  // subscribe to m.data

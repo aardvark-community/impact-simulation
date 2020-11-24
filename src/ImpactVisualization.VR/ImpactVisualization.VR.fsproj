@@ -11,6 +11,9 @@
     <OutputPath>..\..\bin\Release</OutputPath>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Hera.fs" />
+    <Compile Include="Cef.fs" />
+    <None Include="paket.references" />
     <Compile Include="Model.fs" />
     <Compile Include="App.fs" />
     <Compile Include="Program.fs" />

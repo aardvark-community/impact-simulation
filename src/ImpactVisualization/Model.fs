@@ -71,6 +71,22 @@ type ClippingPlane =
     z : float
     }
 
+[<ModelType;CustomEquality;NoComparison>]
+type VersionedArray = 
+    {
+        version : int
+        arr : float[]
+    } with
+        override x.Equals(other : obj) =
+            match other with
+            | :? VersionedArray as a -> a.version = x.version && System.Object.ReferenceEquals(a,x.arr)
+            | _ -> false
+        override x.GetHashCode() = Unchecked.hash x.arr
+
+module VersionedArray =
+    let mutable private v = 0
+    let ofArray xs = v <- v + 1; { version = v; arr = xs }
+
 [<ModelType>]
 type Model =
     {
@@ -91,8 +107,8 @@ type Model =
         discardPoints : bool
         transition : bool
 
-        data : list<float>
-        values : float[]
+        data : VersionedArray
+        values : VersionedArray
 
         filter : option<Box3f>
         filtered : list<float> 
