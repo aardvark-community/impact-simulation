@@ -305,6 +305,7 @@ module Demo =
                                     {model with
                                         currentProbeManipulated = false
                                         allProbes = model.allProbes.Add(probe.id, probe)
+                                        sphereScale = 1.0
                                         sphereControllerId = None
                                         sphereScalerId = None}
                                 else
