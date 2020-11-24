@@ -18,6 +18,15 @@ type ControllerMode =
     | Clipping = 2
 
 [<ModelType>]
+type Probe = {
+    center : V3d
+    radius : float
+
+    [<NonAdaptive>]
+    id : string
+}
+
+[<ModelType>]
 type Model = 
     {
         text : string
@@ -50,7 +59,9 @@ type Model =
         hitPoint : V3d
         screenHitPoint : V2d 
 
-        sphereProbeCreated : bool
+        currentProbe : Option<Probe>
+        currentProbeManipulated : bool 
+        allProbes : HashMap<string, Probe>
         
         clippingPlaneDeviceTrafo : Option<Trafo3d>
         clippingPlaneDeviceId : Option<int>

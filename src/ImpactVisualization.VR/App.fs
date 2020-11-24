@@ -23,16 +23,19 @@ type Message =
     | TwoD of AardVolume.Message 
     | Nop
     | StartVr
-    | Grab of int
-    | Ungrab of int
-    | ScaleUp of float 
-    | ScaleDown of float 
+    | GrabHera of int
+    | UngrabHera of int
+    | ScaleUpHera of float 
+    | ScaleDownHera of float 
     | MoveController of int * Trafo3d
     | ToggleControllerMenu
     | OpenControllerMenu of int
     | ChangeTouchpadPos of float
     | ChangeControllerMode of int
     | ActivateControllerMode of int
+    | CreateProbe of int * Option<Trafo3d>
+    | CreateRay of int * Trafo3d
+    | CreateClipping of int * Option<Trafo3d> * Trafo3d
     | DeactivateControllerMode of int
     | ResetHera 
  
@@ -69,7 +72,9 @@ module Demo =
             sphereScale = 1.0
             sphereRadius = 0.2
             sphereColor = C4b(1.0,1.0,1.0,0.4)
-            sphereProbeCreated = false
+            currentProbeManipulated = false
+            currentProbe = None
+            allProbes = HashMap.Empty
             rayDeviceId = None
             ray = Ray3d.Invalid
             //tvQuad = Quad3d(V3d(-25,-20,-8), V3d(-25,10,-8), V3d(-25,10,12), V3d(-25,-20,12))
@@ -93,8 +98,18 @@ module Demo =
             controllerMode = ControllerMode.Probe
             touchPadCurrPosX = 0.0
         }
+
+    //let updateController (m : Model) : Model = 
+    //    failwith ""
+
+    let createProbe (pos : V3d) (radius : float) : Probe = 
+        {
+            id = Guid.NewGuid().ToString()
+            center = pos
+            radius = radius
+        }
         
-    let update (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
+    let rec update (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
         let planePos0 = V3d(-0.7, 0.05, -0.5)
         let planePos1 = V3d(-0.7, 0.05, 0.5)
         let planePos2 = V3d(0.7, 0.05, 0.5)
@@ -122,7 +137,7 @@ module Demo =
             let sup = AardVolume.App.update frames model.twoDModel msg
             { model with twoDModel = sup }
         | StartVr -> vr.start(); model
-        | Grab id ->
+        | GrabHera id ->
             match model.grabberId with 
                 | Some i -> model
                 | None -> 
@@ -135,7 +150,7 @@ module Demo =
                                 controllerTrafo = currentContrTr
                                 heraToControllerTrafo = Some(controlHeraT)
                                 allowHeraScaling = true}
-        | Ungrab id -> 
+        | UngrabHera id -> 
             match model.grabberId with 
                 | Some i -> 
                     let controlT = trafoOrIdentity model.controllerTrafo
@@ -148,12 +163,12 @@ module Demo =
                             allowHeraScaling = false}
                     else model
                 | None -> model
-        | ScaleUp f -> 
+        | ScaleUpHera f -> 
             let maxScale = 1.0
             let currScale = if model.allowHeraScaling then model.scalingFactorHera * (f*f/5.0 + 1.0) else model.scalingFactorHera
             let newScale = if currScale >= maxScale then maxScale else currScale
             {model with scalingFactorHera = newScale}
-        | ScaleDown f -> 
+        | ScaleDownHera f -> 
             let minScale = 0.001
             let currScale = if model.allowHeraScaling then model.scalingFactorHera * (1.0 - f*f/5.0) else model.scalingFactorHera
             let newScale = if currScale <= minScale then minScale else currScale
@@ -225,45 +240,9 @@ module Demo =
             let currDeviceTrafo = trafoOrIdentity currDevice
             if not model.controllerMenuOpen then 
                 match model.controllerMode with
-                | ControllerMode.Probe ->
-                    match model.sphereControllerId with 
-                    | Some i -> if i = id then 
-                                    {model with 
-                                        sphereControllerTrafo = currDevice
-                                        sphereControllerId = Some id}
-                                else
-                                    {model with 
-                                        sphereScalerId = Some id
-                                        sphereScalerTrafo = currDevice} 
-                    | None -> 
-                            {model with 
-                                sphereProbeCreated = true
-                                sphereControllerTrafo = currDevice
-                                sphereControllerId = Some id}
-                | ControllerMode.Ray ->
-                    let origin = currDeviceTrafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
-                    let direction = currDeviceTrafo.Forward.TransformPos(V3d.OIO * 100.0) 
-                    {model with 
-                            rayDeviceId = Some id
-                            ray = Ray3d(origin, direction)}
-                | ControllerMode.Clipping -> 
-                    let p0 = currDeviceTrafo.Forward.TransformPos(planePos0)
-                    let p1 = currDeviceTrafo.Forward.TransformPos(planePos1)
-                    let p2 = currDeviceTrafo.Forward.TransformPos(planePos2)
-                    let p3 = currDeviceTrafo.Forward.TransformPos(planePos3)
-                    match model.clippingPlaneDeviceId with 
-                    | Some i -> if i = id then 
-                                    {model with 
-                                        clippingPlaneDeviceTrafo = currDevice
-                                        clippingPlaneDeviceId = Some id}
-                                else 
-                                    model
-                    | None -> 
-                            {model with 
-                                    planeCorners = Quad3d(p0, p1, p2, p3)
-                                    clippingPlaneDeviceTrafo = currDevice
-                                    clippingPlaneDeviceId = Some id 
-                                    }
+                | ControllerMode.Probe -> update frames state vr model (CreateProbe (id, currDevice))
+                | ControllerMode.Ray -> update frames state vr model (CreateRay (id, currDeviceTrafo))
+                | ControllerMode.Clipping -> update frames state vr model (CreateClipping (id, currDevice, currDeviceTrafo))
                 | _ -> model
             else 
                 { model with 
@@ -272,13 +251,60 @@ module Demo =
                     rayDeviceId = None
                     clippingPlaneDeviceId = None 
                 }
+        | CreateProbe (id, trafo) ->
+            match model.sphereControllerId with 
+            | Some i -> if i = id then 
+                            {model with 
+                                currentProbeManipulated = true
+                                sphereControllerTrafo = trafo
+                                sphereControllerId = Some id}
+                        else
+                            {model with
+                                currentProbeManipulated = true
+                                sphereScalerId = Some id
+                                sphereScalerTrafo = trafo} 
+            | None -> 
+                    {model with 
+                        currentProbeManipulated = true
+                        sphereControllerTrafo = trafo
+                        sphereControllerId = Some id}
+        | CreateRay (id, trafo) ->
+            let origin = trafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
+            let direction = trafo.Forward.TransformPos(V3d.OIO * 100.0) 
+            {model with 
+                    rayDeviceId = Some id
+                    ray = Ray3d(origin, direction)}
+        | CreateClipping (id, trafoO, trafo) ->
+            let p0 = trafo.Forward.TransformPos(planePos0)
+            let p1 = trafo.Forward.TransformPos(planePos1)
+            let p2 = trafo.Forward.TransformPos(planePos2)
+            let p3 = trafo.Forward.TransformPos(planePos3)
+            match model.clippingPlaneDeviceId with 
+            | Some i -> if i = id then 
+                            {model with 
+                                clippingPlaneDeviceTrafo = trafoO
+                                clippingPlaneDeviceId = Some id}
+                        else 
+                            model
+            | None -> 
+                    {model with 
+                            planeCorners = Quad3d(p0, p1, p2, p3)
+                            clippingPlaneDeviceTrafo = trafoO
+                            clippingPlaneDeviceId = Some id 
+                            }
         | DeactivateControllerMode id ->
             if not model.controllerMenuOpen then 
                 match model.controllerMode with 
                 | ControllerMode.Probe -> 
                     match model.sphereControllerId with
                     | Some i -> if i = id then 
+                                    let t = trafoOrIdentity model.sphereControllerTrafo
+                                    let spherePos = t.Forward.TransformPos(V3d.OOO)
+                                    let sphereRadius = model.sphereRadius * model.sphereScale
+                                    let probe = createProbe spherePos sphereRadius
                                     {model with
+                                        currentProbeManipulated = false
+                                        allProbes = model.allProbes.Add(probe.id, probe)
                                         sphereControllerId = None
                                         sphereScalerId = None}
                                 else
@@ -360,13 +386,13 @@ module Demo =
             if buttonId = 1 then 
                 [ResetHera]
             else if buttonId = 2 then
-                [Grab controllerId]
+                [GrabHera controllerId]
             else 
                 []
         | VrMessage.UnpressButton(controllerId, buttonId) ->
             //printf "unpress button: %A " (controllerId, buttonId)
             if buttonId = 2 then
-                [Ungrab controllerId]
+                [UngrabHera controllerId]
             else 
                 []
         | VrMessage.Press(controllerId, buttonId) ->
@@ -399,9 +425,9 @@ module Demo =
             if buttonId = 0 then 
                 let x = value.X
                 if x >=  0.0 then 
-                    [ChangeTouchpadPos x; ScaleUp x]
+                    [ChangeTouchpadPos x; ScaleUpHera x]
                 else 
-                    [ChangeTouchpadPos x; ScaleDown x]
+                    [ChangeTouchpadPos x; ScaleDownHera x]
             else 
                 []
         | VrMessage.UpdatePose(controllerId, pose) ->
@@ -466,18 +492,7 @@ module Demo =
 
         let sphereTrafo = m.sphereControllerTrafo |> AVal.map (fun t -> trafoOrIdentity t)
 
-        let sphereProbe = 
-            AVal.map3 (fun trafo scale initRadius -> 
-                match trafo with 
-                | Some (t : Trafo3d) -> 
-                    if t.Forward.IsIdentity() then 
-                        Sphere3d.Invalid
-                    else 
-                        let spherePos = t.Forward.TransformPos(V3d.OOO)
-                        let sphereRadius : float = initRadius * scale
-                        Sphere3d(spherePos, sphereRadius)
-                | None -> Sphere3d.Invalid
-                ) m.sphereControllerTrafo m.sphereScale m.sphereRadius
+
 
         let contrClippingPlane = m.planeCorners |> AVal.map (fun c -> Plane3d(c.P0, c.P1, c.P2))
 
@@ -489,6 +504,21 @@ module Demo =
         mode.DestinationFactor <- BlendFactor.InvSourceAlpha
         mode.SourceAlphaFactor <- BlendFactor.One
         mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
+
+        //let sphereProbe = 
+        //    AVal.map3 (fun trafo scale initRadius -> 
+        //        match trafo with 
+        //        | Some (t : Trafo3d) -> 
+        //            if t.Forward.IsIdentity() then 
+        //                Sphere3d.Invalid
+        //            else 
+        //                let spherePos = t.Forward.TransformPos(V3d.OOO)
+        //                let sphereRadius : float = initRadius * scale
+        //                Sphere3d(spherePos, sphereRadius)
+        //        | None -> Sphere3d.Invalid
+        //        ) m.sphereControllerTrafo m.sphereScale m.sphereRadius
+
+        let sphereProbe = Sphere3d.Invalid |> AVal.constant
         
         let heraSg =    
             let m = m.twoDModel
@@ -507,18 +537,38 @@ module Demo =
             //|> Sg.blendMode (AVal.constant mode)
 
 
-        let sphereProbeSg = 
+
+
+
+
+        let currentSphereProbeSg = 
             Sg.sphere 9 m.sphereColor m.sphereRadius
             |> Sg.noEvents
             |> Sg.trafo sphereScaleTrafo
             |> Sg.trafo sphereTrafo
-            |> Sg.onOff m.sphereProbeCreated
+            |> Sg.onOff m.currentProbeManipulated
            // |> Sg.fillMode (FillMode.Fill |> AVal.constant)
             |> Sg.cullMode (CullMode.Back |> AVal.constant)
             |> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass1
             
-
+        let probesSgs = 
+            m.allProbes |> AMap.toASet |> ASet.chooseA (fun (key, probe) ->
+                probe.Current |> AVal.map (fun p -> 
+                    Sg.sphere' 9 (C4b(1.0,1.0,1.0,0.4)) p.radius
+                    |> Sg.noEvents
+                    |> Sg.transform (Trafo3d.Translation(p.center))
+                    |> Some
+                )
+            ) 
+            |> Sg.set
+            |> Sg.shader {
+                do! DefaultSurfaces.trafo
+                do! DefaultSurfaces.simpleLighting
+            }
+            |> Sg.cullMode (CullMode.Back |> AVal.constant)
+            |> Sg.blendMode (AVal.constant mode)
+            |> Sg.pass pass1
 
         let lines = m.ray |> AVal.map (fun r -> [|Line3d(r.Origin, r.Direction)|]) 
 
@@ -586,12 +636,14 @@ module Demo =
         //            m
         //            )
 
+
+        // TODO: X and Y must be swapped for some reason !! Find why??!!
         let message = 
             m.screenHitPoint 
                 |> AVal.map (fun p ->
                     let m = 
-                        "X: " + p.X.ToString() + "\n" +
-                        "Y: " + p.Y.ToString() + "\n" 
+                        "X: " + p.Y.ToString() + "\n" +
+                        "Y: " + p.X.ToString() + "\n" 
                     m
                     )
 
@@ -669,8 +721,8 @@ module Demo =
             let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"clipping";"clipping.obj"]
             controllerSg path 90.0 0.0 -30.0 clippingScaleTrafo clippingContrPos
             
-        Sg.ofSeq [deviceSgs; sphereProbeSg; heraSg; clipPlaneSg; tvSg; quadSg; billboardSg; probeContrSg; laserContrSg; clippingContrSg; ray]
-            |> Sg.shader {
+        Sg.ofSeq [deviceSgs; currentSphereProbeSg; probesSgs; heraSg; clipPlaneSg; tvSg; quadSg; billboardSg; probeContrSg; laserContrSg; clippingContrSg; ray]
+            |> Sg.shader { 
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
             }    
