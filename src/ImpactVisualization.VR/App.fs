@@ -15,6 +15,7 @@ open FSharp.Data.Adaptive
 
 open AardVolume.Model
 open ImpactVisualization
+open Aardvark.Cef
 
 type ThreeDMessage = Nop
 
@@ -418,6 +419,21 @@ module Demo =
         let pass0 = RenderPass.main
         let pass1 = RenderPass.after "pass1" RenderPassOrder.Arbitrary pass0 
         let pass2 = RenderPass.after "pass2" RenderPassOrder.Arbitrary pass1
+
+        let browser = 
+            if true then
+                let client = new Browser(null,AVal.constant System.DateTime.Now,runtime, true, AVal.constant (V2i(1024,1024)))
+                let res = client.LoadUrl "http://localhost:4321"
+                printfn "%A" res
+                Sg.fullScreenQuad
+                    |> Sg.noEvents
+                    |> Sg.diffuseTexture client.Texture 
+                    |> Sg.shader {
+                         do! DefaultSurfaces.trafo
+                         do! DefaultSurfaces.diffuseTexture
+                       }
+            else Sg.empty
+                
          
         let deviceSgs = 
             info.state.devices |> AMap.toASet |> ASet.chooseA (fun (_,d) ->
@@ -508,7 +524,7 @@ module Demo =
 
 
         let sphereProbeSg = 
-            Sg.sphere 9 m.sphereColor m.sphereRadius
+            Sg.sphere 4 m.sphereColor m.sphereRadius
             |> Sg.noEvents
             |> Sg.trafo sphereScaleTrafo
             |> Sg.trafo sphereTrafo
@@ -669,8 +685,11 @@ module Demo =
             let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"clipping";"clipping.obj"]
             controllerSg path 90.0 0.0 -30.0 clippingScaleTrafo clippingContrPos
             
-        Sg.ofSeq [deviceSgs; sphereProbeSg; heraSg; clipPlaneSg; tvSg; quadSg; billboardSg; probeContrSg; laserContrSg; clippingContrSg; ray]
-            |> Sg.shader {
+        Sg.ofSeq [
+            deviceSgs; sphereProbeSg; heraSg; clipPlaneSg; tvSg; quadSg; 
+            billboardSg; probeContrSg; laserContrSg; clippingContrSg; ray
+            browser
+        ] |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
             }    
