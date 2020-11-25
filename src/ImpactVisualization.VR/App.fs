@@ -75,6 +75,8 @@ module Demo =
             currentProbeManipulated = false
             currentProbe = None
             allProbes = HashMap.Empty
+            probeIntersectionId = None
+            intersectionControllerId = None
             rayDeviceId = None
             ray = Ray3d.Invalid
             //tvQuad = Quad3d(V3d(-25,-20,-8), V3d(-25,10,-8), V3d(-25,10,12), V3d(-25,-20,12))
@@ -206,6 +208,28 @@ module Demo =
             let mutable hit = RayHit3d.MaxRange
             let hitPoint = currRay.Hits(model.tvQuad, &hit)
            // if hitPoint then printf "Hit Point %A \n" hit.Point
+            let sphereIntersection (controllerSphere : Sphere3d) (probe : Sphere3d) = controllerSphere.Intersects(probe)
+            let probeIntersection = 
+                match model.intersectionControllerId with 
+                | Some i ->
+                    if i = id && not model.currentProbeManipulated then 
+                        let intersectionContrTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(i))
+                        let intersectionContrTrafoPos = intersectionContrTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
+                        let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
+                        let probeId =  
+                            model.allProbes
+                            |> HashMap.filter (fun key probe ->
+                                let sphere = Sphere3d(probe.center, probe.radius)
+                                sphereIntersection controllerSphere sphere)
+                            |> HashMap.toSeq
+                            |> Seq.map (fun (key, probe) -> key)
+                        if probeId.IsEmpty() then 
+                            None 
+                        else 
+                            Some (Seq.last probeId)
+                    else
+                        model.probeIntersectionId
+                | None -> None
             let rColor = 
                 if intersect then C4b.Green else C4b.Red
             let clippingContrTrafo = newOrOldTrafo id trafo model.clippingPlaneDeviceId model.clippingPlaneDeviceTrafo
@@ -234,7 +258,8 @@ module Demo =
                 menuControllerTrafo = currMenuTrafo
                 rayColor = rColor
                 hitPoint = hit.Point
-                screenHitPoint = hit.Coord}
+                screenHitPoint = hit.Coord
+                probeIntersectionId = probeIntersection}
         | ActivateControllerMode id ->
             let currDevice = model.devicesTrafos.TryFind(id)
             let currDeviceTrafo = trafoOrIdentity currDevice
@@ -257,7 +282,8 @@ module Demo =
                             {model with 
                                 currentProbeManipulated = true
                                 sphereControllerTrafo = trafo
-                                sphereControllerId = Some id}
+                                sphereControllerId = Some id
+                                intersectionControllerId = Some id}
                         else
                             {model with
                                 currentProbeManipulated = true
@@ -267,7 +293,8 @@ module Demo =
                     {model with 
                         currentProbeManipulated = true
                         sphereControllerTrafo = trafo
-                        sphereControllerId = Some id}
+                        sphereControllerId = Some id
+                        intersectionControllerId = Some id}
         | CreateRay (id, trafo) ->
             let origin = trafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
             let direction = trafo.Forward.TransformPos(V3d.OIO * 100.0) 
@@ -537,11 +564,6 @@ module Demo =
             |> Sg.pass pass0
             //|> Sg.blendMode (AVal.constant mode)
 
-
-
-
-
-
         let currentSphereProbeSg = 
             Sg.sphere 9 m.sphereColor m.sphereRadius
             |> Sg.noEvents
@@ -556,7 +578,12 @@ module Demo =
         let probesSgs = 
             m.allProbes |> AMap.toASet |> ASet.chooseA (fun (key, probe) ->
                 probe.Current |> AVal.map (fun p -> 
-                    Sg.sphere' 9 (C4b(1.0,1.0,1.0,0.4)) p.radius
+                    let color =
+                        m.probeIntersectionId |> AVal.map (fun id ->
+                            match id with 
+                            | Some i -> if i = key then C4b(0.0,1.0,0.0,0.4) else C4b(1.0,1.0,1.0,0.4)
+                            | None -> C4b(1.0,1.0,1.0,0.4))
+                    Sg.sphere 9 color (AVal.constant p.radius)
                     |> Sg.noEvents
                     |> Sg.transform (Trafo3d.Translation(p.center))
                     |> Some
