@@ -77,6 +77,7 @@ module Demo =
             allProbes = HashMap.Empty
             probeIntersectionId = None
             intersectionControllerId = None
+            manipulationControllerId = None
             rayDeviceId = None
             ray = Ray3d.Invalid
             //tvQuad = Quad3d(V3d(-25,-20,-8), V3d(-25,10,-8), V3d(-25,10,12), V3d(-25,-20,12))
@@ -280,8 +281,11 @@ module Demo =
             match model.probeIntersectionId with 
             | Some probe -> 
                 match model.intersectionControllerId with 
-                | Some i -> if i = id then {model with allProbes = model.allProbes.Remove(probe)} else model
-                | None -> model
+                | Some i -> if i = id then 
+                                if model.manipulationControllerId.IsSome then model else {model with allProbes = model.allProbes.Remove(probe)} 
+                            else 
+                                {model with manipulationControllerId = Some id}
+                | None -> {model with manipulationControllerId = None}
             | None -> 
                 match model.sphereControllerId with 
                 | Some i -> if i = id then 
@@ -329,6 +333,10 @@ module Demo =
             if not model.controllerMenuOpen then 
                 match model.controllerMode with 
                 | ControllerMode.Probe -> 
+                    let manControllerId = 
+                        match model.manipulationControllerId with 
+                        | Some i -> if i = id then None else model.manipulationControllerId
+                        | None -> None
                     match model.sphereControllerId with
                     | Some i -> if i = id then 
                                     let t = trafoOrIdentity model.sphereControllerTrafo
@@ -340,10 +348,15 @@ module Demo =
                                         allProbes = model.allProbes.Add(probe.id, probe)
                                         sphereScale = 1.0
                                         sphereControllerId = None
-                                        sphereScalerId = None}
+                                        sphereScalerId = None
+                                        manipulationControllerId = manControllerId}
                                 else
-                                    {model with sphereScalerId = None}
-                    | None -> {model with sphereScalerId = None}
+                                    {model with 
+                                        sphereScalerId = None
+                                        manipulationControllerId = manControllerId}
+                    | None -> {model with 
+                                    sphereScalerId = None
+                                    manipulationControllerId = manControllerId}
                 | ControllerMode.Ray -> model
                 | ControllerMode.Clipping -> 
                     match model.clippingPlaneDeviceId with 
@@ -585,10 +598,16 @@ module Demo =
             m.allProbes |> AMap.toASet |> ASet.chooseA (fun (key, probe) ->
                 probe.Current |> AVal.map (fun p -> 
                     let color =
-                        m.probeIntersectionId |> AVal.map (fun id ->
-                            match id with 
-                            | Some i -> if i = key then C4b(1.0,0.0,0.0,0.4) else C4b(1.0,1.0,1.0,0.4)
-                            | None -> C4b(1.0,1.0,1.0,0.4))
+                        AVal.map2 (fun probeIntId manId ->
+                            match probeIntId with 
+                            | Some i -> if i = key then 
+                                            match manId with 
+                                            | Some mId -> C4b(0.0,1.0,0.0,0.4) 
+                                            | None -> C4b(1.0,0.0,0.0,0.4) 
+                                        else 
+                                            C4b(1.0,1.0,1.0,0.4)
+                            | None -> C4b(1.0,1.0,1.0,0.4)
+                        ) m.probeIntersectionId m.manipulationControllerId
                     Sg.sphere 9 color (AVal.constant p.radius)
                     |> Sg.noEvents
                     |> Sg.transform (Trafo3d.Translation(p.center))

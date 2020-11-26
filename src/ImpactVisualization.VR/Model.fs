@@ -63,6 +63,7 @@ type Model =
         currentProbeManipulated : bool 
         allProbes : HashMap<string, Probe>
         intersectionControllerId : Option<int>
+        manipulationControllerId : Option<int>
         probeIntersectionId : Option<string>
         
         clippingPlaneDeviceTrafo : Option<Trafo3d>
