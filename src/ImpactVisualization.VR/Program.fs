@@ -26,16 +26,16 @@ let main argv =
 
     // dont remove this code for now. although it does not do anything it is needed. please dont ask for now :(
     let createData() =
-        let datafile  = @"F:\notebooks\frame\impact.0400"
+        let datafile  = @"C:\Users\vasileva\source\hera_data\impact.0110"
         let storepath = datafile + ".store"
 
         let id = Hera.Hera.importHeraDataIntoStore datafile storepath false
         printfn "%s" id
 
-    //createData()
+    createData()
 
     let loadData() =
-        let datafile  = @"F:\notebooks\frame\impact.0400"
+        let datafile  = @"C:\Users\vasileva\source\hera_data\impact.0110"
         let storepath = datafile + ".store"
 
         let (p, store) = loadOctreeFromStore storepath
