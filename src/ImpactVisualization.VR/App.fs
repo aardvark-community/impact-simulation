@@ -277,24 +277,30 @@ module Demo =
                     clippingPlaneDeviceId = None 
                 }
         | CreateProbe (id, trafo) ->
-            match model.sphereControllerId with 
-            | Some i -> if i = id then 
-                            {model with 
-                                currentProbeManipulated = true
-                                sphereControllerTrafo = trafo
-                                sphereControllerId = Some id
-                                intersectionControllerId = Some id}
-                        else
-                            {model with
-                                currentProbeManipulated = true
-                                sphereScalerId = Some id
-                                sphereScalerTrafo = trafo} 
+            match model.probeIntersectionId with 
+            | Some probe -> 
+                match model.intersectionControllerId with 
+                | Some i -> if i = id then {model with allProbes = model.allProbes.Remove(probe)} else model
+                | None -> model
             | None -> 
-                    {model with 
-                        currentProbeManipulated = true
-                        sphereControllerTrafo = trafo
-                        sphereControllerId = Some id
-                        intersectionControllerId = Some id}
+                match model.sphereControllerId with 
+                | Some i -> if i = id then 
+                                {model with 
+                                    currentProbeManipulated = true
+                                    sphereControllerTrafo = trafo
+                                    sphereControllerId = Some id
+                                    intersectionControllerId = Some id}
+                            else
+                                {model with
+                                    currentProbeManipulated = true
+                                    sphereScalerId = Some id
+                                    sphereScalerTrafo = trafo} 
+                | None -> 
+                        {model with 
+                            currentProbeManipulated = true
+                            sphereControllerTrafo = trafo
+                            sphereControllerId = Some id
+                            intersectionControllerId = Some id}
         | CreateRay (id, trafo) ->
             let origin = trafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
             let direction = trafo.Forward.TransformPos(V3d.OIO * 100.0) 
@@ -581,7 +587,7 @@ module Demo =
                     let color =
                         m.probeIntersectionId |> AVal.map (fun id ->
                             match id with 
-                            | Some i -> if i = key then C4b(0.0,1.0,0.0,0.4) else C4b(1.0,1.0,1.0,0.4)
+                            | Some i -> if i = key then C4b(1.0,0.0,0.0,0.4) else C4b(1.0,1.0,1.0,0.4)
                             | None -> C4b(1.0,1.0,1.0,0.4))
                     Sg.sphere 9 color (AVal.constant p.radius)
                     |> Sg.noEvents
