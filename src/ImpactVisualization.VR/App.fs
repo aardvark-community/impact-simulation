@@ -84,6 +84,7 @@ module Demo =
             manipulationControllerId = None
             rayDeviceId = None
             ray = Ray3d.Invalid
+            toggleAnim = false
             //tvQuad = Quad3d(V3d(-25,-20,-8), V3d(-25,10,-8), V3d(-25,10,12), V3d(-25,-20,12))
             //tvQuad = Quad3d(V3d(0.732, 0.432, 0.013), V3d(-0.732, 0.432, 0.013), V3d(-0.732, -0.41483, 0.013), V3d(0.732, -0.41483, 0.013))
             tvQuad = 
@@ -312,9 +313,12 @@ module Demo =
         | CreateRay (id, trafo) ->
             let origin = trafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
             let direction = trafo.Forward.TransformPos(V3d.OIO * 100.0) 
+            let pauseAnim = 
+                if model.rayDeviceId.IsSome then true else false
             {model with 
                     rayDeviceId = Some id
-                    ray = Ray3d(origin, direction)}
+                    ray = Ray3d(origin, direction)
+                    toggleAnim = pauseAnim}
         | CreateClipping (id, trafoO, trafo) ->
             let p0 = trafo.Forward.TransformPos(planePos0)
             let p1 = trafo.Forward.TransformPos(planePos1)
@@ -670,6 +674,9 @@ module Demo =
             if true then
                 let client = new Browser(null,AVal.constant System.DateTime.Now,runtime, true, AVal.constant (V2i(1024,768)))
                 let res = client.LoadUrl "http://localhost:4321"
+                //m.toggleAnim |> AVal.map (fun b ->
+                //    if b then client.Mouse.Click(PixelPosition(V2i(30,23), Box2i(V2i(0,0),V2i(0,0))), Aardvark.Application.MouseButtons.Left))
+                //|> ignore
                 printfn "%A" res
                 Sg.draw IndexedGeometryMode.TriangleList
                     |> Sg.vertexAttribute DefaultSemantic.Positions quadPositions
@@ -733,7 +740,7 @@ module Demo =
                 |> AVal.map (fun p ->
                     let m = 
                         "X: " + p.Y.ToString() + "\n" +
-                        "Y: " + (1.0 - p.X).ToString() + "\n" 
+                        "Y: " + p.X.ToString() + "\n" 
                     m
                     )
 

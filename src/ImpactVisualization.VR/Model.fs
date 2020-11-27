@@ -58,6 +58,7 @@ type Model =
         screenIntersection : bool
         hitPoint : V3d
         screenHitPoint : V2d 
+        toggleAnim : bool
 
         currentProbe : Option<Probe>
         currentProbeManipulated : bool 
