@@ -812,7 +812,7 @@ module Demo =
             controllerSg path 90.0 0.0 -30.0 clippingScaleTrafo clippingContrPos
             
         Sg.ofSeq [
-            deviceSgs; sphereProbeSg; clipPlaneSg; tvSg;
+            deviceSgs; currentSphereProbeSg; probesSgs; heraSg; clipPlaneSg; tvSg;
             billboardSg; probeContrSg; laserContrSg; clippingContrSg; ray
             browser
         ] |> Sg.shader {
