@@ -733,7 +733,7 @@ module Demo =
                 |> AVal.map (fun p ->
                     let m = 
                         "X: " + p.Y.ToString() + "\n" +
-                        "Y: " + p.X.ToString() + "\n" 
+                        "Y: " + (1.0 - p.X).ToString() + "\n" 
                     m
                     )
 
