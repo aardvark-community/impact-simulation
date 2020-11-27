@@ -32,7 +32,7 @@ let main argv =
         let id = Hera.Hera.importHeraDataIntoStore datafile storepath false
         printfn "%s" id
 
-    createData()
+    //createData()
 
     let loadData() =
         let datafile  = @"C:\Users\vasileva\source\hera_data\impact.0110"
