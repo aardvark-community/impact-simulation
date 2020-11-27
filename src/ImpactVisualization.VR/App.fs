@@ -15,6 +15,7 @@ open FSharp.Data.Adaptive
 
 open AardVolume.Model
 open ImpactVisualization
+open Aardvark.Cef
 
 type ThreeDMessage = Nop
 
@@ -43,16 +44,19 @@ module Demo =
     open Aardvark.UI.Primitives
     open Aardvark.Base.Rendering
 
-    let quadRightUp =   V3d(0.732, 0.432, 0.013)
-    let quadLeftUp =    V3d(-0.732, 0.432, 0.013)
-    let quadLeftDown =  V3d(-0.732, -0.41483, 0.013)
-    let quadRightDown = V3d(0.732, -0.41483, 0.013)
+    let quadRightUp =   V3d(0.732, 0.432, -0.013)
+    let quadLeftUp =    V3d(-0.732, 0.432, -0.013)
+    let quadLeftDown =  V3d(-0.732, -0.41483, -0.013)
+    let quadRightDown = V3d(0.732, -0.41483, -0.013)
 
-    let flatScreenTrafo = 
+    let flatScreenTrafo rotY rotZ = 
         let scale = Trafo3d(Scale3d(2.0))
-        let rotation = Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0)
+        let rotation = Trafo3d.RotationEulerInDegrees(90.0, rotY, rotZ)
         let translation = Trafo3d.Translation(2.5, 1.0, 1.5)
         scale * rotation * translation
+
+    let tvQuadTrafo = flatScreenTrafo 180.0 90.0
+    let tvTrafo = flatScreenTrafo 0.0 -90.0
 
     let initial frames = 
         {   
@@ -83,10 +87,10 @@ module Demo =
             //tvQuad = Quad3d(V3d(-25,-20,-8), V3d(-25,10,-8), V3d(-25,10,12), V3d(-25,-20,12))
             //tvQuad = Quad3d(V3d(0.732, 0.432, 0.013), V3d(-0.732, 0.432, 0.013), V3d(-0.732, -0.41483, 0.013), V3d(0.732, -0.41483, 0.013))
             tvQuad = 
-                let quadRightUpTransf = flatScreenTrafo.Forward.TransformPos(quadRightUp)
-                let quadLeftUpTransf = flatScreenTrafo.Forward.TransformPos(quadLeftUp)
-                let quadLeftDownTransf = flatScreenTrafo.Forward.TransformPos(quadLeftDown)
-                let quadRightDownTransf = flatScreenTrafo.Forward.TransformPos(quadRightDown)
+                let quadRightUpTransf = tvQuadTrafo.Forward.TransformPos(quadRightUp)
+                let quadLeftUpTransf = tvQuadTrafo.Forward.TransformPos(quadLeftUp)
+                let quadLeftDownTransf = tvQuadTrafo.Forward.TransformPos(quadLeftDown)
+                let quadRightDownTransf = tvQuadTrafo.Forward.TransformPos(quadRightDown)
                 Quad3d(quadLeftDownTransf, quadLeftUpTransf, quadRightUpTransf, quadRightDownTransf)
             rayColor = C4b.Red
             screenIntersection = false
@@ -490,7 +494,7 @@ module Demo =
 
         let pass0 = RenderPass.main
         let pass1 = RenderPass.after "pass1" RenderPassOrder.Arbitrary pass0 
-        let pass2 = RenderPass.after "pass2" RenderPassOrder.Arbitrary pass1
+        let pass2 = RenderPass.after "pass2" RenderPassOrder.Arbitrary pass1            
          
         let deviceSgs = 
             info.state.devices |> AMap.toASet |> ASet.chooseA (fun (_,d) ->
@@ -661,12 +665,45 @@ module Demo =
         let clipPlaneSg = planeSg planePositions (C4f(0.0,0.0,1.0,0.1)) FillMode.Fill (AVal.constant mode) pass1
         let quadSg = planeSg quadPositions C4f.Gray10 FillMode.Fill (AVal.constant BlendMode.None) pass0
 
+
+        let browser = 
+            if true then
+                let client = new Browser(null,AVal.constant System.DateTime.Now,runtime, true, AVal.constant (V2i(1024,768)))
+                let res = client.LoadUrl "http://localhost:4321"
+                printfn "%A" res
+                Sg.draw IndexedGeometryMode.TriangleList
+                    |> Sg.vertexAttribute DefaultSemantic.Positions quadPositions
+                    |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
+                    |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.OI; V2f.II; V2f.IO |])
+                    |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
+                    |> Sg.diffuseTexture client.Texture 
+                    |> Sg.shader {
+                        do! DefaultSurfaces.trafo
+                        do! DefaultSurfaces.diffuseTexture
+                    }
+                    //|> Sg.fillMode (fillmode |> AVal.constant)
+                    //|> Sg.blendMode blendmode
+                    //|> Sg.pass renderPass
+                
+                //Sg.fullScreenQuad
+                //    |> Sg.noEvents
+                //    |> Sg.diffuseTexture client.Texture 
+                //    |> Sg.transform (Trafo3d.RotationYInDegrees(180.0))
+                //    |> Sg.shader {
+                //         do! DefaultSurfaces.trafo
+                //         do! DefaultSurfaces.diffuseTexture
+                //       }
+            else Sg.empty
+
+
+
+
         let tvSg = 
             Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"tv";"tv.obj"])
                 |> Sg.adapter
 
                 |> Sg.transform (Trafo3d.Scale(1.0, 1.0, -1.0))
-                |> Sg.trafo (flatScreenTrafo |> AVal.constant)
+                |> Sg.trafo (tvTrafo |> AVal.constant)
                 //|> Sg.scale 1.0
                 //|> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0))
                 //|> Sg.translate 2.5 1.0 1.5
@@ -774,8 +811,11 @@ module Demo =
             let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"clipping";"clipping.obj"]
             controllerSg path 90.0 0.0 -30.0 clippingScaleTrafo clippingContrPos
             
-        Sg.ofSeq [deviceSgs; currentSphereProbeSg; probesSgs; heraSg; clipPlaneSg; tvSg; quadSg; billboardSg; probeContrSg; laserContrSg; clippingContrSg; ray]
-            |> Sg.shader { 
+        Sg.ofSeq [
+            deviceSgs; sphereProbeSg; clipPlaneSg; tvSg;
+            billboardSg; probeContrSg; laserContrSg; clippingContrSg; ray
+            browser
+        ] |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
             }    
