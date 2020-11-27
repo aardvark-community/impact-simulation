@@ -594,7 +594,7 @@ module Demo =
             |> Sg.trafo sphereTrafo
             |> Sg.onOff m.currentProbeManipulated
            // |> Sg.fillMode (FillMode.Fill |> AVal.constant)
-            |> Sg.cullMode (CullMode.Back |> AVal.constant)
+            |> Sg.cullMode (CullMode.Front |> AVal.constant)
             |> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass1
             
@@ -623,7 +623,7 @@ module Demo =
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
             }
-            |> Sg.cullMode (CullMode.Back |> AVal.constant)
+            |> Sg.cullMode (CullMode.Front |> AVal.constant)
             |> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass1
 
