@@ -10,6 +10,7 @@ open System.IO
 open FSharp.Data.Adaptive
 
 open AardVolume.Model
+open Aardvark.Cef
 
 
 type ControllerMode = 
@@ -58,7 +59,9 @@ type Model =
         screenIntersection : bool
         hitPoint : V3d
         screenHitPoint : V2d 
-        toggleAnim : bool
+        
+        rayTriggerClicked : bool
+        clickPosition : Option<V2d>
 
         currentProbe : Option<Probe>
         currentProbeManipulated : bool 
@@ -77,4 +80,7 @@ type Model =
         controllerMode : ControllerMode
 
         touchPadCurrPosX : float
+
+        [<NonAdaptive>]
+        client : Browser
 }

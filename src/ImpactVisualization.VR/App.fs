@@ -38,6 +38,7 @@ type Message =
     | CreateRay of int * Trafo3d
     | CreateClipping of int * Option<Trafo3d> * Trafo3d
     | DeactivateControllerMode of int
+    | MouseClick
     | ResetHera 
  
 module Demo =
@@ -58,7 +59,7 @@ module Demo =
     let tvQuadTrafo = flatScreenTrafo 180.0 90.0
     let tvTrafo = flatScreenTrafo 0.0 -90.0
 
-    let initial frames = 
+    let initial runtime frames = 
         {   
             twoDModel = AardVolume.App.initial frames
             text = "hello" 
@@ -84,7 +85,8 @@ module Demo =
             deletionControllerId = None
             rayDeviceId = None
             ray = Ray3d.Invalid
-            toggleAnim = false
+            rayTriggerClicked = false
+            clickPosition = None
             //tvQuad = Quad3d(V3d(-25,-20,-8), V3d(-25,10,-8), V3d(-25,10,12), V3d(-25,-20,12))
             //tvQuad = Quad3d(V3d(0.732, 0.432, 0.013), V3d(-0.732, 0.432, 0.013), V3d(-0.732, -0.41483, 0.013), V3d(0.732, -0.41483, 0.013))
             tvQuad = 
@@ -103,8 +105,12 @@ module Demo =
             controllerMenuOpen = false
             menuControllerTrafo = None
             menuControllerId = None
-            controllerMode = ControllerMode.Probe
+            controllerMode = ControllerMode.Ray
             touchPadCurrPosX = 0.0
+            client = 
+                let br = new Browser(null,AVal.constant System.DateTime.Now,runtime, true, AVal.constant (V2i(1024,768)))
+                let res = br.LoadUrl "http://localhost:4321"
+                br
         }
 
     //let updateController (m : Model) : Model = 
@@ -117,11 +123,14 @@ module Demo =
             radius = radius
         }
         
-    let rec update (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
+    let rec update (runtime : IRuntime) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
         let planePos0 = V3d(-0.7, 0.05, -0.5)
         let planePos1 = V3d(-0.7, 0.05, 0.5)
         let planePos2 = V3d(0.7, 0.05, 0.5)
+
         let planePos3 = V3d(0.7, 0.05, -0.5)
+
+        //let res = model.client.LoadUrl "http://localhost:4321"
 
         let trafoOrIdentity trafo = 
             match trafo with 
@@ -201,18 +210,23 @@ module Demo =
                     let newScale = (4.0/3.0)*Math.PI*Math.Pow((distance + model.sphereRadius), 3.0)
                     newScale + model.sphereRadius/2.0
             //printf "scale %f \n" scalingFactor
-            let currRay = 
+            let initRay = 
                 match model.rayDeviceId with    
                 | Some id ->
                     let currDevice = model.devicesTrafos.TryFind(id)
                     let currDeviceTrafo = trafoOrIdentity currDevice
                     let origin = currDeviceTrafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
-                    let direction = currDeviceTrafo.Forward.TransformPos(V3d.OIO * 100.0)
+                    let direction = currDeviceTrafo.Forward.TransformPos(V3d.OIO * 1000.0)
                     Ray3d(origin, direction)
                 | None -> Ray3d.Invalid    
-            let intersect = currRay.Intersects(model.tvQuad)
+            let intersect = initRay.Intersects(model.tvQuad)
             let mutable hit = RayHit3d.MaxRange
-            let hitPoint = currRay.Hits(model.tvQuad, &hit)
+            let hitPoint = initRay.Hits(model.tvQuad, &hit)
+            let currRay =
+                if intersect then
+                    Ray3d(initRay.Origin, hit.Point)
+                else 
+                    initRay
            // if hitPoint then printf "Hit Point %A \n" hit.Point
             let sphereIntersection (controllerSphere : Sphere3d) (probe : Sphere3d) = controllerSphere.Intersects(probe)
             let probeIntersection = 
@@ -271,9 +285,9 @@ module Demo =
             let currDeviceTrafo = trafoOrIdentity currDevice
             if not model.controllerMenuOpen then 
                 match model.controllerMode with
-                | ControllerMode.Probe -> update frames state vr model (CreateProbe (id, currDevice))
-                | ControllerMode.Ray -> update frames state vr model (CreateRay (id, currDeviceTrafo))
-                | ControllerMode.Clipping -> update frames state vr model (CreateClipping (id, currDevice, currDeviceTrafo))
+                | ControllerMode.Probe -> update runtime frames state vr model (CreateProbe (id, currDevice))
+                | ControllerMode.Ray -> update runtime frames state vr model (CreateRay (id, currDeviceTrafo))
+                | ControllerMode.Clipping -> update runtime frames state vr model (CreateClipping (id, currDevice, currDeviceTrafo))
                 | _ -> model
             else 
                 { model with 
@@ -325,14 +339,19 @@ module Demo =
                             sphereControllerId = Some id
                             intersectionControllerId = Some id}
         | CreateRay (id, trafo) ->
-            let origin = trafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
-            let direction = trafo.Forward.TransformPos(V3d.OIO * 100.0) 
-            let pauseAnim = 
-                if model.rayDeviceId.IsSome then true else false
-            {model with 
-                    rayDeviceId = Some id
-                    ray = Ray3d(origin, direction)
-                    toggleAnim = pauseAnim}
+            match model.rayDeviceId with 
+            | Some i -> if i = id then 
+                            {model with 
+                                rayTriggerClicked = true
+                                clickPosition = Some model.screenHitPoint}
+                        else 
+                            model
+            | None ->
+                let origin = trafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
+                let direction = trafo.Forward.TransformPos(V3d.OIO * 1000.0) 
+                {model with 
+                        rayDeviceId = Some id
+                        ray = Ray3d(origin, direction)}
         | CreateClipping (id, trafoO, trafo) ->
             let p0 = trafo.Forward.TransformPos(planePos0)
             let p1 = trafo.Forward.TransformPos(planePos1)
@@ -379,7 +398,15 @@ module Demo =
                     | None -> {model with 
                                     sphereScalerId = None
                                     deletionControllerId = delControllerId}
-                | ControllerMode.Ray -> model
+                | ControllerMode.Ray ->     
+                    match model.rayDeviceId with
+                    | Some i -> if i = id then
+                                    {model with 
+                                        rayTriggerClicked = false
+                                        clickPosition = None}
+                                else 
+                                    model 
+                    | None -> model
                 | ControllerMode.Clipping -> 
                     match model.clippingPlaneDeviceId with 
                     | Some i -> if i = id then {model with clippingPlaneDeviceId = None} else model
@@ -442,7 +469,7 @@ module Demo =
                     model
             | None -> model
         | ChangeTouchpadPos pos -> {model with touchPadCurrPosX = pos}
-        | ResetHera -> initial frames
+        | ResetHera -> initial runtime frames
             
 
     let threads (model : Model) =
@@ -681,39 +708,34 @@ module Demo =
         let clipPlaneSg = planeSg planePositions (C4f(0.0,0.0,1.0,0.1)) FillMode.Fill (AVal.constant mode) pass1
         let quadSg = planeSg quadPositions C4f.Gray10 FillMode.Fill (AVal.constant BlendMode.None) pass0
 
-
-        let browser = 
+        let browserSg = 
             if true then
-                let client = new Browser(null,AVal.constant System.DateTime.Now,runtime, true, AVal.constant (V2i(1024,768)))
-                let res = client.LoadUrl "http://localhost:4321"
-                //m.toggleAnim |> AVal.map (fun b ->
-                //    if b then client.Mouse.Click(PixelPosition(V2i(30,23), Box2i(V2i(0,0),V2i(0,0))), Aardvark.Application.MouseButtons.Left))
-                //|> ignore
-                printfn "%A" res
                 Sg.draw IndexedGeometryMode.TriangleList
                     |> Sg.vertexAttribute DefaultSemantic.Positions quadPositions
                     |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
                     |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.OI; V2f.II; V2f.IO |])
                     |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
-                    |> Sg.diffuseTexture client.Texture 
+                    |> Sg.diffuseTexture m.client.Texture 
                     |> Sg.shader {
                         do! DefaultSurfaces.trafo
                         do! DefaultSurfaces.diffuseTexture
                     }
                     //|> Sg.fillMode (fillmode |> AVal.constant)
                     //|> Sg.blendMode blendmode
-                    //|> Sg.pass renderPass
-                
-                //Sg.fullScreenQuad
-                //    |> Sg.noEvents
-                //    |> Sg.diffuseTexture client.Texture 
-                //    |> Sg.transform (Trafo3d.RotationYInDegrees(180.0))
-                //    |> Sg.shader {
-                //         do! DefaultSurfaces.trafo
-                //         do! DefaultSurfaces.diffuseTexture
-                //       }
+                    //|> Sg.pass renderPass                
             else Sg.empty
 
+        
+       
+        //let temp = 
+        //    AVal.map (fun clicked pos ->
+               
+        //        ) m.rayTriggerClicked m.clickPosition
+        
+        //m.toggleAnim |> AVal.map (fun b ->
+        //    if b then client.Mouse.Click(PixelPosition(V2i(30,23), Box2i(V2i(0,0),V2i(0,0))), Aardvark.Application.MouseButtons.Left))
+        //|> ignore
+               // printfn "%A" res
 
 
 
@@ -833,7 +855,7 @@ module Demo =
         Sg.ofSeq [
             deviceSgs; currentSphereProbeSg; probesSgs; heraSg; clipPlaneSg; tvSg;
             billboardSg; probeContrSg; laserContrSg; clippingContrSg; ray
-            browser
+            browserSg
         ] |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
@@ -867,8 +889,8 @@ module Demo =
         let frames = data |> (fun (elem, _, _) ->  elem)
         {
             unpersist = Unpersist.instance
-            initial = initial frames
-            update = update frames
+            initial = initial runtime frames
+            update = update runtime frames
             threads = threads
             input = input 
             ui = ui runtime data
