@@ -81,7 +81,7 @@ module Demo =
             allProbes = HashMap.Empty
             probeIntersectionId = None
             intersectionControllerId = None
-            manipulationControllerId = None
+            deletionControllerId = None
             rayDeviceId = None
             ray = Ray3d.Invalid
             toggleAnim = false
@@ -287,10 +287,24 @@ module Demo =
             | Some probe -> 
                 match model.intersectionControllerId with 
                 | Some i -> if i = id then 
-                                if model.manipulationControllerId.IsSome then model else {model with allProbes = model.allProbes.Remove(probe)} 
+                                if model.deletionControllerId.IsSome then 
+                                    {model with allProbes = model.allProbes.Remove(probe)} 
+                                else 
+                                    let currProbe = model.allProbes.TryFind(probe)
+                                    let currScale = 
+                                        match currProbe with
+                                        | Some pr -> (pr.radius / model.sphereRadius)
+                                        | None -> model.sphereScale
+                                    {model with 
+                                        allProbes = model.allProbes.Remove(probe)
+                                        currentProbeManipulated = true
+                                        sphereControllerTrafo = trafo
+                                        sphereControllerId = Some id
+                                        sphereScale = currScale
+                                        probeIntersectionId = None}
                             else 
-                                {model with manipulationControllerId = Some id}
-                | None -> {model with manipulationControllerId = None}
+                                {model with deletionControllerId = Some id}
+                | None -> {model with deletionControllerId = None}
             | None -> 
                 match model.sphereControllerId with 
                 | Some i -> if i = id then 
@@ -341,9 +355,9 @@ module Demo =
             if not model.controllerMenuOpen then 
                 match model.controllerMode with 
                 | ControllerMode.Probe -> 
-                    let manControllerId = 
-                        match model.manipulationControllerId with 
-                        | Some i -> if i = id then None else model.manipulationControllerId
+                    let delControllerId = 
+                        match model.deletionControllerId with 
+                        | Some i -> if i = id then None else model.deletionControllerId
                         | None -> None
                     match model.sphereControllerId with
                     | Some i -> if i = id then 
@@ -357,14 +371,14 @@ module Demo =
                                         sphereScale = 1.0
                                         sphereControllerId = None
                                         sphereScalerId = None
-                                        manipulationControllerId = manControllerId}
+                                        deletionControllerId = delControllerId}
                                 else
                                     {model with 
                                         sphereScalerId = None
-                                        manipulationControllerId = manControllerId}
+                                        deletionControllerId = delControllerId}
                     | None -> {model with 
                                     sphereScalerId = None
-                                    manipulationControllerId = manControllerId}
+                                    deletionControllerId = delControllerId}
                 | ControllerMode.Ray -> model
                 | ControllerMode.Clipping -> 
                     match model.clippingPlaneDeviceId with 
@@ -466,14 +480,14 @@ module Demo =
             else
                 []
         | VrMessage.Touch(controllerId, buttonId) ->
-            printf "touch: %A " (controllerId, buttonId)
+           // printf "touch: %A " (controllerId, buttonId)
             if buttonId = 0 then 
                 []
                 //[ActivatePlane controllerId]
             else 
                 []
         | VrMessage.Untouch(controllerId, buttonId) ->
-            printf "untouch: %A " (controllerId, buttonId)
+            //printf "untouch: %A " (controllerId, buttonId)
             []
         | VrMessage.ValueChange(controllerId, buttonId, value) ->
             //printf "value change: %A " (controllerId, buttonId, value)
@@ -547,8 +561,6 @@ module Demo =
 
         let sphereTrafo = m.sphereControllerTrafo |> AVal.map (fun t -> trafoOrIdentity t)
 
-
-
         let contrClippingPlane = m.planeCorners |> AVal.map (fun c -> Plane3d(c.P0, c.P1, c.P2))
 
         let mutable mode = BlendMode(true)
@@ -606,16 +618,16 @@ module Demo =
             m.allProbes |> AMap.toASet |> ASet.chooseA (fun (key, probe) ->
                 probe.Current |> AVal.map (fun p -> 
                     let color =
-                        AVal.map2 (fun probeIntId manId ->
+                        AVal.map2 (fun probeIntId delId ->
                             match probeIntId with 
                             | Some i -> if i = key then 
-                                            match manId with 
-                                            | Some mId -> C4b(0.0,1.0,0.0,0.4) 
-                                            | None -> C4b(1.0,0.0,0.0,0.4) 
+                                            match delId with 
+                                            | Some dId -> C4b(1.0,0.0,0.0,0.4) 
+                                            | None -> C4b(0.0,1.0,0.0,0.4) 
                                         else 
                                             C4b(1.0,1.0,1.0,0.4)
                             | None -> C4b(1.0,1.0,1.0,0.4)
-                        ) m.probeIntersectionId m.manipulationControllerId
+                        ) m.probeIntersectionId m.deletionControllerId
                     Sg.sphere 9 color (AVal.constant p.radius)
                     |> Sg.noEvents
                     |> Sg.transform (Trafo3d.Translation(p.center))
