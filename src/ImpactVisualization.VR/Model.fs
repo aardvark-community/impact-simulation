@@ -59,8 +59,7 @@ type Model =
         screenIntersection : bool
         hitPoint : V3d
         screenHitPoint : V2d 
-        
-        rayTriggerClicked : bool
+
         clickPosition : Option<V2d>
 
         currentProbe : Option<Probe>
@@ -82,5 +81,9 @@ type Model =
         touchPadCurrPosX : float
 
         [<NonAdaptive>]
+        rayTriggerClicked : bool
+
+        [<NonAdaptive>]
         client : Browser
+
 }

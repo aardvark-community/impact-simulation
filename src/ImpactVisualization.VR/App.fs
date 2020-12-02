@@ -9,6 +9,7 @@ open Aardvark.SceneGraph.IO
 open Aardvark.UI
 open Aardvark.UI.Primitives
 open Aardvark.UI.Generic
+open Aardvark.Application
 open Aardvark.Application.OpenVR
 
 open FSharp.Data.Adaptive
@@ -59,6 +60,8 @@ module Demo =
     let tvQuadTrafo = flatScreenTrafo 180.0 90.0
     let tvTrafo = flatScreenTrafo 0.0 -90.0
 
+    let screenResolution = V2i(1008,729)
+
     let initial runtime frames = 
         {   
             twoDModel = AardVolume.App.initial frames
@@ -108,7 +111,7 @@ module Demo =
             controllerMode = ControllerMode.Ray
             touchPadCurrPosX = 0.0
             client = 
-                let br = new Browser(null,AVal.constant System.DateTime.Now,runtime, true, AVal.constant (V2i(1024,768)))
+                let br = new Browser(null,AVal.constant System.DateTime.Now,runtime, true, AVal.constant (screenResolution))
                 let res = br.LoadUrl "http://localhost:4321"
                 br
         }
@@ -341,6 +344,19 @@ module Demo =
         | CreateRay (id, trafo) ->
             match model.rayDeviceId with 
             | Some i -> if i = id then 
+                            printf "CLICKED \n"
+                            let hitPoint = model.screenHitPoint
+                            let clickPos = V2d(hitPoint.Y, hitPoint.X)
+                            //printf "Click Pos: %A \n" clickPos
+                            let screenCoords = V2d(clickPos.X * screenResolution.ToV2d().X, clickPos.Y * screenResolution.ToV2d().Y)
+                            let screenCoordsInt = screenCoords.ToV2i()
+                            printf "Screen Coords: %A \n" screenCoordsInt
+                            let screenPos = PixelPosition(screenCoordsInt, screenResolution.X, screenResolution.Y)
+                            printf "Screen Pos: %A \n" screenPos.Position
+                            printf "Screen Bounds: %A \n" screenPos.Bounds
+                            //printf "Screen Pos: %A \n" screenPos
+                            model.client.SetFocus true
+                            model.client.Mouse.Click(screenPos, MouseButtons.Left)
                             {model with 
                                 rayTriggerClicked = true
                                 clickPosition = Some model.screenHitPoint}
@@ -724,6 +740,17 @@ module Demo =
                     //|> Sg.blendMode blendmode
                     //|> Sg.pass renderPass                
             else Sg.empty
+
+
+        let mutable temp = true
+
+        //printf "trigger: \n"
+
+        //if m.rayTriggerClicked then 
+        //    printf "YESSSSSSSSSSS \n" 
+        //    m.client.SetFocus true
+        //    m.client.Mouse.Click(PixelPosition(400, 300, screenResolution.X, screenResolution.Y), MouseButtons.Left)
+        //    temp <- false
 
         
        
