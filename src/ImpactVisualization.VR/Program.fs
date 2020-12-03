@@ -35,7 +35,7 @@ let main argv =
     //createData()
 
     let loadData() =
-        let datafile  = @"C:\Users\vasileva\source\hera_data\impact.0110"
+        let datafile  = if System.Environment.UserName = "hs" then @"F:\notebooks\frame\impact.0400" else @"C:\Users\vasileva\source\hera_data\impact.0110" 
         let storepath = datafile + ".store"
 
         let (p, store) = loadOctreeFromStore storepath

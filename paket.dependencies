@@ -23,9 +23,10 @@ nuget Aardvark.Application.Utilities        ~> 5.0.16
 nuget Aardvark.GPGPU
 
                                             
-nuget Aardvark.Service                     
-nuget Aardvark.UI                          
-nuget Aardvark.UI.Primitives               
+nuget Aardvark.Service                    ~> 5.0.16 
+nuget Aardvark.UI                         ~> 5.0.16 
+nuget Aardvark.UI.Primitives              ~> 5.0.16 
+nuget Aardvark.Cef                        ~> 5.0.16
 
 nuget Aardium                               ~> 1.1.0
 nuget Adaptify.MSBuild                      ~> 1.0.1
@@ -35,7 +36,6 @@ nuget Aardvark.Geometry.PointTree           = 5.0.28-prerelease0003
 nuget Aardvark.Geometry.Intersection        = 5.0.28-prerelease0003
 nuget Aardvark.Data.Points.Ascii            = 5.0.28-prerelease0003
 
-nuget Aardvark.Cef             = 5.0.13 
 nuget Another.Unofficial.Xilium.CefGlue.UnpackNativeDependencies
  
 nuget Aardvark.Data.Durable.Codec = 0.2.18
