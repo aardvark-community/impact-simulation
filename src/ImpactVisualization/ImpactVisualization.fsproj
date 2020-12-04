@@ -62,7 +62,7 @@
     </EmbeddedResource>
     <Compile Include="DataParser.fs" />
     <Compile Include="Model.fs" />
-    <Compile Include="Hera.fs" />
+    <Compile Include="HeraSg.fs" />
     <Compile Include="App.fs" />
     <Compile Include="Program.fs" />
     <None Include="paket.references" />

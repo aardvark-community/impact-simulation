@@ -21,3 +21,11 @@ Aardvark.GPGPU
 
 Adaptify.MSBuild
 FSharp.Data.Adaptive
+
+Aardvark.Geometry
+Aardvark.Geometry.PointSet
+Aardvark.Geometry.PointTree
+Aardvark.Geometry.Intersection
+Aardvark.Data.Points.Ascii
+
+sharpcompress

@@ -26,6 +26,9 @@ let main argv =
 
     // dont remove this code for now. although it does not do anything it is needed. please dont ask for now :(
     let createData() =
+
+        // @"C:\Users\vasileva\source\hera_data\impact.0110"
+
         let datafile  = @"D:\TU Wien\Master\4. Semester\Praktikum aus Visual Computing\Data\r80_p0_m500_v6000_mbasalt_a1.0_1M\data\impact.0110"
         let storepath = datafile + ".store"
 

@@ -1,4 +1,4 @@
-namespace Hera
+namespace HeraSg
 
 open System
 open System.IO
@@ -260,7 +260,7 @@ module Shaders =
         }
 
 
-module Hera =
+module HeraSg =
 
     open Aardvark.Base.Sorting
     open FSharp.Data.Adaptive.Operators

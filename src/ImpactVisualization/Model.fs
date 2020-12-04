@@ -7,7 +7,10 @@ open Adaptify
 open Aardvark.Base
 open System.IO
 
+open Hera
 open FSharp.Data.Adaptive
+open Aardvark.Geometry.Points
+open Uncodium.SimpleStore
 
 type Values = 
     {
@@ -29,6 +32,18 @@ type Frame =
         alphaJutzis : IBuffer
         pressures   : IBuffer
         values      : Values
+    }
+
+type Frame1 = 
+    {
+        positions : V3f[]
+        normals : V3f[]
+        velocities : V3f[]
+        energies : float32[]
+        cubicRoots : float32[]
+        strains : float32[]
+        alphaJutzis : float32[]
+        pressures : float32[]
     }
 
 type RenderValue = 
@@ -121,6 +136,31 @@ type Model =
 
         dataPath : string 
     }
+
+module NewDataLoader = 
+    let loadOctreeFromStore storepath =
+        let id = storepath + ".key" |> File.readAllText
+        let store = (new SimpleDiskStore(storepath)).ToPointCloudStore()
+        let pointcloud = store.GetPointSet(id)
+        (pointcloud, store)
+
+    let datafile  = @"D:\TU Wien\Master\4. Semester\Praktikum aus Visual Computing\Data\r80_p0_m500_v6000_mbasalt_a1.0_1M\data\impact.0110"
+    let storepath = datafile + ".store"
+
+    let (p, store) = loadOctreeFromStore storepath
+    let bb = p.Root.Value.BoundingBoxExactGlobal
+    let root = p.Root.Value
+
+    let collectLeafData (extract : IPointCloudNode -> 'a[]) (root : IPointCloudNode) : 'a[] =
+        root.EnumerateNodes () |> Seq.filter (fun n -> n.IsLeaf) |> Seq.map extract |> Array.concat
+
+    let vertices   = root |> collectLeafData (fun n -> n.PositionsAbsolute |> Array.map V3f)
+    let normals    = root |> collectLeafData (fun n -> n.Normals.Value)
+    let velocities = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.Velocities] :?> V3f[])
+    let densities  = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.AverageSquaredDistances] :?> float32[])
+
+
+
 
 module DataLoader = 
 

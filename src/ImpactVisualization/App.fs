@@ -9,7 +9,7 @@ open Aardvark.UI
 open Aardvark.UI.Primitives
 open Aardvark.Base.Rendering
 open AardVolume.Model
-open Hera
+open HeraSg
 
 open FSharp.Data.Adaptive
 
@@ -545,7 +545,7 @@ module App =
 
         let heraSg = 
             data
-            |> Hera.createAnimatedSg m.frame m.pointSize m.discardPoints m.renderValue m.currentMap 
+            |> HeraSg.createAnimatedSg m.frame m.pointSize m.discardPoints m.renderValue m.currentMap 
                 m.domainRange m.clippingPlane  m.filter m.currFilters m.dataRange m.colorValue.c 
                 m.cameraState.view
                 runtime
