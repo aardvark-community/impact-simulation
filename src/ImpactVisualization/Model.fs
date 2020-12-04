@@ -36,14 +36,15 @@ type Frame =
 
 type Frame1 = 
     {
-        positions : V3f[]
-        normals : V3f[]
-        velocities : V3f[]
-        energies : float32[]
-        cubicRoots : float32[]
-        strains : float32[]
+        pointSet    : PointSet
+        positions   : V3f[]
+        normals     : V3f[]
+        velocities  : V3f[]
+        energies    : float32[]
+        cubicRoots  : float32[]
+        strains     : float32[]
         alphaJutzis : float32[]
-        pressures : float32[]
+        pressures   : float32[]
     }
 
 type RenderValue = 
@@ -154,10 +155,30 @@ module NewDataLoader =
     let collectLeafData (extract : IPointCloudNode -> 'a[]) (root : IPointCloudNode) : 'a[] =
         root.EnumerateNodes () |> Seq.filter (fun n -> n.IsLeaf) |> Seq.map extract |> Array.concat
 
-    let vertices   = root |> collectLeafData (fun n -> n.PositionsAbsolute |> Array.map V3f)
-    let normals    = root |> collectLeafData (fun n -> n.Normals.Value)
-    let velocities = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.Velocities] :?> V3f[])
-    let densities  = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.AverageSquaredDistances] :?> float32[])
+    let positions   = root |> collectLeafData (fun n -> n.PositionsAbsolute |> Array.map V3f)
+    let normals     = root |> collectLeafData (fun n -> n.Normals.Value)
+    let velocities  = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.Velocities] :?> V3f[])
+    let densities   = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.AverageSquaredDistances] :?> float32[])
+    let energies    = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.InternalEnergies] :?> float32[])
+    let cubicRoots  = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.CubicRootsOfDamage] :?> float32[])
+    let strains     = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.LocalStrains] :?> float32[])
+    let alphaJutzis = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.AlphaJutzi] :?> float32[])
+    let pressures   = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.Pressures] :?> float32[])
+
+    let storeData = 
+        let frame = 
+            { 
+                pointSet = p
+                positions = positions
+                normals = normals
+                velocities = velocities
+                energies = energies
+                cubicRoots = cubicRoots
+                strains = strains 
+                alphaJutzis = alphaJutzis
+                pressures = pressures
+            }
+        frame
 
 
 
