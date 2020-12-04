@@ -635,7 +635,7 @@ module Demo =
         let heraSg =    
             let m = m.twoDModel
             data
-            |> Hera.Hera.createAnimatedVrSg 
+            |> HeraSg.HeraSg.createAnimatedVrSg 
                 m.frame m.pointSize m.discardPoints m.renderValue m.currentMap 
                 m.domainRange m.clippingPlane contrClippingPlane m.filter m.currFilters m.dataRange m.colorValue.c 
                 sphereProbe
