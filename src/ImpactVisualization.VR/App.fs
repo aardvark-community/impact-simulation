@@ -356,6 +356,8 @@ module Demo =
                             printf "Screen Bounds: %A \n" screenPos.Bounds
                             //printf "Screen Pos: %A \n" screenPos
                             model.client.SetFocus true
+                            model.client.Mouse.Down(screenPos, MouseButtons.Left)
+                            model.client.Mouse.Up(screenPos, MouseButtons.Left)
                             model.client.Mouse.Click(screenPos, MouseButtons.Left)
                             {model with 
                                 rayTriggerClicked = true
