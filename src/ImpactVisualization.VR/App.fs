@@ -615,19 +615,6 @@ module Demo =
         mode.SourceAlphaFactor <- BlendFactor.One
         mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
 
-        //let sphereProbe = 
-        //    AVal.map3 (fun trafo scale initRadius -> 
-        //        match trafo with 
-        //        | Some (t : Trafo3d) -> 
-        //            if t.Forward.IsIdentity() then 
-        //                Sphere3d.Invalid
-        //            else 
-        //                let spherePos = t.Forward.TransformPos(V3d.OOO)
-        //                let sphereRadius : float = initRadius * scale
-        //                Sphere3d(spherePos, sphereRadius)
-        //        | None -> Sphere3d.Invalid
-        //        ) m.sphereControllerTrafo m.sphereScale m.sphereRadius
-
         let sphereProbe = Sphere3d.Invalid |> AVal.constant
         
         let heraSg =    
@@ -741,41 +728,12 @@ module Demo =
                     //|> Sg.pass renderPass                
             else Sg.empty
 
-
-        let mutable temp = true
-
-        //printf "trigger: \n"
-
-        //if m.rayTriggerClicked then 
-        //    printf "YESSSSSSSSSSS \n" 
-        //    m.client.SetFocus true
-        //    m.client.Mouse.Click(PixelPosition(400, 300, screenResolution.X, screenResolution.Y), MouseButtons.Left)
-        //    temp <- false
-
-        
-       
-        //let temp = 
-        //    AVal.map (fun clicked pos ->
-               
-        //        ) m.rayTriggerClicked m.clickPosition
-        
-        //m.toggleAnim |> AVal.map (fun b ->
-        //    if b then client.Mouse.Click(PixelPosition(V2i(30,23), Box2i(V2i(0,0),V2i(0,0))), Aardvark.Application.MouseButtons.Left))
-        //|> ignore
-               // printfn "%A" res
-
-
-
         let tvSg = 
             Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"tv";"tv.obj"])
                 |> Sg.adapter
 
                 |> Sg.transform (Trafo3d.Scale(1.0, 1.0, -1.0))
                 |> Sg.trafo (tvTrafo |> AVal.constant)
-                //|> Sg.scale 1.0
-                //|> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0))
-                //|> Sg.translate 2.5 1.0 1.5
-
                 |> Sg.shader {
                     do! DefaultSurfaces.trafo
                     do! DefaultSurfaces.diffuseTexture
@@ -813,13 +771,6 @@ module Demo =
                 |> Sg.trafo (Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0) |> AVal.constant)
                 |> Sg.translate 2.5 2.0 0.5
                 
-
-        //let flatScreenSg = 
-        //    Sg.ofSeq [quadSg; tvSg]
-        //        |> Sg.scale 2.0
-        //        |> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0))
-        //        |> Sg.translate 2.5 1.0 1.5
-
         let contrOrientation = 
             m.menuControllerTrafo  
             |> AVal.map (fun t -> 
@@ -887,21 +838,7 @@ module Demo =
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
             }    
-        //Sg.ofSeq [billboardSg]
-        //|> Sg.shader {
-        //    do! DefaultSurfaces.trafo
-        //    do! DefaultSurfaces.simpleLighting
-        //}
-        //   // |> Sg.blendMode (AVal.constant mode)
-        //Sg.ofSeq [tvSg; quadSg]
-        //    |> Sg.shader {
-        //        do! DefaultSurfaces.trafo
-        //        do! DefaultSurfaces.simpleLighting
-        //    }
-           // |> Sg.blendMode (AVal.constant mode)
-
-
-        
+            
     let pause (info : VrSystemInfo) (m : AdaptiveModel) =
         Sg.box' C4b.Red Box3d.Unit
         |> Sg.noEvents
