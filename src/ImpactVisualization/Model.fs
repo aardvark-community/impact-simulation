@@ -60,8 +60,8 @@ type Value = Min | Max
 
 type Range = 
     {
-    min : float
-    max : float
+    min : float32
+    max : float32
     }
 
 type Filters =
@@ -91,7 +91,7 @@ type ClippingPlane =
 type VersionedArray = 
     {
         version : int
-        arr : float[]
+        arr : float32[]
     } with
         override x.Equals(other : obj) =
             match other with
@@ -145,40 +145,36 @@ module NewDataLoader =
         let pointcloud = store.GetPointSet(id)
         (pointcloud, store)
 
-    let datafile  = @"D:\TU Wien\Master\4. Semester\Praktikum aus Visual Computing\Data\r80_p0_m500_v6000_mbasalt_a1.0_1M\data\impact.0110"
-    let storepath = datafile + ".store"
-
-    let (p, store) = loadOctreeFromStore storepath
-    let bb = p.Root.Value.BoundingBoxExactGlobal
-    let root = p.Root.Value
-
     let collectLeafData (extract : IPointCloudNode -> 'a[]) (root : IPointCloudNode) : 'a[] =
         root.EnumerateNodes () |> Seq.filter (fun n -> n.IsLeaf) |> Seq.map extract |> Array.concat
 
-    let positions   = root |> collectLeafData (fun n -> n.PositionsAbsolute |> Array.map V3f)
-    let normals     = root |> collectLeafData (fun n -> n.Normals.Value)
-    let velocities  = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.Velocities] :?> V3f[])
-    let densities   = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.AverageSquaredDistances] :?> float32[])
-    let energies    = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.InternalEnergies] :?> float32[])
-    let cubicRoots  = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.CubicRootsOfDamage] :?> float32[])
-    let strains     = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.LocalStrains] :?> float32[])
-    let alphaJutzis = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.AlphaJutzi] :?> float32[])
-    let pressures   = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.Pressures] :?> float32[])
+    let datapath  = @"D:\TU Wien\Master\4. Semester\Praktikum aus Visual Computing\Data\r80_p0_m500_v6000_mbasalt_a1.0_1M\data"
 
-    let storeData = 
+    let loadDataSingleFrame storepath = 
+
+        //let storepath = datapath + ".store"
+
+        let (p, store) = loadOctreeFromStore storepath
+        let bb = p.Root.Value.BoundingBoxExactGlobal
+        let root = p.Root.Value
+
         let frame = 
             { 
-                pointSet = p
-                positions = positions
-                normals = normals
-                velocities = velocities
-                energies = energies
-                cubicRoots = cubicRoots
-                strains = strains 
-                alphaJutzis = alphaJutzis
-                pressures = pressures
+                pointSet    = p
+                positions   = root |> collectLeafData (fun n -> n.PositionsAbsolute |> Array.map V3f)
+                normals     = root |> collectLeafData (fun n -> n.Normals.Value)
+                velocities  = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.Velocities] :?> V3f[])
+                energies    = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.InternalEnergies] :?> float32[])
+                cubicRoots  = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.CubicRootsOfDamage] :?> float32[])
+                strains     = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.LocalStrains] :?> float32[]) 
+                alphaJutzis = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.AlphaJutzi] :?> float32[])
+                pressures   = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.Pressures] :?> float32[])
             }
         frame
+
+    let files = Directory.EnumerateDirectories datapath |> Seq.toArray |> Array.filter (fun file -> file.EndsWith(".store"))
+
+    let loadDataAllFrames = files |> Array.map (fun file -> loadDataSingleFrame file)
 
 
 
