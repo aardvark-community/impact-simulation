@@ -28,8 +28,9 @@ let main argv =
     let createData() =
 
         // @"C:\Users\vasileva\source\hera_data\impact.0110"
+        // @"D:\TU Wien\Master\4. Semester\Praktikum aus Visual Computing\Data\r80_p0_m500_v6000_mbasalt_a1.0_1M\data"
 
-        let datafile  = @"D:\TU Wien\Master\4. Semester\Praktikum aus Visual Computing\Data\r80_p0_m500_v6000_mbasalt_a1.0_1M\data\impact.0110"
+        let datafile  = @"C:\Users\vasileva\source\hera_data\impact.0111"
         let storepath = datafile + ".store"
 
         let id = Hera.Hera.importHeraDataIntoStore datafile storepath false
@@ -38,7 +39,7 @@ let main argv =
     createData()
 
     let loadData() =
-        let datafile  = if System.Environment.UserName = "hs" then @"F:\notebooks\frame\impact.0400" else @"D:\TU Wien\Master\4. Semester\Praktikum aus Visual Computing\Data\r80_p0_m500_v6000_mbasalt_a1.0_1M\data\impact.0110" 
+        let datafile  = if System.Environment.UserName = "hs" then @"F:\notebooks\frame\impact.0400" else @"C:\Users\vasileva\source\hera_data\impact.0111" 
         let storepath = datafile + ".store"
 
         let (p, store) = loadOctreeFromStore storepath

@@ -102,6 +102,11 @@ module Hera =
                                               "Average squared distance of k-nearest points to their centroid."
                                               Durable.Primitives.Float32Array true
 
+        let all = 
+            [|  ParticleSet;Positions;EstimatedNormals;Velocities;Masses;Densities;InternalEnergies;SmoothingLengths;
+                NumberOfInteractionPartners;MaterialTypes;NumbersOfFlaws;NumbersOfActivatedFlaws;CubicRootsOfDamage;LocalStrains;
+                Sigmas;AlphaJutzi;Pressures;AverageSquaredDistances|]
+
         [<MethodImpl(MethodImplOptions.NoInlining ||| MethodImplOptions.NoOptimization)>]
         let private keep (_ : 'a) = ()
 

@@ -109,9 +109,9 @@ module App =
             colorMaps = listWithValues
             currentMap = @"..\..\..\src\ImpactVisualization\resources\transfer\transfer.jpg"
             domainRange = {
-                x = {min = -16.0f; max = 16.0f}; 
-                y = {min = -16.0f; max = 30.0f}; 
-                z = {min = -16.0f; max = 16.0f}
+                x = {min = -16.0; max = 16.0}; 
+                y = {min = -16.0; max = 30.0}; 
+                z = {min = -16.0; max = 16.0}
                 }            
             clippingPlane = {
                 x = 16.0
@@ -146,30 +146,30 @@ module App =
     //    |> Array.filter (fun (v, i) -> condition v)
     //    |> Array.map (fun (v, i) -> i)
 
-    let filterValue condition (pos : V3f[]) value = 
-        Array.zip pos value
-        |> Array.filter (fun (pos, v) -> condition pos)
-        |> Array.map (fun (pos, v) -> v)
+    //let filterValue condition (pos : V3f[]) value = 
+    //    Array.zip pos value
+    //    |> Array.filter (fun (pos, v) -> condition pos)
+    //    |> Array.map (fun (pos, v) -> v)
 
     //// --------------------- Longer, but more sophisticated solution -----------------------
 
-    //let zip5 a (b : _ []) (c : _ []) (d : _ []) (e : _ [])=
-    //    Array.init (Array.length a) (fun i -> a.[i], b.[i], c.[i], d.[i], e.[i])
+    let zip5 a (b : _ []) (c : _ []) (d : _ []) (e : _ [])=
+        Array.init (Array.length a) (fun i -> a.[i], b.[i], c.[i], d.[i], e.[i])
 
-    //let unzip5 arr =
-    //    let a = Array.zeroCreate (Array.length arr)
-    //    let b = Array.zeroCreate (Array.length arr)
-    //    let c = Array.zeroCreate (Array.length arr)
-    //    let d = Array.zeroCreate (Array.length arr)
-    //    let e = Array.zeroCreate (Array.length arr)
-    //    arr
-    //    |> Array.iteri (fun i (x, y, z, w, v) ->
-    //        a.[i] <- x
-    //        b.[i] <- y
-    //        c.[i] <- z
-    //        d.[i] <- w
-    //        e.[i] <- v)
-    //    a, b, c, d, e
+    let unzip5 arr =
+        let a = Array.zeroCreate (Array.length arr)
+        let b = Array.zeroCreate (Array.length arr)
+        let c = Array.zeroCreate (Array.length arr)
+        let d = Array.zeroCreate (Array.length arr)
+        let e = Array.zeroCreate (Array.length arr)
+        arr
+        |> Array.iteri (fun i (x, y, z, w, v) ->
+            a.[i] <- x
+            b.[i] <- y
+            c.[i] <- z
+            d.[i] <- w
+            e.[i] <- v)
+        a, b, c, d, e
 
     //let filterAllValues condition (pos : V3f[]) (values : Values) = 
     //    let allValuesArray = zip5 values.energies values.cubicRoots values.strains values.alphaJutzis values.pressures |> Seq.distinct |> Seq.toArray
@@ -178,26 +178,53 @@ module App =
     //        temp
     //        |> Array.filter (fun (pos, v) -> condition pos)
     //        |> Array.map (fun (pos, v) -> v)
-
     //    filtered
 
-    //let unzipValues filtered = 
-    //    let e, c, s, a, p = unzip5 filtered
-    //    let values : Values = { energies = e
-    //                            cubicRoots = c
-    //                            strains = s
-    //                            alphaJutzis = a
-    //                            pressures = p
-    //                            }
-    //    values
+    let unzipValues filtered = 
+        let e, c, s, a, p = unzip5 filtered
+        let values : Values = { energies = e
+                                cubicRoots = c
+                                strains = s
+                                alphaJutzis = a
+                                pressures = p
+                                }
+        values
 
     //// --------------------------------------------------------------------------------
   
-    let filterData (filter : option<Box3f>) (positions : V3f[]) (values : float32[]) = 
-        let filter_ = filter |> (fun elem -> defaultArg elem Box3f.Invalid)
-        let isInsideBox (pos : V3f) = filter_.Contains(pos)    
-        let filteredValues = filterValue isInsideBox positions values
-        filteredValues
+    //let filterData (filter : option<Box3f>) (positions : V3f[]) (values : float32[]) = 
+    //    let filter_ = filter |> (fun elem -> defaultArg elem Box3f.Invalid)
+    //    let isInsideBox (pos : V3f) = filter_.Contains(pos)    
+    //    let filteredValues = filterValue isInsideBox positions values
+    //    filteredValues
+
+
+    
+    let createChunk (box : Box3d) (frame : Frame1) =
+        let chunk = 
+            Queries.QueryPointsCustom frame.pointSet.Root.Value
+                (fun n -> box.Contains n.BoundingBoxExactGlobal) 
+                (fun n -> not (box.Intersects n.BoundingBoxExactGlobal)) 
+                (fun p -> box.Contains p)
+                Hera.Defs.all
+                None
+            |> Seq.toArray
+        chunk
+
+
+    let filterDataForOneFrame (frame : Frame1) (filter : option<Box3f>) (renderVal : RenderValue) = 
+         let box = filter |> (fun elem -> defaultArg elem Box3f.Invalid) |> (fun b -> b.BoundingBox3d)
+         let chunk = createChunk box frame
+         let extract f = chunk |> Array.map f |> Array.concat
+         let currFilteredData = 
+            match renderVal with
+            | RenderValue.Energy -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) 
+            | RenderValue.CubicRoot -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
+            | RenderValue.Strain -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
+            | RenderValue.AlphaJutzi -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
+            | RenderValue.Pressure -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) 
+            | _ -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
+         currFilteredData |> Array.map (fun v -> float v)
 
     //let filterValueFrames condition (pos : V3f[]) (values : Values) = 
     //    let filteredEnergies = filterValue condition pos values.energies
@@ -212,10 +239,26 @@ module App =
     //                               pressures = filteredPressures }
     //    newValues
 
+    
+
     //let filterDataFrames (filter : Box3f) (positions : V3f[]) (frame : Frame) = 
     //    let isInsideBox (pos : V3f) = filter.Contains(pos)    
     //    let filteredValues = filterAllValues isInsideBox positions frame.values
     //    filteredValues
+
+        
+    let filterDataFrames (filter : Box3f) (frame : Frame1) = 
+        let box = filter.BoundingBox3d
+        let chunk = createChunk box frame
+        let extract f = chunk |> Array.map f |> Array.concat
+        let energies =  extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
+        let cubicRoots = extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
+        let strain = extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
+        let alphaJutzi = extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
+        let pressure = extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
+        zip5 energies cubicRoots strain alphaJutzi pressure
+        
+
 
     //let filterDataForAllFrames (frames : Frame[]) (filter : option<Box3f>) (renderVal : RenderValue) = 
     //    let temp = 
@@ -239,21 +282,11 @@ module App =
         let temp = 
             frames
             |> Array.map (fun frame -> 
-                            let box =
-                                match filter with 
-                                | Some b -> b.BoundingBox3d
-                                | None -> Box3d.Infinite
-                            let result = frame.pointSet.QueryPointsInsideBox(box, 1) |> Seq.toArray
-                            let extract f = result |> Array.map f |> Array.concat
-                            let currFilteredData = 
-                                match renderVal with
-                                | RenderValue.Energy -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
-                                | RenderValue.CubicRoot -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
-                                | RenderValue.Strain -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
-                                | RenderValue.AlphaJutzi -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
-                                | RenderValue.Pressure -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) 
-                                | _ -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
-                            currFilteredData
+                            //let box =
+                            //    match filter with 
+                            //    | Some b -> b.BoundingBox3d
+                            //    | None -> Box3d.Infinite
+                            filterDataForOneFrame frame filter renderVal
             )
         temp
 
@@ -293,7 +326,6 @@ module App =
                     match m.filter with 
                     | None -> false
                     | Some(_) -> true
-                    
 
                 let currData = 
                     if isCurrentFilterSet && m.animateAllFrames then  
@@ -320,12 +352,12 @@ module App =
             | SetRenderValue v -> 
                 let renderValues = 
                     match v with
-                    | RenderValue.Energy ->  frames.[m.frame].values.energies
-                    | RenderValue.CubicRoot -> frames.[m.frame].values.cubicRoots
-                    | RenderValue.Strain -> frames.[m.frame].values.strains
-                    | RenderValue.AlphaJutzi -> frames.[m.frame].values.alphaJutzis
-                    | RenderValue.Pressure -> frames.[m.frame].values.pressures
-                    | _ -> frames.[m.frame].values.energies
+                    | RenderValue.Energy ->  frames.[m.frame].energies
+                    | RenderValue.CubicRoot -> frames.[m.frame].cubicRoots
+                    | RenderValue.Strain -> frames.[m.frame].strains
+                    | RenderValue.AlphaJutzi -> frames.[m.frame].alphaJutzis
+                    | RenderValue.Pressure -> frames.[m.frame].pressures
+                    | _ -> frames.[m.frame].energies
                 let range = renderValues.GetBoundingRange()
                 let minValue = range.Min
                 let maxValue = range.Max
@@ -333,7 +365,8 @@ module App =
                     min = minValue
                     max = maxValue
                     }
-                let filteredData = filterData m.filter positions renderValues
+
+                let filteredData = filterDataForOneFrame frames.[m.frame] m.filter v
 
                 let filteredDataAllFrames = 
                     if m.animateAllFrames then
@@ -421,7 +454,7 @@ module App =
                         let temp : float[] [] = Array.empty
                         temp
                         
-                let filteredData = filterData newFilter positions m.values.arr
+                let filteredData = filterDataForOneFrame frames.[m.frame] newFilter m.renderValue
 
                 {m with 
                     filter = newFilter
@@ -531,22 +564,22 @@ module App =
 
     let renderValues = AMap.ofArray((Enum.GetValues typeof<RenderValue> :?> (RenderValue [])) |> Array.map (fun c -> (c, text (Enum.GetName(typeof<RenderValue>, c)) )))
 
-    let view (runtime : IRuntime) (data : Frame[] * Box3f * int) (m : AdaptiveModel) =
+    let view (runtime : IRuntime) (data : Frame1[]) (m : AdaptiveModel) =
 
-        let frames = data |> (fun (elem, _, _) ->  elem)
+        //let frames = data |> (fun (elem, _, _) ->  elem)
 
         let shuffleR (r : Random) xs = xs |> Seq.sortBy (fun _ -> r.Next())
         
-        let encodeToCSVData (data : Frame[]) =
+        let encodeToCSVData (data : Frame1[]) =
             let builder = System.Text.StringBuilder()
-            let initValues = data.[0].values
-            let positions = data.[0].positions
+            //let initValues = data.[0].values
+            //let positions = data.[0].positions
 
             builder.AppendLine("energy,cubicRoot,strain,alphaJutzi,pressure") |> ignore
 
             let filter = Box3f(V3f(-5.0, -5.0, -5.0), V3f(5.0, 30.0, 5.0))
 
-            let filteredValues = filterDataFrames filter positions data.[0]
+            let filteredValues = filterDataFrames filter data.[0]
 
             let randomlyPickedData = filteredValues |> shuffleR (Random ()) |> Seq.take 3800 |> Seq.toArray
             let values = unzipValues randomlyPickedData
@@ -914,7 +947,7 @@ module App =
         {
             initial = initial frames // store data Hera frame as array to model....
             update = update frames
-            view = view runtime data
+            view = view runtime frames
             threads = threads
             unpersist = Unpersist.instance
         }

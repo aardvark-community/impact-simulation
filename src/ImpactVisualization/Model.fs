@@ -40,11 +40,11 @@ type Frame1 =
         positions   : V3f[]
         normals     : V3f[]
         velocities  : V3f[]
-        energies    : float32[]
-        cubicRoots  : float32[]
-        strains     : float32[]
-        alphaJutzis : float32[]
-        pressures   : float32[]
+        energies    : float[]
+        cubicRoots  : float[]
+        strains     : float[]
+        alphaJutzis : float[]
+        pressures   : float[]
     }
 
 type RenderValue = 
@@ -60,8 +60,8 @@ type Value = Min | Max
 
 type Range = 
     {
-    min : float32
-    max : float32
+    min : float
+    max : float
     }
 
 type Filters =
@@ -91,7 +91,7 @@ type ClippingPlane =
 type VersionedArray = 
     {
         version : int
-        arr : float32[]
+        arr : float[]
     } with
         override x.Equals(other : obj) =
             match other with
@@ -148,10 +148,20 @@ module NewDataLoader =
     let collectLeafData (extract : IPointCloudNode -> 'a[]) (root : IPointCloudNode) : 'a[] =
         root.EnumerateNodes () |> Seq.filter (fun n -> n.IsLeaf) |> Seq.map extract |> Array.concat
 
-    let datapath  = @"D:\TU Wien\Master\4. Semester\Praktikum aus Visual Computing\Data\r80_p0_m500_v6000_mbasalt_a1.0_1M\data"
+    let datapath  = @"C:\Users\vasileva\source\hera_data"
+
+    let createData() =
+
+        let datafile  = @"C:\Users\vasileva\source\hera_data\impact.0117"
+        let storepath = datafile + ".store"
+
+        let id = Hera.Hera.importHeraDataIntoStore datafile storepath false
+        printfn "%s" id
+
 
     let loadDataSingleFrame storepath = 
 
+        
         //let storepath = datapath + ".store"
 
         let (p, store) = loadOctreeFromStore storepath
@@ -164,11 +174,11 @@ module NewDataLoader =
                 positions   = root |> collectLeafData (fun n -> n.PositionsAbsolute |> Array.map V3f)
                 normals     = root |> collectLeafData (fun n -> n.Normals.Value)
                 velocities  = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.Velocities] :?> V3f[])
-                energies    = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.InternalEnergies] :?> float32[])
-                cubicRoots  = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.CubicRootsOfDamage] :?> float32[])
-                strains     = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.LocalStrains] :?> float32[]) 
-                alphaJutzis = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.AlphaJutzi] :?> float32[])
-                pressures   = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.Pressures] :?> float32[])
+                energies    = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
+                cubicRoots  = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.CubicRootsOfDamage] :?> float32[]) |> Array.map (fun v -> float v)
+                strains     = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.LocalStrains] :?> float32[]) |> Array.map (fun v -> float v)
+                alphaJutzis = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.AlphaJutzi] :?> float32[]) |> Array.map (fun v -> float v)
+                pressures   = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.Pressures] :?> float32[]) |> Array.map (fun v -> float v)
             }
         frame
 
