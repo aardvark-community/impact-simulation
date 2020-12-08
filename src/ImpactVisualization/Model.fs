@@ -158,10 +158,7 @@ module NewDataLoader =
         let id = Hera.Hera.importHeraDataIntoStore datafile storepath false
         printfn "%s" id
 
-
     let loadDataSingleFrame storepath = 
-
-        
         //let storepath = datapath + ".store"
 
         let (p, store) = loadOctreeFromStore storepath
