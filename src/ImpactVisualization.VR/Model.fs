@@ -59,6 +59,7 @@ type Model =
         screenIntersection : bool
         hitPoint : V3d
         screenHitPoint : V2d 
+        screenCoordsHitPos : PixelPosition
 
         clickPosition : Option<V2d>
 
@@ -78,7 +79,8 @@ type Model =
         menuControllerId : Option<int>
         controllerMode : ControllerMode
 
-        touchPadCurrPosX : float
+        currTouchPadPos : V2d
+        
 
         [<NonAdaptive>]
         rayTriggerClicked : bool

@@ -32,7 +32,7 @@ type Message =
     | MoveController of int * Trafo3d
     | ToggleControllerMenu
     | OpenControllerMenu of int
-    | ChangeTouchpadPos of float
+    | ChangeTouchpadPos of int * V2d
     | ChangeControllerMode of int
     | ActivateControllerMode of int
     | CreateProbe of int * Option<Trafo3d>
@@ -51,14 +51,14 @@ module Demo =
     let quadLeftDown =  V3d(-0.732, -0.41483, -0.013)
     let quadRightDown = V3d(0.732, -0.41483, -0.013)
 
-    let flatScreenTrafo rotY rotZ = 
+    let flatScreenTrafo rotY rotZ upZ = 
         let scale = Trafo3d(Scale3d(2.0))
         let rotation = Trafo3d.RotationEulerInDegrees(90.0, rotY, rotZ)
-        let translation = Trafo3d.Translation(2.5, 1.0, 1.5)
+        let translation = Trafo3d.Translation(2.5, 1.0, upZ)
         scale * rotation * translation
 
-    let tvQuadTrafo = flatScreenTrafo 180.0 90.0
-    let tvTrafo = flatScreenTrafo 0.0 -90.0
+    let tvQuadTrafo = flatScreenTrafo 180.0 90.0 1.535
+    let tvTrafo = flatScreenTrafo 0.0 -90.0 1.5
 
     let screenResolution = V2i(1008,729)
 
@@ -102,6 +102,7 @@ module Demo =
             screenIntersection = false
             hitPoint = V3d.OOO
             screenHitPoint = V2d.OO
+            screenCoordsHitPos = PixelPosition()
             clippingPlaneDeviceTrafo = None
             clippingPlaneDeviceId = None
             planeCorners = Quad3d(V3d(), V3d(), V3d(), V3d())
@@ -109,7 +110,7 @@ module Demo =
             menuControllerTrafo = None
             menuControllerId = None
             controllerMode = ControllerMode.Ray
-            touchPadCurrPosX = 0.0
+            currTouchPadPos = V2d.OO
             client = 
                 let br = new Browser(null,AVal.constant System.DateTime.Now,runtime, true, AVal.constant (screenResolution))
                 let res = br.LoadUrl "http://localhost:4321"
@@ -227,8 +228,10 @@ module Demo =
             let hitPoint = initRay.Hits(model.tvQuad, &hit)
             let currRay =
                 if intersect then
+                    model.client.SetFocus true
                     Ray3d(initRay.Origin, hit.Point)
-                else 
+                else
+                    model.client.SetFocus false
                     initRay
            // if hitPoint then printf "Hit Point %A \n" hit.Point
             let sphereIntersection (controllerSphere : Sphere3d) (probe : Sphere3d) = controllerSphere.Intersects(probe)
@@ -255,6 +258,14 @@ module Demo =
                 | None -> None
             let rColor = 
                 if intersect then C4b.Green else C4b.Red
+            let screenCoordsHitPos = 
+                if intersect then
+                    let screenCoords = (V2d(hit.Coord.Y * screenResolution.ToV2d().X, hit.Coord.X * screenResolution.ToV2d().Y)).ToV2i()
+                    let screenPos = PixelPosition(screenCoords, screenResolution.X, screenResolution.Y)
+                    if model.rayTriggerClicked then model.client.Mouse.Move(screenPos)
+                    screenPos
+                else 
+                    PixelPosition()
             let clippingContrTrafo = newOrOldTrafo id trafo model.clippingPlaneDeviceId model.clippingPlaneDeviceTrafo
             let currCorners = 
                 match model.clippingPlaneDeviceId with
@@ -282,6 +293,7 @@ module Demo =
                 rayColor = rColor
                 hitPoint = hit.Point
                 screenHitPoint = hit.Coord
+                screenCoordsHitPos = screenCoordsHitPos
                 probeIntersectionId = probeIntersection}
         | ActivateControllerMode id ->
             let currDevice = model.devicesTrafos.TryFind(id)
@@ -344,21 +356,7 @@ module Demo =
         | CreateRay (id, trafo) ->
             match model.rayDeviceId with 
             | Some i -> if i = id then 
-                            printf "CLICKED \n"
-                            let hitPoint = model.screenHitPoint
-                            let clickPos = V2d(hitPoint.Y, hitPoint.X)
-                            //printf "Click Pos: %A \n" clickPos
-                            let screenCoords = V2d(clickPos.X * screenResolution.ToV2d().X, clickPos.Y * screenResolution.ToV2d().Y)
-                            let screenCoordsInt = screenCoords.ToV2i()
-                            printf "Screen Coords: %A \n" screenCoordsInt
-                            let screenPos = PixelPosition(screenCoordsInt, screenResolution.X, screenResolution.Y)
-                            printf "Screen Pos: %A \n" screenPos.Position
-                            printf "Screen Bounds: %A \n" screenPos.Bounds
-                            //printf "Screen Pos: %A \n" screenPos
-                            model.client.SetFocus true
-                            model.client.Mouse.Down(screenPos, MouseButtons.Left)
-                            model.client.Mouse.Up(screenPos, MouseButtons.Left)
-                            model.client.Mouse.Click(screenPos, MouseButtons.Left)
+                            model.client.Mouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
                             {model with 
                                 rayTriggerClicked = true
                                 clickPosition = Some model.screenHitPoint}
@@ -419,6 +417,8 @@ module Demo =
                 | ControllerMode.Ray ->     
                     match model.rayDeviceId with
                     | Some i -> if i = id then
+                                    model.client.Mouse.Up(model.screenCoordsHitPos, MouseButtons.Left)
+                                    model.client.Mouse.Click(model.screenCoordsHitPos, MouseButtons.Left)
                                     {model with 
                                         rayTriggerClicked = false
                                         clickPosition = None}
@@ -438,7 +438,7 @@ module Demo =
                     clippingPlaneDeviceId = None 
                 }
         | ToggleControllerMenu -> 
-            if model.touchPadCurrPosX >= -0.3 && model.touchPadCurrPosX <= 0.3 then
+            if model.currTouchPadPos.X >= -0.3 && model.currTouchPadPos.X <= 0.3 then
                 {model with 
                     controllerMenuOpen = not model.controllerMenuOpen
                     sphereControllerId = None
@@ -461,7 +461,7 @@ module Demo =
             match model.menuControllerId with  
             | Some i -> 
                 if i = id then 
-                    let pos = model.touchPadCurrPosX
+                    let posX = model.currTouchPadPos.X
                     let mode = 
                         match model.controllerMode with 
                         | ControllerMode.Probe -> 0 
@@ -469,9 +469,9 @@ module Demo =
                         | ControllerMode.Clipping -> 2
                         | _ -> 0
                     let nextModeInt = 
-                        if pos <= -0.5 then
+                        if posX <= -0.5 then
                             if mode = 0 then 2 else (mode - 1)
-                        else if pos >= 0.5 then         
+                        else if posX >= 0.5 then         
                             if mode = 2 then 0 else (mode + 1)
                         else
                             mode
@@ -486,7 +486,13 @@ module Demo =
                 else 
                     model
             | None -> model
-        | ChangeTouchpadPos pos -> {model with touchPadCurrPosX = pos}
+        | ChangeTouchpadPos (id, pos) -> 
+            match model.rayDeviceId with 
+            | Some i -> 
+                if i = id && model.screenIntersection then 
+                    model.client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
+            | None -> ()
+            {model with currTouchPadPos = pos}
         | ResetHera -> initial runtime frames
             
 
@@ -539,9 +545,9 @@ module Demo =
             if buttonId = 0 then 
                 let x = value.X
                 if x >=  0.0 then 
-                    [ChangeTouchpadPos x; ScaleUpHera x]
+                    [ChangeTouchpadPos (controllerId, value); ScaleUpHera x]
                 else 
-                    [ChangeTouchpadPos x; ScaleDownHera x]
+                    [ChangeTouchpadPos (controllerId, value); ScaleDownHera x]
             else 
                 []
         | VrMessage.UpdatePose(controllerId, pose) ->
