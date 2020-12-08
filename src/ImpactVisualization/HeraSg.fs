@@ -308,11 +308,11 @@ module HeraSg =
         |> Sg.vertexAttribute DefaultSemantic.Positions (currFrame |> AVal.map (fun f -> f.positions))
         |> Sg.vertexAttribute DefaultSemantic.Normals (currFrame |> AVal.map (fun f -> f.normals))
         |> Sg.vertexAttribute (Sym.ofString "Velocity") (currFrame |> AVal.map (fun f -> f.velocities))
-        |> Sg.vertexAttribute (Sym.ofString "Energy") (currFrame |> AVal.map (fun f -> f.energies))
-        |> Sg.vertexAttribute (Sym.ofString "CubicRootOfDamage") (currFrame |> AVal.map (fun f -> f.cubicRoots))
-        |> Sg.vertexAttribute (Sym.ofString "LocalStrain") (currFrame |> AVal.map (fun f -> f.strains))
-        |> Sg.vertexAttribute (Sym.ofString "AlphaJutzi") (currFrame |> AVal.map (fun f -> f.alphaJutzis))
-        |> Sg.vertexAttribute (Sym.ofString "Pressure") (currFrame |> AVal.map (fun f -> f.pressures))
+        |> Sg.vertexAttribute (Sym.ofString "Energy") (currFrame |> AVal.map (fun f -> Array.map float32 f.energies))
+        |> Sg.vertexAttribute (Sym.ofString "CubicRootOfDamage") (currFrame |> AVal.map (fun f -> Array.map float32 f.cubicRoots))
+        |> Sg.vertexAttribute (Sym.ofString "LocalStrain") (currFrame |> AVal.map (fun f -> Array.map float32 f.strains))
+        |> Sg.vertexAttribute (Sym.ofString "AlphaJutzi") (currFrame |> AVal.map (fun f -> Array.map float32 f.alphaJutzis))
+        |> Sg.vertexAttribute (Sym.ofString "Pressure") (currFrame |> AVal.map (fun f -> Array.map float32 f.pressures))
         |> Sg.shader {  
             do! DefaultSurfaces.trafo
             do! Shaders.pointSprite
@@ -347,8 +347,8 @@ module HeraSg =
         let dci = DrawCallInfo(vertexCount, InstanceCount = 1)
 
         let filterNew = filter |> AVal.map (fun f -> match f with
-                                | Some i -> i
-                                | None -> Box3f.Infinite)
+                                                        | Some i -> i
+                                                        | None -> Box3f.Infinite)
 
         let currentBuffers = frame |> AVal.map (fun i -> frames.[i % frames.Length]) 
         let color = colorValue |> AVal.map (fun c -> C4d c) |> AVal.map (fun x -> V4d(x.R, x.G, x.B, x.A))
@@ -364,7 +364,6 @@ module HeraSg =
         let texture = tfPath |> AVal.map (fun p -> FileTexture(p, TextureParams.empty) :> ITexture )
 
         Sg.render IndexedGeometryMode.PointList dci
-
         |> Sg.vertexBuffer DefaultSemantic.Positions (BufferView(vertices, typeof<V4f>))
         |> Sg.vertexBuffer (Sym.ofString "Velocity")  (BufferView(velocities, typeof<V3f>))
         |> Sg.vertexBuffer (Sym.ofString "Energy") (BufferView(energies, typeof<float32>))
