@@ -275,7 +275,7 @@ module HeraSg =
                          (dataRange : aval<Range>) (colorValue : aval<C4b>) 
                          (cameraView : aval<CameraView>)
                          (runtime : IRuntime)
-                         (frames : Frame1[])  = 
+                         (frames : Frame[])  = 
 
         let mutable mode = BlendMode(true)
         mode.Enabled <- true
@@ -333,7 +333,7 @@ module HeraSg =
                         (sphereProbe : aval<Sphere3d>)
                         (cameraView : aval<CameraView>)
                         (runtime : IRuntime)
-                        (frames : Frame1[])  = 
+                        (frames : Frame[])  = 
 
         let filterNew = filter |> AVal.map (fun f -> match f with
                                                         | Some i -> i
