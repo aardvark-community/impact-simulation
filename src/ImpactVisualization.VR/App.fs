@@ -126,7 +126,7 @@ module Demo =
             radius = radius
         }
         
-    let rec update (runtime : IRuntime) (frames : Frame1[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
+    let rec update (runtime : IRuntime) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
         let planePos0 = V3d(-0.7, 0.05, -0.5)
         let planePos1 = V3d(-0.7, 0.05, 0.5)
         let planePos2 = V3d(0.7, 0.05, 0.5)
@@ -548,12 +548,12 @@ module Demo =
             if pose.isValid then [MoveController (controllerId, pose.deviceToWorld)] else []
         | _ -> []
 
-    let ui (runtime : IRuntime) (data : Frame1[]) (info : VrSystemInfo) (m : AdaptiveModel) : DomNode<Message> = // 2D UI
+    let ui (runtime : IRuntime) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : DomNode<Message> = // 2D UI
         div [] [
             AardVolume.App.view runtime data m.twoDModel |> UI.map TwoD
         ]
 
-    let vr (runtime : IRuntime) (data : Frame1[]) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
+    let vr (runtime : IRuntime) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
 
         let pass0 = RenderPass.main
         let pass1 = RenderPass.after "pass1" RenderPassOrder.Arbitrary pass0 
@@ -914,9 +914,7 @@ module Demo =
         }
 
     let app (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
-        //let data = DataLoader.loadData runtime 0 7
-        //let frames = data |> (fun (elem, _, _) ->  elem)
-        let frames = NewDataLoader.loadDataAllFrames
+        let frames = DataLoader.loadDataAllFrames
         {
             unpersist = Unpersist.instance
             initial = initial runtime frames

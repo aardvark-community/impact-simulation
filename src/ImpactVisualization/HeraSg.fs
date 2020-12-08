@@ -8,16 +8,6 @@ open FSharp.Data.Adaptive
 open Aardvark.SceneGraph
 open AardVolume.Model
 
-//[<ReflectedDefinition>]
-//let isInsideBox (filter : Box3f) (pos : V3f) =
-//    let min = filter.Min
-//    let max = filter.Max
-
-//    if (min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z) then
-//        true
-//    else
-//        false
-
 module Shaders = 
 
     open FShade

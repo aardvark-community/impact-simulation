@@ -23,19 +23,6 @@ type Values =
 
 type Frame = 
     {
-        positions   : V3f[]
-        vertices    : IBuffer
-        velocities  : IBuffer
-        energies    : IBuffer
-        cubicRoots  : IBuffer
-        strains     : IBuffer
-        alphaJutzis : IBuffer
-        pressures   : IBuffer
-        values      : Values
-    }
-
-type Frame1 = 
-    {
         pointSet    : PointSet
         positions   : V3f[]
         normals     : V3f[]
@@ -138,7 +125,7 @@ type Model =
         dataPath : string 
     }
 
-module NewDataLoader = 
+module DataLoader = 
     let loadOctreeFromStore storepath =
         let id = storepath + ".key" |> File.readAllText
         let store = (new SimpleDiskStore(storepath)).ToPointCloudStore()
@@ -182,86 +169,3 @@ module NewDataLoader =
     let files = Directory.EnumerateDirectories datapath |> Seq.toArray |> Array.filter (fun file -> file.EndsWith(".store"))
 
     let loadDataAllFrames = files |> Array.map (fun file -> loadDataSingleFrame file)
-
-
-
-
-module DataLoader = 
-
-    let loadData (runtime : IRuntime) startFrame frames = 
-
-        let heraData = @"..\..\..\data"
-    
-        let serializer = MBrace.FsPickler.FsPickler.CreateBinarySerializer()
-    
-        let prepareData (d : DataParser.Parser.Data) : Frame = 
-            let frame = {
-                vertices    = runtime.PrepareBuffer (ArrayBuffer (Array.map (fun v3 -> V4f(v3,1.0f)) d.vertices)) :> IBuffer
-                velocities  = runtime.PrepareBuffer (ArrayBuffer d.velocities) :> IBuffer
-                energies    = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.internalEnergies)) :> IBuffer
-                cubicRoots  = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.cubicRootsOfDamage)) :> IBuffer
-                strains     = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.localStrains)) :> IBuffer
-                alphaJutzis = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.alphaJutzis)) :> IBuffer
-                pressures   = runtime.PrepareBuffer (ArrayBuffer (Array.map float32 d.pressures)) :> IBuffer
-                positions   = d.vertices 
-                values      = {
-                    energies    = d.internalEnergies
-                    cubicRoots  = d.cubicRootsOfDamage
-                    strains     = d.localStrains
-                    alphaJutzis = d.alphaJutzis
-                    pressures   = d.pressures
-                    }
-                }
-            frame
-    
-        let cachedFileEnding = "_cache_2"
-   
-        let convertToCacheFile (fileName : string) =
-            let cacheName = fileName + cachedFileEnding
-            if not (File.Exists cacheName) then
-                let d,b = DataParser.Parser.parseFile fileName
-                let data = serializer.Pickle((d,b))
-                File.writeAllBytes cacheName data
-        
-        let loadDataAndCache (fileName : string) =
-            if fileName.EndsWith(cachedFileEnding) then
-                let bytes = File.readAllBytes fileName
-                let (d : DataParser.Parser.Data, b : Box3f) = serializer.UnPickle(bytes) // exception hier wenn nicht richtiger inhalt... 
-
-                let buffer = prepareData(d)
-                let vertexCount = d.vertices.Length
-
-                Some(buffer, b, vertexCount)                 
-                
-            else
-                convertToCacheFile fileName
-                None           
-        
-        let allFiles = 
-            Directory.EnumerateFiles heraData |> Seq.toArray 
-            |> Array.map loadDataAndCache
-            |> Array.choose (fun elem -> elem)
-
-        //TODO: Check for all possible exceptions! -> no data, endFrame > startFrame 
-        let framesToAnimate startFrame frames =
-            let l = allFiles.Length
-            if l = 0 then
-                Log.warn "There is no data!"
-                Array.empty, Box3f.Invalid, 0
-            else
-                let mutable endFrame = 0
-                if frames > l then endFrame <- l - 1 else endFrame <- frames - 1 //check if out of bounds
-                let framesToAnimate = allFiles.[startFrame..endFrame]
-                let buffers = framesToAnimate |> Array.map (fun (elem, _, _) ->  elem)
-                let box = framesToAnimate.[0] |> (fun (_, b, _) -> b)
-                let vertexCount = framesToAnimate.[0] |> (fun (_, _, c) -> c)
-                buffers, box, vertexCount     
-
-        framesToAnimate startFrame frames
-
-
-
-
-                
-
-        

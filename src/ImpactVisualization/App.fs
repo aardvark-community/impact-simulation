@@ -61,7 +61,7 @@ module App =
         let rescale = rounded / Math.Pow(10.0, x)
         rescale
 
-    let initial (frames : Frame1[]) = 
+    let initial (frames : Frame[]) = 
         let initValues = frames.[0].energies
         let rangeEnergy = initValues.GetBoundingRange()
         let minValue = rangeEnergy.Min
@@ -140,19 +140,6 @@ module App =
 
     let sw = System.Diagnostics.Stopwatch.StartNew()
 
-    //let filteri condition values = 
-    //    values
-    //    |> Array.mapi (fun i v -> (v, i))
-    //    |> Array.filter (fun (v, i) -> condition v)
-    //    |> Array.map (fun (v, i) -> i)
-
-    //let filterValue condition (pos : V3f[]) value = 
-    //    Array.zip pos value
-    //    |> Array.filter (fun (pos, v) -> condition pos)
-    //    |> Array.map (fun (pos, v) -> v)
-
-    //// --------------------- Longer, but more sophisticated solution -----------------------
-
     let zip5 a (b : _ []) (c : _ []) (d : _ []) (e : _ [])=
         Array.init (Array.length a) (fun i -> a.[i], b.[i], c.[i], d.[i], e.[i])
 
@@ -171,15 +158,6 @@ module App =
             e.[i] <- v)
         a, b, c, d, e
 
-    //let filterAllValues condition (pos : V3f[]) (values : Values) = 
-    //    let allValuesArray = zip5 values.energies values.cubicRoots values.strains values.alphaJutzis values.pressures |> Seq.distinct |> Seq.toArray
-    //    let temp = Array.zip pos allValuesArray
-    //    let filtered = 
-    //        temp
-    //        |> Array.filter (fun (pos, v) -> condition pos)
-    //        |> Array.map (fun (pos, v) -> v)
-    //    filtered
-
     let unzipValues filtered = 
         let e, c, s, a, p = unzip5 filtered
         let values : Values = { energies = e
@@ -190,17 +168,7 @@ module App =
                                 }
         values
 
-    //// --------------------------------------------------------------------------------
-  
-    //let filterData (filter : option<Box3f>) (positions : V3f[]) (values : float32[]) = 
-    //    let filter_ = filter |> (fun elem -> defaultArg elem Box3f.Invalid)
-    //    let isInsideBox (pos : V3f) = filter_.Contains(pos)    
-    //    let filteredValues = filterValue isInsideBox positions values
-    //    filteredValues
-
-
-    
-    let createChunk (box : Box3d) (frame : Frame1) =
+    let createChunk (box : Box3d) (frame : Frame) =
         let chunk = 
             Queries.QueryPointsCustom frame.pointSet.Root.Value
                 (fun n -> box.Contains n.BoundingBoxExactGlobal) 
@@ -212,7 +180,7 @@ module App =
         chunk
 
 
-    let filterDataForOneFrame (frame : Frame1) (filter : option<Box3f>) (renderVal : RenderValue) = 
+    let filterDataForOneFrame (frame : Frame) (filter : option<Box3f>) (renderVal : RenderValue) = 
          let box = filter |> (fun elem -> defaultArg elem Box3f.Invalid) |> (fun b -> b.BoundingBox3d)
          let chunk = createChunk box frame
          let extract f = chunk |> Array.map f |> Array.concat
@@ -225,29 +193,8 @@ module App =
             | RenderValue.Pressure -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) 
             | _ -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
          currFilteredData |> Array.map (fun v -> float v)
-
-    //let filterValueFrames condition (pos : V3f[]) (values : Values) = 
-    //    let filteredEnergies = filterValue condition pos values.energies
-    //    let filteredCubicRoots = filterValue condition pos values.cubicRoots
-    //    let filteredStrains = filterValue condition pos values.strains
-    //    let filteredAlphaJutzis = filterValue condition pos values.alphaJutzis
-    //    let filteredPressures = filterValue condition pos values.pressures
-    //    let newValues : Values = { energies = filteredEnergies
-    //                               cubicRoots = filteredCubicRoots  
-    //                               strains = filteredStrains
-    //                               alphaJutzis = filteredAlphaJutzis
-    //                               pressures = filteredPressures }
-    //    newValues
-
-    
-
-    //let filterDataFrames (filter : Box3f) (positions : V3f[]) (frame : Frame) = 
-    //    let isInsideBox (pos : V3f) = filter.Contains(pos)    
-    //    let filteredValues = filterAllValues isInsideBox positions frame.values
-    //    filteredValues
-
         
-    let filterDataFrames (filter : Box3f) (frame : Frame1) = 
+    let filterDataFrames (filter : Box3f) (frame : Frame) = 
         let box = filter.BoundingBox3d
         let chunk = createChunk box frame
         let extract f = chunk |> Array.map f |> Array.concat
@@ -257,53 +204,14 @@ module App =
         let alphaJutzi = extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
         let pressure = extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
         zip5 energies cubicRoots strain alphaJutzi pressure
-        
 
+    let filterDataForAllFrames (frames : Frame[]) (filter : option<Box3f>) (renderVal : RenderValue) = 
+        frames |> Array.map (fun frame -> filterDataForOneFrame frame filter renderVal)
 
-    //let filterDataForAllFrames (frames : Frame[]) (filter : option<Box3f>) (renderVal : RenderValue) = 
-    //    let temp = 
-    //        frames
-    //        |> Array.mapi (fun i frame -> 
-    //                        let positions = frames.[i].positions
-    //                        let renderValues = 
-    //                            match renderVal with
-    //                            | RenderValue.Energy ->  frames.[i].values.energies
-    //                            | RenderValue.CubicRoot -> frames.[i].values.cubicRoots
-    //                            | RenderValue.Strain -> frames.[i].values.strains
-    //                            | RenderValue.AlphaJutzi -> frames.[i].values.alphaJutzis
-    //                            | RenderValue.Pressure -> frames.[i].values.pressures 
-    //                            | _ -> frames.[i].values.energies
-    //                        let currFilteredData = filterData filter positions renderValues
-    //                        currFilteredData
-    //        )
-    //    temp
-
-    let filterDataForAllFrames (frames : Frame1[]) (filter : option<Box3f>) (renderVal : RenderValue) = 
-        let temp = 
-            frames
-            |> Array.map (fun frame -> 
-                            //let box =
-                            //    match filter with 
-                            //    | Some b -> b.BoundingBox3d
-                            //    | None -> Box3d.Infinite
-                            filterDataForOneFrame frame filter renderVal
-            )
-        temp
-
-    let update (frames : Frame1[]) (m : Model) (msg : Message) =
+    let update (frames : Frame[]) (m : Model) (msg : Message) =
 
         let numOfFrames = frames.Length
         let positions = frames.[m.frame].positions
-        //let temp = frames.[0].values.energies
-        //let range = temp.GetBoundingRange()
-        //let minValue = range.Min
-        //let maxValue = range.Max
-        //let normalized = 
-        //    temp 
-        //    |> Array.map (fun elem -> (elem - minValue)/(maxValue - minValue))
-
-        //let norm = normalized
-
         match msg with
             | SetPointSize s -> { m with pointSize = s }
             | TogglePointSize -> 
@@ -333,14 +241,6 @@ module App =
                         filteredData
                     else 
                         m.data.arr
-
-                //let currData = 
-                //    if isCurrentFilterSet then  
-                //        let filteredData = filterData m.filter positions m.values
-                //        filteredData
-                //    else 
-                //        let temp : float[] = Array.empty
-                //        temp
 
                 if m.playAnimation then sw.Start() else sw.Stop()
                 { m with 
@@ -564,13 +464,10 @@ module App =
 
     let renderValues = AMap.ofArray((Enum.GetValues typeof<RenderValue> :?> (RenderValue [])) |> Array.map (fun c -> (c, text (Enum.GetName(typeof<RenderValue>, c)) )))
 
-    let view (runtime : IRuntime) (data : Frame1[]) (m : AdaptiveModel) =
-
-        //let frames = data |> (fun (elem, _, _) ->  elem)
-
+    let view (runtime : IRuntime) (data : Frame[]) (m : AdaptiveModel) =
         let shuffleR (r : Random) xs = xs |> Seq.sortBy (fun _ -> r.Next())
         
-        let encodeToCSVData (data : Frame1[]) =
+        let encodeToCSVData (data : Frame[]) =
             let builder = System.Text.StringBuilder()
             //let initValues = data.[0].values
             //let positions = data.[0].positions
@@ -941,9 +838,7 @@ module App =
 
     let app (runtime : IRuntime) =
         // load data
-        //let data = DataLoader.loadData runtime 0 7
-        //let frames = data |> (fun (elem, _, _) ->  elem)
-        let frames = NewDataLoader.loadDataAllFrames
+        let frames = DataLoader.loadDataAllFrames
         {
             initial = initial frames // store data Hera frame as array to model....
             update = update frames
