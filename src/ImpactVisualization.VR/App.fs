@@ -111,10 +111,6 @@ module Demo =
             menuControllerId = None
             controllerMode = ControllerMode.Ray
             currTouchPadPos = V2d.OO
-            client = 
-                let br = new Browser(null,AVal.constant System.DateTime.Now,runtime, true, AVal.constant (screenResolution))
-                let res = br.LoadUrl "http://localhost:4321"
-                br
         }
 
     //let updateController (m : Model) : Model = 
@@ -127,7 +123,7 @@ module Demo =
             radius = radius
         }
         
-    let rec update (runtime : IRuntime) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
+    let rec update (runtime : IRuntime) (client : Browser) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
         let planePos0 = V3d(-0.7, 0.05, -0.5)
         let planePos1 = V3d(-0.7, 0.05, 0.5)
         let planePos2 = V3d(0.7, 0.05, 0.5)
@@ -228,10 +224,10 @@ module Demo =
             let hitPoint = initRay.Hits(model.tvQuad, &hit)
             let currRay =
                 if intersect then
-                    model.client.SetFocus true
+                    client.SetFocus true
                     Ray3d(initRay.Origin, hit.Point)
                 else
-                    model.client.SetFocus false
+                    client.SetFocus false
                     initRay
            // if hitPoint then printf "Hit Point %A \n" hit.Point
             let sphereIntersection (controllerSphere : Sphere3d) (probe : Sphere3d) = controllerSphere.Intersects(probe)
@@ -262,7 +258,7 @@ module Demo =
                 if intersect then
                     let screenCoords = (V2d(hit.Coord.Y * screenResolution.ToV2d().X, hit.Coord.X * screenResolution.ToV2d().Y)).ToV2i()
                     let screenPos = PixelPosition(screenCoords, screenResolution.X, screenResolution.Y)
-                    if model.rayTriggerClicked then model.client.Mouse.Move(screenPos)
+                    if model.rayTriggerClicked then client.Mouse.Move(screenPos)
                     screenPos
                 else 
                     PixelPosition()
@@ -300,9 +296,9 @@ module Demo =
             let currDeviceTrafo = trafoOrIdentity currDevice
             if not model.controllerMenuOpen then 
                 match model.controllerMode with
-                | ControllerMode.Probe -> update runtime frames state vr model (CreateProbe (id, currDevice))
-                | ControllerMode.Ray -> update runtime frames state vr model (CreateRay (id, currDeviceTrafo))
-                | ControllerMode.Clipping -> update runtime frames state vr model (CreateClipping (id, currDevice, currDeviceTrafo))
+                | ControllerMode.Probe -> update runtime client frames state vr model (CreateProbe (id, currDevice))
+                | ControllerMode.Ray -> update runtime client frames state vr model (CreateRay (id, currDeviceTrafo))
+                | ControllerMode.Clipping -> update runtime client frames state vr model (CreateClipping (id, currDevice, currDeviceTrafo))
                 | _ -> model
             else 
                 { model with 
@@ -356,7 +352,7 @@ module Demo =
         | CreateRay (id, trafo) ->
             match model.rayDeviceId with 
             | Some i -> if i = id then 
-                            model.client.Mouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
+                            client.Mouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
                             {model with 
                                 rayTriggerClicked = true
                                 clickPosition = Some model.screenHitPoint}
@@ -417,8 +413,8 @@ module Demo =
                 | ControllerMode.Ray ->     
                     match model.rayDeviceId with
                     | Some i -> if i = id then
-                                    model.client.Mouse.Up(model.screenCoordsHitPos, MouseButtons.Left)
-                                    model.client.Mouse.Click(model.screenCoordsHitPos, MouseButtons.Left)
+                                    client.Mouse.Up(model.screenCoordsHitPos, MouseButtons.Left)
+                                    client.Mouse.Click(model.screenCoordsHitPos, MouseButtons.Left)
                                     {model with 
                                         rayTriggerClicked = false
                                         clickPosition = None}
@@ -490,7 +486,7 @@ module Demo =
             match model.rayDeviceId with 
             | Some i -> 
                 if i = id && model.screenIntersection then 
-                    model.client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
+                    client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
             | None -> ()
             {model with currTouchPadPos = pos}
         | ResetHera -> initial runtime frames
@@ -559,7 +555,7 @@ module Demo =
             AardVolume.App.view runtime data m.twoDModel |> UI.map TwoD
         ]
 
-    let vr (runtime : IRuntime) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
+    let vr (runtime : IRuntime) (client : Browser) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
 
         let pass0 = RenderPass.main
         let pass1 = RenderPass.after "pass1" RenderPassOrder.Arbitrary pass0 
@@ -739,7 +735,7 @@ module Demo =
                     |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
                     |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.OI; V2f.II; V2f.IO |])
                     |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
-                    |> Sg.diffuseTexture m.client.Texture 
+                    |> Sg.diffuseTexture client.Texture 
                     |> Sg.shader {
                         do! DefaultSurfaces.trafo
                         do! DefaultSurfaces.diffuseTexture
@@ -921,13 +917,15 @@ module Demo =
 
     let app (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
         let frames = DataLoader.loadDataAllFrames
+        let client = new Browser(null,AVal.constant System.DateTime.Now,runtime, true, AVal.constant (screenResolution))
+        let res = client.LoadUrl "http://localhost:4321"
         {
             unpersist = Unpersist.instance
             initial = initial runtime frames
-            update = update runtime frames
+            update = update runtime client frames
             threads = threads
             input = input 
             ui = ui runtime frames
-            vr = vr runtime frames
+            vr = vr runtime client frames
             pauseScene = Some pause
         }

@@ -80,12 +80,8 @@ type Model =
         controllerMode : ControllerMode
 
         currTouchPadPos : V2d
-        
 
         [<NonAdaptive>]
         rayTriggerClicked : bool
-
-        [<NonAdaptive>]
-        client : Browser
 
 }
