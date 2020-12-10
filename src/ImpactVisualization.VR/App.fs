@@ -423,13 +423,25 @@ module Demo =
                                     let sphere = Sphere3d(spherePos, sphereRadius)
                                     let intersection = model.heraBox.Intersects(sphere)
                                     let probe = createProbe spherePos sphereRadius intersection
+
+                                    let filteredData = 
+                                        if intersection then
+                                            AardVolume.App.filterDataForOneFrameSphere frames.[model.twoDModel.frame] (Some sphere) model.twoDModel.renderValue
+                                        else 
+                                            model.twoDModel.data.arr
+                                    let updatedTwoDmodel = 
+                                        { model.twoDModel with
+                                            data = { version = model.twoDModel.data.version + 1; arr = filteredData}
+                                        }
+
                                     {model with
                                         currentProbeManipulated = false
                                         allProbes = model.allProbes.Add(probe.id, probe)
                                         sphereScale = 1.0
                                         sphereControllerId = None
                                         sphereScalerId = None
-                                        deletionControllerId = delControllerId}
+                                        deletionControllerId = delControllerId
+                                        twoDModel = updatedTwoDmodel}
                                 else
                                     {model with 
                                         sphereScalerId = None

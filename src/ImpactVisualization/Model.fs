@@ -41,6 +41,10 @@ type RenderValue =
     | AlphaJutzi = 3
     | Pressure = 4
 
+type FilterType = 
+    | Box of Box3d
+    | Sphere of Sphere3d
+
 type Dim = X | Y | Z
 
 type Value = Min | Max
@@ -73,6 +77,8 @@ type ClippingPlane =
     y : float
     z : float
     }
+
+
 
 [<ModelType;CustomEquality;NoComparison>]
 type VersionedArray = 

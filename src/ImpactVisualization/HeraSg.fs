@@ -217,11 +217,7 @@ module Shaders =
 
             let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && isNotInsideSphere && minRange <= linearCoord && linearCoord <= maxRange
 
-            let color = 
-                if (isInAllRanges) then
-                    transferFunc
-                else
-                    colorValue
+            let color = if (isInAllRanges) then transferFunc else colorValue
 
             if (wp.X >= dm.x.min && wp.X <= dm.x.max && wp.Y >= dm.y.min && wp.Y <= dm.y.max && wp.Z >= dm.z.min && wp.Z <= dm.z.max) &&
                 (wp.X <= plane.x && wp.Y <= plane.y && wp.Z <= plane.z) && isOutsideControllerPlane then

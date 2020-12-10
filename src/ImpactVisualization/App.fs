@@ -169,7 +169,7 @@ module App =
                                 }
         values
 
-    let createChunk (box : Box3d) (frame : Frame) =
+    let createBoxQuery (box : Box3d) (frame : Frame) =
         let chunk = 
             Queries.QueryPointsCustom frame.pointSet.Root.Value
                 (fun n -> box.Contains n.BoundingBoxExactGlobal) 
@@ -180,10 +180,38 @@ module App =
             |> Seq.toArray
         chunk
 
+    //TODO: Must be improved to really check intersection between Sphere and Box
+    let createSphereQuery (sphere : Sphere3d) (frame : Frame) =
+        let chunk = 
+            let sphereBox = sphere.BoundingBox3d
+            Queries.QueryPointsCustom frame.pointSet.Root.Value
+                (fun n -> sphereBox.Contains n.BoundingBoxExactGlobal) 
+                (fun n -> not (sphereBox.Intersects n.BoundingBoxExactGlobal)) 
+                (fun p -> sphere.Center.Distance(p) <= sphere.Radius)
+                Hera.Defs.all
+                None
+            |> Seq.toArray
+        chunk
+
 
     let filterDataForOneFrame (frame : Frame) (filter : option<Box3f>) (renderVal : RenderValue) = 
          let box = filter |> (fun elem -> defaultArg elem Box3f.Invalid) |> (fun b -> b.BoundingBox3d)
-         let chunk = createChunk box frame
+         let chunk = createBoxQuery box frame
+         let extract f = chunk |> Array.map f |> Array.concat
+         let currFilteredData = 
+            match renderVal with
+            | RenderValue.Energy -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) 
+            | RenderValue.CubicRoot -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
+            | RenderValue.Strain -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
+            | RenderValue.AlphaJutzi -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
+            | RenderValue.Pressure -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) 
+            | _ -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
+         currFilteredData |> Array.map (fun v -> float v)
+
+    //TODO: Connect the two filtering funnctions!!!!!!!!!!!!
+    let filterDataForOneFrameSphere (frame : Frame) (filter : option<Sphere3d>) (renderVal : RenderValue) = 
+         let sphere = filter |> (fun elem -> defaultArg elem Sphere3d.Invalid)
+         let chunk = createSphereQuery sphere frame
          let extract f = chunk |> Array.map f |> Array.concat
          let currFilteredData = 
             match renderVal with
@@ -197,7 +225,7 @@ module App =
         
     let filterDataFrames (filter : Box3f) (frame : Frame) = 
         let box = filter.BoundingBox3d
-        let chunk = createChunk box frame
+        let chunk = createBoxQuery box frame
         let extract f = chunk |> Array.map f |> Array.concat
         let energies =  extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
         let cubicRoots = extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
