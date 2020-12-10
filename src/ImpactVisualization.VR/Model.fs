@@ -34,28 +34,38 @@ type Model =
         text : string
         twoDModel : AardVolume.Model.Model
 
+        //Controllers
         devicesTrafos : HashMap<int, Trafo3d>
 
+        //Hera
         controllerTrafo : Option<Trafo3d>
         heraTrafo : Option<Trafo3d>
         heraToControllerTrafo : Option<Trafo3d>
         grabberId : Option<int>
         allowHeraScaling : bool
+        heraBox : Box3d
 
+        //Sphere translation and scaling
         sphereControllerTrafo: Option<Trafo3d>
         sphereControllerId: Option<int>
         sphereScalerTrafo : Option<Trafo3d>
         sphereScalerId : Option<int>
 
+        //Scaling factors
         scalingFactorHera : float
         sphereScale : float 
         sphereRadius : float 
         sphereColor : C4b
 
+        //Ray
         rayDeviceId : Option<int>
         ray : Ray3d
         rayColor : C4b
 
+        [<NonAdaptive>]
+        rayTriggerClicked : bool
+
+        //TV
         tvQuad : Quad3d
         screenIntersection : bool
         hitPoint : V3d
@@ -63,6 +73,7 @@ type Model =
         screenCoordsHitPos : PixelPosition
         clickPosition : Option<V2d>
 
+        //Probes manipulation
         currentProbe : Option<Probe>
         currentProbeManipulated : bool 
         allProbes : HashMap<string, Probe>
@@ -70,20 +81,17 @@ type Model =
         deletionControllerId : Option<int>
         probeIntersectionId : Option<string>
         
+        //Controller clipping plane
         clippingPlaneDeviceTrafo : Option<Trafo3d>
         clippingPlaneDeviceId : Option<int>
         planeCorners : Quad3d
 
+        //Controller menu
         controllerMenuOpen : bool
         menuControllerTrafo : Option<Trafo3d>
         menuControllerId : Option<int>
         controllerMode : ControllerMode
 
+        //Touchpad
         currTouchPadPos : V2d
-
-        heraBox : Box3d
-
-        [<NonAdaptive>]
-        rayTriggerClicked : bool
-
 }
