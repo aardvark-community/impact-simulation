@@ -99,6 +99,7 @@ module App =
             { 
             cameraState = FreeFlyController.initial; 
             frame = 0;
+            currHeraBBox = Box3d.Infinite
             pointSize = 8.0
             playAnimation = true
             animateAllFrames = false
@@ -235,6 +236,8 @@ module App =
                     | None -> false
                     | Some(_) -> true
 
+                let currBBox = frames.[currFrame].pointSet.BoundingBox
+
                 let currData = 
                     if isCurrentFilterSet && m.animateAllFrames then  
                         let filteredData = m.filteredAllFrames.[currFrame]
@@ -245,6 +248,7 @@ module App =
                 if m.playAnimation then sw.Start() else sw.Stop()
                 { m with 
                     frame = currFrame 
+                    currHeraBBox = currBBox
                     data = { version = m.data.version + 1; arr = currData }
                 }
             | CameraMessage msg ->

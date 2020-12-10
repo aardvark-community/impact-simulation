@@ -111,16 +111,18 @@ module Demo =
             menuControllerId = None
             controllerMode = ControllerMode.Ray
             currTouchPadPos = V2d.OO
+            heraBox = Box3d.Infinite
         }
 
     //let updateController (m : Model) : Model = 
     //    failwith ""
 
-    let createProbe (pos : V3d) (radius : float) : Probe = 
+    let createProbe (pos : V3d) (radius : float) (inside: bool) : Probe = 
         {
             id = Guid.NewGuid().ToString()
             center = pos
             radius = radius
+            insideHera = inside
         }
         
     let rec update (runtime : IRuntime) (client : Browser) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
@@ -273,8 +275,29 @@ module Demo =
                     let p3 = currDeviceTrafo.Forward.TransformPos(planePos3)
                     Quad3d(p0, p1, p2, p3)
                 | None -> model.planeCorners
-
             let currMenuTrafo = newOrOldTrafo id trafo model.menuControllerId model.menuControllerTrafo
+
+            let scale = Trafo3d(Scale3d(model.scalingFactorHera))
+            let translation = Trafo3d.Translation(0.0, 0.0, 0.7)
+            let heraBBox = model.twoDModel.currHeraBBox.Transformed(scale * translation * ((trafoOrIdentity model.heraToControllerTrafo) * (trafoOrIdentity contrTrafo)))
+
+            let allProbesUpdated =
+                if model.grabberId.IsSome && not model.allProbes.IsEmpty then 
+                    model.allProbes
+                    |> HashMap.map (fun key probe -> 
+                        let sphere = Sphere3d(probe.center, probe.radius)
+                        let intersection = heraBBox.Intersects(sphere)
+                        let updatedProbe = 
+                            {
+                                center = probe.center
+                                radius = probe.radius
+                                insideHera = intersection
+                                id = probe.id
+                            }
+                        updatedProbe
+                        )
+                else 
+                    model.allProbes
             {model with 
                 controllerTrafo = contrTrafo
                 sphereControllerTrafo = sphereContrTrafo
@@ -290,7 +313,9 @@ module Demo =
                 hitPoint = hit.Point
                 screenHitPoint = hit.Coord
                 screenCoordsHitPos = screenCoordsHitPos
-                probeIntersectionId = probeIntersection}
+                probeIntersectionId = probeIntersection
+                heraBox = heraBBox
+                allProbes = allProbesUpdated}
         | ActivateControllerMode id ->
             let currDevice = model.devicesTrafos.TryFind(id)
             let currDeviceTrafo = trafoOrIdentity currDevice
@@ -395,7 +420,9 @@ module Demo =
                                     let t = trafoOrIdentity model.sphereControllerTrafo
                                     let spherePos = t.Forward.TransformPos(V3d.OOO)
                                     let sphereRadius = model.sphereRadius * model.sphereScale
-                                    let probe = createProbe spherePos sphereRadius
+                                    let sphere = Sphere3d(spherePos, sphereRadius)
+                                    let intersection = model.heraBox.Intersects(sphere)
+                                    let probe = createProbe spherePos sphereRadius intersection
                                     {model with
                                         currentProbeManipulated = false
                                         allProbes = model.allProbes.Add(probe.id, probe)
@@ -590,6 +617,8 @@ module Demo =
             |> Sg.andAlso deviceSgs
             |> Sg.pass pass0
 
+
+
         let trafoOrIdentity trafo = 
             match trafo with 
             | Some t -> t
@@ -650,6 +679,14 @@ module Demo =
             |> Sg.pass pass0
             //|> Sg.blendMode (AVal.constant mode)
 
+        let heraBBox = 
+            Sg.box (AVal.constant C4b.White) m.twoDModel.currHeraBBox
+            |> Sg.noEvents
+            |> Sg.trafo heraScaleTrafo
+            |> Sg.translate 0.0 0.0 0.7
+            |> Sg.trafo trafo
+            |> Sg.fillMode (FillMode.Line |> AVal.constant)
+
         let currentSphereProbeSg = 
             Sg.sphere 9 m.sphereColor m.sphereRadius
             |> Sg.noEvents
@@ -672,12 +709,15 @@ module Demo =
                                             | Some dId -> C4b(1.0,0.0,0.0,0.4) 
                                             | None -> C4b(0.0,1.0,0.0,0.4) 
                                         else 
-                                            C4b(1.0,1.0,1.0,0.4)
-                            | None -> C4b(1.0,1.0,1.0,0.4)
+                                            if p.insideHera then C4b(0.0,0.0,1.0,0.4)  else C4b(1.0,1.0,1.0,0.4)
+                            | None -> if p.insideHera then C4b(0.0,0.0,1.0,0.4)  else C4b(1.0,1.0,1.0,0.4)
                         ) m.probeIntersectionId m.deletionControllerId
+                    let sphere = Sphere3d(p.center, p.radius)
+                    let sphereBoxSg = Sg.box' C4b.White sphere.BoundingBox3d |> Sg.noEvents |> Sg.fillMode (FillMode.Line |> AVal.constant)
                     Sg.sphere 9 color (AVal.constant p.radius)
                     |> Sg.noEvents
                     |> Sg.transform (Trafo3d.Translation(p.center))
+                   // |> Sg.andAlso sphereBoxSg
                     |> Some
                 )
             ) 

@@ -95,6 +95,7 @@ type Model =
     {
         cameraState : CameraControllerState
         frame : int
+        currHeraBBox : Box3d
 
         pointSize : float
         playAnimation : bool

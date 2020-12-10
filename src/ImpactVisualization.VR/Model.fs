@@ -22,6 +22,7 @@ type ControllerMode =
 type Probe = {
     center : V3d
     radius : float
+    insideHera : bool
 
     [<NonAdaptive>]
     id : string
@@ -60,7 +61,6 @@ type Model =
         hitPoint : V3d
         screenHitPoint : V2d 
         screenCoordsHitPos : PixelPosition
-
         clickPosition : Option<V2d>
 
         currentProbe : Option<Probe>
@@ -80,6 +80,8 @@ type Model =
         controllerMode : ControllerMode
 
         currTouchPadPos : V2d
+
+        heraBox : Box3d
 
         [<NonAdaptive>]
         rayTriggerClicked : bool
