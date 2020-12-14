@@ -15,6 +15,7 @@ open Aardvark.Application.OpenVR
 open FSharp.Data.Adaptive
 
 open AardVolume.Model
+open AardVolume.App
 open ImpactVisualization
 open Aardvark.Cef
 
@@ -421,17 +422,20 @@ module Demo =
                                     let spherePos = t.Forward.TransformPos(V3d.OOO)
                                     let sphereRadius = model.sphereRadius * model.sphereScale
                                     let sphere = Sphere3d(spherePos, sphereRadius)
+                                    printf "sphere Pos %A" spherePos
                                     let intersection = model.heraBox.Intersects(sphere)
                                     let probe = createProbe spherePos sphereRadius intersection
+                                    let mTwoD = model.twoDModel
 
                                     let filteredData = 
                                         if intersection then
-                                            AardVolume.App.filterDataForOneFrameSphere frames.[model.twoDModel.frame] (Some sphere) model.twoDModel.renderValue
+                                            let array = filterDataForOneFrameSphere frames.[mTwoD.frame] (Some sphere) mTwoD.renderValue
+                                            array
                                         else 
-                                            model.twoDModel.data.arr
+                                            mTwoD.data.arr
                                     let updatedTwoDmodel = 
-                                        { model.twoDModel with
-                                            data = { version = model.twoDModel.data.version + 1; arr = filteredData}
+                                        { mTwoD with
+                                            data = { version = mTwoD.data.version + 1; arr = filteredData}
                                         }
 
                                     {model with

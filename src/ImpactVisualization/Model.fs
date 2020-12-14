@@ -9,6 +9,7 @@ open System.IO
 
 open Hera
 open FSharp.Data.Adaptive
+open Aardvark.Data.Points
 open Aardvark.Geometry.Points
 open Uncodium.SimpleStore
 
@@ -41,9 +42,20 @@ type RenderValue =
     | AlphaJutzi = 3
     | Pressure = 4
 
+type FilterQuery<'a> = 'a -> Frame -> GenericChunk[]
+type AppliedFilterQuery = Frame -> GenericChunk[]
+
 type FilterType = 
     | Box of Box3d
     | Sphere of Sphere3d
+
+type FilterProbeGeneric<'a> = 
+    {
+        filterFunc : FilterQuery<'a>
+        probe : 'a
+    }
+
+type FilterProbe = FilterProbeGeneric<FilterType>
 
 type Dim = X | Y | Z
 
@@ -77,7 +89,6 @@ type ClippingPlane =
     y : float
     z : float
     }
-
 
 
 [<ModelType;CustomEquality;NoComparison>]
@@ -120,7 +131,7 @@ type Model =
         data : VersionedArray
         values : VersionedArray
 
-        filter : option<Box3f>
+        filter : option<FilterProbe>
         filtered : list<float> 
         filteredAllFrames : float [] []
 

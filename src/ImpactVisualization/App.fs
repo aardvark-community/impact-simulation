@@ -193,10 +193,10 @@ module App =
             |> Seq.toArray
         chunk
 
-
-    let filterDataForOneFrame (frame : Frame) (filter : option<Box3f>) (renderVal : RenderValue) = 
-         let box = filter |> (fun elem -> defaultArg elem Box3f.Invalid) |> (fun b -> b.BoundingBox3d)
-         let chunk = createBoxQuery box frame
+    let filterDataForOneFrame (frame : Frame) (filter : AppliedFilterQuery) (renderVal : RenderValue) = 
+        // let box = filter |> (fun elem -> defaultArg elem Box3f.Invalid) |> (fun b -> b.BoundingBox3d)
+        // let chunk = createBoxQuery box frame
+         let chunk = filter frame 
          let extract f = chunk |> Array.map f |> Array.concat
          let currFilteredData = 
             match renderVal with
@@ -208,24 +208,25 @@ module App =
             | _ -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
          currFilteredData |> Array.map (fun v -> float v)
 
-    //TODO: Connect the two filtering funnctions!!!!!!!!!!!!
-    let filterDataForOneFrameSphere (frame : Frame) (filter : option<Sphere3d>) (renderVal : RenderValue) = 
-         let sphere = filter |> (fun elem -> defaultArg elem Sphere3d.Invalid)
-         let chunk = createSphereQuery sphere frame
-         let extract f = chunk |> Array.map f |> Array.concat
-         let currFilteredData = 
-            match renderVal with
-            | RenderValue.Energy -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) 
-            | RenderValue.CubicRoot -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
-            | RenderValue.Strain -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
-            | RenderValue.AlphaJutzi -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
-            | RenderValue.Pressure -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) 
-            | _ -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
-         currFilteredData |> Array.map (fun v -> float v)
+    ////TODO: Connect the two filtering funnctions!!!!!!!!!!!!
+    //let filterDataForOneFrameSphere (frame : Frame) (filter : option<ProbeFilter>) (renderVal : RenderValue) = 
+    //     let sphere = filter |> (fun elem -> defaultArg elem Sphere3d.Invalid)
+    //     let chunk = createSphereQuery sphere frame
+    //     let extract f = chunk |> Array.map f |> Array.concat
+    //     let currFilteredData = 
+    //        match renderVal with
+    //        | RenderValue.Energy -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) 
+    //        | RenderValue.CubicRoot -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
+    //        | RenderValue.Strain -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
+    //        | RenderValue.AlphaJutzi -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
+    //        | RenderValue.Pressure -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) 
+    //        | _ -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
+    //     currFilteredData |> Array.map (fun v -> float v)
         
-    let filterDataFrames (filter : Box3f) (frame : Frame) = 
-        let box = filter.BoundingBox3d
-        let chunk = createBoxQuery box frame
+    let filterDataFrames (filter : AppliedFilterQuery) (frame : Frame) = 
+        //let box = filter.BoundingBox3d
+       // let chunk = createBoxQuery box frame
+        let chunk = filter frame 
         let extract f = chunk |> Array.map f |> Array.concat
         let energies =  extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
         let cubicRoots = extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
@@ -234,13 +235,16 @@ module App =
         let pressure = extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
         zip5 energies cubicRoots strain alphaJutzi pressure
 
-    let filterDataForAllFrames (frames : Frame[]) (filter : option<Box3f>) (renderVal : RenderValue) = 
+    let filterDataForAllFrames (frames : Frame[]) (filter : AppliedFilterQuery) (renderVal : RenderValue) = 
         frames |> Array.map (fun frame -> filterDataForOneFrame frame filter renderVal)
 
     let update (frames : Frame[]) (m : Model) (msg : Message) =
 
         let numOfFrames = frames.Length
         let positions = frames.[m.frame].positions
+
+
+
         match msg with
             | SetPointSize s -> { m with pointSize = s }
             | TogglePointSize -> 
@@ -249,7 +253,11 @@ module App =
             | TogglePointDiscarded -> {m with discardPoints = not m.discardPoints}
             | ChangeAnimation -> { m with playAnimation = not m.playAnimation}
             | AnimateAllFrames -> 
-                let filteredDataAllFrames = filterDataForAllFrames frames m.filter m.renderValue
+               
+                let filteredDataAllFrames = 
+                    match m.filter with 
+                    | Some f -> filterDataForAllFrames frames ((f.filterFunc) f.probe) m.renderValue
+                    | None -> m.filteredAllFrames
 
                 {m with 
                     animateAllFrames = not m.animateAllFrames
@@ -263,6 +271,7 @@ module App =
                     match m.filter with 
                     | None -> false
                     | Some(_) -> true
+                
 
                 let currBBox = frames.[currFrame].pointSet.BoundingBox
 
@@ -298,12 +307,16 @@ module App =
                     max = maxValue
                     }
 
-                let filteredData = filterDataForOneFrame frames.[m.frame] m.filter v
+                let filteredData = 
+                    match m.filter with 
+                    | Some f -> filterDataForOneFrame frames.[m.frame] f v
+                    | None -> m.data.arr
 
                 let filteredDataAllFrames = 
                     if m.animateAllFrames then
-                        let filtered = filterDataForAllFrames frames m.filter v
-                        filtered
+                        match m.filter with
+                        | Some f -> filterDataForAllFrames frames f v
+                        | None -> m.filteredAllFrames
                     else
                         let temp : float[] [] = Array.empty
                         temp
@@ -366,10 +379,12 @@ module App =
             | SetFilter i ->
                 let newFilter =
                     match i with
-                    | 1 -> Some(Box3f(V3f(-3.0, -3.0, -3.0), V3f(3.0, 30.0, 3.0)))
-                    | 2 -> Some(Box3f(V3f(-4.0, -4.0, -4.0), V3f(4.0, 30.0, 4.0)))
-                    | 3 -> Some(Box3f(V3f(-5.0, -5.0, -5.0), V3f(5.0, 30.0, 5.0)))
-                    | _ -> None
+                    | 1 -> (Box3d(V3d(-3.0, -3.0, -3.0), V3d(3.0, 30.0, 3.0)))
+                    | 2 -> (Box3d(V3d(-4.0, -4.0, -4.0), V3d(4.0, 30.0, 4.0)))
+                    | 3 -> (Box3d(V3d(-5.0, -5.0, -5.0), V3d(5.0, 30.0, 5.0)))
+                    | _ -> Box3d.Infinite
+
+                let newProbeFilter = (createBoxQuery) newFilter
 
                 let newDataPath =
                     match i with
@@ -380,16 +395,15 @@ module App =
 
                 let filteredDataAllFrames = 
                     if m.animateAllFrames then
-                        let filtered = filterDataForAllFrames frames newFilter m.renderValue
-                        filtered
+                        filterDataForAllFrames frames newProbeFilter m.renderValue
                     else
                         let temp : float[] [] = Array.empty
                         temp
                         
-                let filteredData = filterDataForOneFrame frames.[m.frame] newFilter m.renderValue
+                let filteredData = filterDataForOneFrame frames.[m.frame] newProbeFilter m.renderValue
 
                 {m with 
-                    filter = newFilter
+                    filter = Some (newProbeFilter)
                     data = { version = m.data.version + 1 ; arr = filteredData }
                     filteredAllFrames = filteredDataAllFrames
                     dataPath = newDataPath}
@@ -506,9 +520,11 @@ module App =
 
             builder.AppendLine("energy,cubicRoot,strain,alphaJutzi,pressure") |> ignore
 
-            let filter = Box3f(V3f(-5.0, -5.0, -5.0), V3f(5.0, 30.0, 5.0))
+            let filter = Box3d(V3d(-5.0, -5.0, -5.0), V3d(5.0, 30.0, 5.0))
 
-            let filteredValues = filterDataFrames filter data.[0]
+            let newProbeFilter = createBoxQuery filter
+
+            let filteredValues = filterDataFrames newProbeFilter data.[0]
 
             let randomlyPickedData = filteredValues |> shuffleR (Random ()) |> Seq.take 3800 |> Seq.toArray
             let values = unzipValues randomlyPickedData
@@ -531,23 +547,34 @@ module App =
             Frustum.perspective 60.0 0.1 100.0 1.0 
                 |> AVal.constant
 
+        let filter = 
+            m.filter |> AVal.map (fun filter ->
+                match filter with 
+                | Some f -> 
+                    match f.probe with 
+                    | Box b -> b
+                    | Sphere s -> Box3d.Infinite 
+                | None -> Box3d.Infinite)
+
+        
+
         let heraSg = 
             data
             |> HeraSg.createAnimatedSg m.frame m.pointSize m.discardPoints m.renderValue m.currentMap 
-                m.domainRange m.clippingPlane  m.filter m.currFilters m.dataRange m.colorValue.c 
+                m.domainRange m.clippingPlane filter m.currFilters m.dataRange m.colorValue.c 
                 m.cameraState.view
                 runtime
             |> Sg.noEvents
 
-        let currentBox = 
-            m.filter |> AVal.map (fun b ->
-                match b with 
-                    | Some box -> box.BoundingBox3d
-                    | None -> Box3d.Infinite
-                )
+        //let currentBox = 
+        //    m.filter |> AVal.map (fun b ->
+        //        match b with 
+        //            | Some box -> box.BoundingBox3d
+        //            | None -> Box3d.Infinite
+        //        )
 
         let boxSg = 
-            Sg.box m.boxColor currentBox
+            Sg.box m.boxColor filter
             |> Sg.noEvents
             |> Sg.fillMode (FillMode.Line |> AVal.constant)
 
