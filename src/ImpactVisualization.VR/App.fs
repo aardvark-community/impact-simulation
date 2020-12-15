@@ -784,22 +784,22 @@ module Demo =
         let clipPlaneSg = planeSg planePositions (C4f(0.0,0.0,1.0,0.1)) FillMode.Fill (AVal.constant mode) pass1
         let quadSg = planeSg quadPositions C4f.Gray10 FillMode.Fill (AVal.constant BlendMode.None) pass0
 
-        //let browserSg = 
-        //    if true then
-        //        Sg.draw IndexedGeometryMode.TriangleList
-        //            |> Sg.vertexAttribute DefaultSemantic.Positions quadPositions
-        //            |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
-        //            |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.OI; V2f.II; V2f.IO |])
-        //            |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
-        //            |> Sg.diffuseTexture client.Texture 
-        //            |> Sg.shader {
-        //                do! DefaultSurfaces.trafo
-        //                do! DefaultSurfaces.diffuseTexture
-        //            }
-        //            //|> Sg.fillMode (fillmode |> AVal.constant)
-        //            //|> Sg.blendMode blendmode
-        //            //|> Sg.pass renderPass                
-        //    else Sg.empty
+        let browserSg = 
+            if true then
+                Sg.draw IndexedGeometryMode.TriangleList
+                    |> Sg.vertexAttribute DefaultSemantic.Positions quadPositions
+                    |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
+                    |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.OI; V2f.II; V2f.IO |])
+                    |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
+                    |> Sg.diffuseTexture client.Texture 
+                    |> Sg.shader {
+                        do! DefaultSurfaces.trafo
+                        do! DefaultSurfaces.diffuseTexture
+                    }
+                    //|> Sg.fillMode (fillmode |> AVal.constant)
+                    //|> Sg.blendMode blendmode
+                    //|> Sg.pass renderPass                
+            else Sg.empty
 
 
         let mutable temp = true
@@ -941,8 +941,8 @@ module Demo =
             
         Sg.ofSeq [
             deviceSgs; currentSphereProbeSg; probesSgs; heraSg; clipPlaneSg; tvSg;
-            billboardSg; probeContrSg; laserContrSg; clippingContrSg; ray
-           
+            billboardSg; probeContrSg; laserContrSg; clippingContrSg; ray;
+            browserSg
         ] |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
@@ -971,10 +971,8 @@ module Demo =
             do! DefaultSurfaces.simpleLighting
         }
 
-    let app (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
+    let app (client : Browser) (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
         let frames = DataLoader.loadDataAllFrames
-        let client = new Browser(null,AVal.constant System.DateTime.Now,runtime, true, AVal.constant (screenResolution))
-        let res = client.LoadUrl "http://localhost:4321"
         {
             unpersist = Unpersist.instance
             initial = initial runtime frames

@@ -6,6 +6,8 @@ open ImpactVisualization
 open Suave
 
 open Aardvark.Cef
+open FSharp.Data.Adaptive
+
 
 open Aardvark.Geometry.Points
 open Uncodium.SimpleStore
@@ -51,9 +53,9 @@ let main argv =
 
     Aardium.init()
 
-
     let app = VRApplication.create' (VRDisplay.OpenVR 1.0) Aardvark.Application.Backend.GL 8 false
-    let bla = Demo.app app.Runtime
+    let client = new Browser(null,AVal.constant System.DateTime.Now,app.Runtime, true, AVal.constant (ImpactVisualization.Demo.screenResolution))
+    let bla = Demo.app client app.Runtime
     let mapp = ComposedApp.start' app true bla
     
     WebPart.startServerLocalhost 4321 [
@@ -61,6 +63,8 @@ let main argv =
         Reflection.assemblyWebPart typeof<AardVolume.EmbeddedRessource>.Assembly
     ] |> ignore
     
+    let res = client.LoadUrl "http://localhost:4321/"
+
     Aardium.run {
         url "http://localhost:4321"
     }
