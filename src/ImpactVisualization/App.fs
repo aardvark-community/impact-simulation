@@ -175,9 +175,6 @@ module App =
     let sphereContainsBox (sphere : Sphere3d) (box : Box3d) =
         box.Corners |> Seq.forall (fun corner -> sphereContainsPoint sphere corner)
 
-    //let sphereIntersectsBox (sphere : Sphere3d) (box : Box3d) = 
-    //    box.Intersects
-
     let createBoxQuery (box : Box3d) (frame : Frame) =
         let chunk = 
             Queries.QueryPointsCustom frame.pointSet.Root.Value
@@ -192,12 +189,11 @@ module App =
     //TODO: Must be improved to really check intersection between Sphere and Box
     let createSphereQuery (sphere : Sphere3d) (frame : Frame) =
         let chunk = 
-            let sphereBox = sphere.BoundingBox3d
-
+            let squaredR = sphere.Radius * sphere.Radius
             Queries.QueryPointsCustom frame.pointSet.Root.Value
-                (fun n -> sphereBox.Contains n.BoundingBoxExactGlobal) 
-                (fun n -> not (sphereBox.Intersects n.BoundingBoxExactGlobal)) 
-                (fun p -> sphere.Center.Distance(p) <= sphere.Radius)
+                (fun n -> sphereContainsBox sphere n.BoundingBoxExactGlobal) 
+                (fun n -> not (n.BoundingBoxExactGlobal.Intersects(sphere))) 
+                (fun p -> sphere.Center.DistanceSquared(p) <= squaredR)
                 Hera.Defs.all
                 None
             |> Seq.toArray
@@ -247,9 +243,6 @@ module App =
 
         let numOfFrames = frames.Length
         let positions = frames.[m.frame].positions
-
-
-
         match msg with
             | SetPointSize s -> { m with pointSize = s }
             | TogglePointSize -> 
@@ -272,7 +265,6 @@ module App =
                     match m.filter with 
                     | None -> false
                     | Some(_) -> true
-                
 
                 let currBBox = frames.[currFrame].pointSet.BoundingBox
 
