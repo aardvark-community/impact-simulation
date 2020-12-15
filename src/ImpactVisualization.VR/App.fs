@@ -972,7 +972,7 @@ module Demo =
         }
 
     let app (client : Browser) (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
-        let frames = DataLoader.loadDataAllFrames
+        let frames = DataLoader.loadDataAllFrames runtime
         {
             unpersist = Unpersist.instance
             initial = initial runtime frames

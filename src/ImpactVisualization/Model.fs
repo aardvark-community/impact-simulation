@@ -15,24 +15,37 @@ open Uncodium.SimpleStore
 
 type Values = 
     {
-    energies    : float[]
-    cubicRoots  : float[]
-    strains     : float[]
-    alphaJutzis : float[]
-    pressures   : float[]
-    }
-
-type Frame = 
-    {
-        pointSet    : PointSet
-        positions   : V3f[]
-        normals     : V3f[]
-        velocities  : V3f[]
         energies    : float[]
         cubicRoots  : float[]
         strains     : float[]
         alphaJutzis : float[]
         pressures   : float[]
+    }
+
+type PreparedFrame = 
+    {
+        positionsBuffer   : IBuffer
+        normalsBuffer     : IBuffer
+        velocitiesBuffer  : IBuffer
+        energiesBuffer    : IBuffer
+        cubicRootsBuffer  : IBuffer
+        strainsBuffer     : IBuffer
+        alphaJutzisBuffer : IBuffer
+        pressuresBuffer   : IBuffer
+    }
+
+type Frame = 
+    {
+        pointSet      : PointSet
+        positions     : V3f[]
+        normals       : V3f[]
+        velocities    : V3f[]
+        energies      : float[]
+        cubicRoots    : float[]
+        strains       : float[]
+        alphaJutzis   : float[]
+        pressures     : float[]
+        preparedFrame : PreparedFrame
     }
 
 type RenderValue = 
@@ -162,27 +175,47 @@ module DataLoader =
         let id = Hera.Hera.importHeraDataIntoStore datafile storepath false
         printfn "%s" id
 
-    let loadDataSingleFrame storepath = 
+    let loadDataSingleFrame (runtime : IRuntime) (storepath : string) = 
         //let storepath = datapath + ".store"
 
         let (p, store) = loadOctreeFromStore storepath
         let bb = p.Root.Value.BoundingBoxExactGlobal
         let root = p.Root.Value
 
+        let positions   = root |> collectLeafData (fun n -> n.PositionsAbsolute |> Array.map V3f)
+        let normals     = root |> collectLeafData (fun n -> n.Normals.Value)
+        let velocities  = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.Velocities] :?> V3f[])
+        let energies    = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.InternalEnergies] :?> float32[]) 
+        let cubicRoots  = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.CubicRootsOfDamage] :?> float32[])
+        let strains     = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.LocalStrains] :?> float32[])
+        let alphaJutzis = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.AlphaJutzi] :?> float32[])
+        let pressures   = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.Pressures] :?> float32[])
+
         let frame = 
             { 
-                pointSet    = p
-                positions   = root |> collectLeafData (fun n -> n.PositionsAbsolute |> Array.map V3f)
-                normals     = root |> collectLeafData (fun n -> n.Normals.Value)
-                velocities  = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.Velocities] :?> V3f[])
-                energies    = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
-                cubicRoots  = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.CubicRootsOfDamage] :?> float32[]) |> Array.map (fun v -> float v)
-                strains     = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.LocalStrains] :?> float32[]) |> Array.map (fun v -> float v)
-                alphaJutzis = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.AlphaJutzi] :?> float32[]) |> Array.map (fun v -> float v)
-                pressures   = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.Pressures] :?> float32[]) |> Array.map (fun v -> float v)
+                pointSet      = p
+                positions     = positions
+                normals       = normals
+                velocities    = velocities
+                energies      = energies |> Array.map (fun v -> float v)
+                cubicRoots    = cubicRoots |> Array.map (fun v -> float v)
+                strains       = strains |> Array.map (fun v -> float v)
+                alphaJutzis   = alphaJutzis |> Array.map (fun v -> float v)
+                pressures     = pressures |> Array.map (fun v -> float v)
+                preparedFrame = 
+                    {
+                        positionsBuffer   = runtime.PrepareBuffer (ArrayBuffer (Array.map (fun v3 -> V4f(v3,1.0f)) positions)) :> IBuffer
+                        normalsBuffer     = runtime.PrepareBuffer (ArrayBuffer normals) :> IBuffer
+                        velocitiesBuffer  = runtime.PrepareBuffer (ArrayBuffer velocities) :> IBuffer
+                        energiesBuffer    = runtime.PrepareBuffer (ArrayBuffer energies) :> IBuffer
+                        cubicRootsBuffer  = runtime.PrepareBuffer (ArrayBuffer cubicRoots) :> IBuffer
+                        strainsBuffer     = runtime.PrepareBuffer (ArrayBuffer strains) :> IBuffer
+                        alphaJutzisBuffer = runtime.PrepareBuffer (ArrayBuffer alphaJutzis) :> IBuffer
+                        pressuresBuffer   = runtime.PrepareBuffer (ArrayBuffer pressures) :> IBuffer
+                    }
             }
         frame
 
     let files = Directory.EnumerateDirectories datapath |> Seq.toArray |> Array.filter (fun file -> file.EndsWith(".store"))
 
-    let loadDataAllFrames = files |> Array.map (fun file -> loadDataSingleFrame file)
+    let loadDataAllFrames (runtime : IRuntime) = files |> Array.map (fun file -> loadDataSingleFrame runtime file)

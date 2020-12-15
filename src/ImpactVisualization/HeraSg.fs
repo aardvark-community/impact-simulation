@@ -273,6 +273,9 @@ module HeraSg =
                          (runtime : IRuntime)
                          (frames : Frame[])  = 
 
+        let vertexCount = frames.[0].positions.Length       
+        let dci = DrawCallInfo(vertexCount, InstanceCount = 1)
+
         let mutable mode = BlendMode(true)
         mode.Enabled <- true
         mode.Operation <- BlendOperation.Add
@@ -287,19 +290,39 @@ module HeraSg =
                                             | Some i -> i
                                             | None -> Box3f.Infinite)
 
-        let currFrame = frame |> AVal.map (fun i -> frames.[i])
+        let currentBuffers = frame |> AVal.map (fun i -> frames.[i].preparedFrame)
         let color = colorValue |> AVal.map (fun c -> C4d c) |> AVal.map (fun x -> V4d(x.R, x.G, x.B, x.A))
         let texture = tfPath |> AVal.map (fun p -> FileTexture(p, TextureParams.empty) :> ITexture )
 
-        Sg.draw IndexedGeometryMode.PointList
-        |> Sg.vertexAttribute DefaultSemantic.Positions (currFrame |> AVal.map (fun f -> f.positions))
-        |> Sg.vertexAttribute DefaultSemantic.Normals (currFrame |> AVal.map (fun f -> f.normals))
-        |> Sg.vertexAttribute (Sym.ofString "Velocity") (currFrame |> AVal.map (fun f -> f.velocities))
-        |> Sg.vertexAttribute (Sym.ofString "Energy") (currFrame |> AVal.map (fun f -> Array.map float32 f.energies))
-        |> Sg.vertexAttribute (Sym.ofString "CubicRootOfDamage") (currFrame |> AVal.map (fun f -> Array.map float32 f.cubicRoots))
-        |> Sg.vertexAttribute (Sym.ofString "LocalStrain") (currFrame |> AVal.map (fun f -> Array.map float32 f.strains))
-        |> Sg.vertexAttribute (Sym.ofString "AlphaJutzi") (currFrame |> AVal.map (fun f -> Array.map float32 f.alphaJutzis))
-        |> Sg.vertexAttribute (Sym.ofString "Pressure") (currFrame |> AVal.map (fun f -> Array.map float32 f.pressures))
+        let positions   = currentBuffers |> AVal.map (fun f -> f.positionsBuffer)
+        let normals     = currentBuffers |> AVal.map (fun f -> f.normalsBuffer)
+        let velocities  = currentBuffers |> AVal.map (fun f -> f.velocitiesBuffer)
+        let energies    = currentBuffers |> AVal.map (fun f -> f.energiesBuffer)
+        let cubicRoots  = currentBuffers |> AVal.map (fun f -> f.cubicRootsBuffer)
+        let strains     = currentBuffers |> AVal.map (fun f -> f.strainsBuffer)
+        let alphaJutzis = currentBuffers |> AVal.map (fun f -> f.alphaJutzisBuffer)
+        let pressures   = currentBuffers |> AVal.map (fun f -> f.pressuresBuffer)
+
+        //Sg.draw IndexedGeometryMode.PointList
+        //|> Sg.vertexAttribute DefaultSemantic.Positions (currFrame |> AVal.map (fun f -> f.positions))
+        //|> Sg.vertexAttribute DefaultSemantic.Normals (currFrame |> AVal.map (fun f -> f.normals))
+        //|> Sg.vertexAttribute (Sym.ofString "Velocity") (currFrame |> AVal.map (fun f -> f.velocities))
+        //|> Sg.vertexAttribute (Sym.ofString "Energy") (currFrame |> AVal.map (fun f -> Array.map float32 f.energies))
+        //|> Sg.vertexAttribute (Sym.ofString "CubicRootOfDamage") (currFrame |> AVal.map (fun f -> Array.map float32 f.cubicRoots))
+        //|> Sg.vertexAttribute (Sym.ofString "LocalStrain") (currFrame |> AVal.map (fun f -> Array.map float32 f.strains))
+        //|> Sg.vertexAttribute (Sym.ofString "AlphaJutzi") (currFrame |> AVal.map (fun f -> Array.map float32 f.alphaJutzis))
+        //|> Sg.vertexAttribute (Sym.ofString "Pressure") (currFrame |> AVal.map (fun f -> Array.map float32 f.pressures))
+
+
+        Sg.render IndexedGeometryMode.PointList dci 
+        |> Sg.vertexBuffer DefaultSemantic.Positions (BufferView(positions, typeof<V4f>))
+        |> Sg.vertexBuffer DefaultSemantic.Normals (BufferView(normals, typeof<V3f>))
+        |> Sg.vertexBuffer (Sym.ofString "Velocity") (BufferView(velocities, typeof<V3f>))
+        |> Sg.vertexBuffer (Sym.ofString "Energy") (BufferView(energies, typeof<float32>))
+        |> Sg.vertexBuffer (Sym.ofString "CubicRootOfDamage") (BufferView(cubicRoots, typeof<float32>))
+        |> Sg.vertexBuffer (Sym.ofString "LocalStrain") (BufferView(strains, typeof<float32>))
+        |> Sg.vertexBuffer (Sym.ofString "AlphaJutzi") (BufferView(alphaJutzis, typeof<float32>))
+        |> Sg.vertexBuffer (Sym.ofString "Pressure") (BufferView(pressures, typeof<float32>))
         |> Sg.shader {  
             do! DefaultSurfaces.trafo
             do! Shaders.pointSprite
@@ -322,33 +345,56 @@ module HeraSg =
   
     //TODO: Create a function containing repetitive code
     let createAnimatedVrSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>)  
-                        (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
-                        (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
-                        (contrClippingPlane : aval<Plane3d>)
-                        (filter : aval<option<Box3f>>) (currFilters : aval<Filters>) 
-                        (dataRange : aval<Range>) (colorValue : aval<C4b>) 
-                        (sphereProbe : aval<Sphere3d>)
-                        (cameraView : aval<CameraView>)
-                        (runtime : IRuntime)
-                        (frames : Frame[])  = 
+                           (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
+                           (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
+                           (contrClippingPlane : aval<Plane3d>)
+                           (filter : aval<option<Box3f>>) (currFilters : aval<Filters>) 
+                           (dataRange : aval<Range>) (colorValue : aval<C4b>) 
+                           (sphereProbe : aval<Sphere3d>)
+                           (cameraView : aval<CameraView>)
+                           (runtime : IRuntime)
+                           (frames : Frame[])  = 
+
+        let vertexCount = frames.[0].positions.Length       
+        let dci = DrawCallInfo(vertexCount, InstanceCount = 1)
 
         let filterNew = filter |> AVal.map (fun f -> match f with
                                                         | Some i -> i
                                                         | None -> Box3f.Infinite)
 
-        let currFrame = frame |> AVal.map (fun i -> frames.[i])
+       // let currFrame = frame |> AVal.map (fun i -> frames.[i])
+        let currentBuffers = frame |> AVal.map (fun i -> frames.[i].preparedFrame)
         let color = colorValue |> AVal.map (fun c -> C4d c) |> AVal.map (fun x -> V4d(x.R, x.G, x.B, x.A))
         let texture = tfPath |> AVal.map (fun p -> FileTexture(p, TextureParams.empty) :> ITexture )
 
-        Sg.draw IndexedGeometryMode.PointList
-        |> Sg.vertexAttribute DefaultSemantic.Positions (currFrame |> AVal.map (fun f -> f.positions))
-        |> Sg.vertexAttribute DefaultSemantic.Normals (currFrame |> AVal.map (fun f -> f.normals))
-        |> Sg.vertexAttribute (Sym.ofString "Velocity") (currFrame |> AVal.map (fun f -> f.velocities))
-        |> Sg.vertexAttribute (Sym.ofString "Energy") (currFrame |> AVal.map (fun f -> Array.map float32 f.energies))
-        |> Sg.vertexAttribute (Sym.ofString "CubicRootOfDamage") (currFrame |> AVal.map (fun f -> Array.map float32 f.cubicRoots))
-        |> Sg.vertexAttribute (Sym.ofString "LocalStrain") (currFrame |> AVal.map (fun f -> Array.map float32 f.strains))
-        |> Sg.vertexAttribute (Sym.ofString "AlphaJutzi") (currFrame |> AVal.map (fun f -> Array.map float32 f.alphaJutzis))
-        |> Sg.vertexAttribute (Sym.ofString "Pressure") (currFrame |> AVal.map (fun f -> Array.map float32 f.pressures))
+        let positions   = currentBuffers |> AVal.map (fun f -> f.positionsBuffer)
+        let normals     = currentBuffers |> AVal.map (fun f -> f.normalsBuffer)
+        let velocities  = currentBuffers |> AVal.map (fun f -> f.velocitiesBuffer)
+        let energies    = currentBuffers |> AVal.map (fun f -> f.energiesBuffer)
+        let cubicRoots  = currentBuffers |> AVal.map (fun f -> f.cubicRootsBuffer)
+        let strains     = currentBuffers |> AVal.map (fun f -> f.strainsBuffer)
+        let alphaJutzis = currentBuffers |> AVal.map (fun f -> f.alphaJutzisBuffer)
+        let pressures   = currentBuffers |> AVal.map (fun f -> f.pressuresBuffer)
+
+        //Sg.draw IndexedGeometryMode.PointList
+        //|> Sg.vertexAttribute DefaultSemantic.Positions (currFrame |> AVal.map (fun f -> f.positions))
+        //|> Sg.vertexAttribute DefaultSemantic.Normals (currFrame |> AVal.map (fun f -> f.normals))
+        //|> Sg.vertexAttribute (Sym.ofString "Velocity") (currFrame |> AVal.map (fun f -> f.velocities))
+        //|> Sg.vertexAttribute (Sym.ofString "Energy") (currFrame |> AVal.map (fun f -> Array.map float32 f.energies))
+        //|> Sg.vertexAttribute (Sym.ofString "CubicRootOfDamage") (currFrame |> AVal.map (fun f -> Array.map float32 f.cubicRoots))
+        //|> Sg.vertexAttribute (Sym.ofString "LocalStrain") (currFrame |> AVal.map (fun f -> Array.map float32 f.strains))
+        //|> Sg.vertexAttribute (Sym.ofString "AlphaJutzi") (currFrame |> AVal.map (fun f -> Array.map float32 f.alphaJutzis))
+        //|> Sg.vertexAttribute (Sym.ofString "Pressure") (currFrame |> AVal.map (fun f -> Array.map float32 f.pressures))
+
+        Sg.render IndexedGeometryMode.PointList dci 
+        |> Sg.vertexBuffer DefaultSemantic.Positions (BufferView(positions, typeof<V4f>))
+        |> Sg.vertexBuffer DefaultSemantic.Normals (BufferView(normals, typeof<V3f>))
+        |> Sg.vertexBuffer (Sym.ofString "Velocity") (BufferView(velocities, typeof<V3f>))
+        |> Sg.vertexBuffer (Sym.ofString "Energy") (BufferView(energies, typeof<float32>))
+        |> Sg.vertexBuffer (Sym.ofString "CubicRootOfDamage") (BufferView(cubicRoots, typeof<float32>))
+        |> Sg.vertexBuffer (Sym.ofString "LocalStrain") (BufferView(strains, typeof<float32>))
+        |> Sg.vertexBuffer (Sym.ofString "AlphaJutzi") (BufferView(alphaJutzis, typeof<float32>))
+        |> Sg.vertexBuffer (Sym.ofString "Pressure") (BufferView(pressures, typeof<float32>))
         |> Sg.shader {  
             do! DefaultSurfaces.trafo
             do! Shaders.pointSprite

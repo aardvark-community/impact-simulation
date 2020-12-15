@@ -884,7 +884,7 @@ module App =
 
     let app (runtime : IRuntime) =
         // load data
-        let frames = DataLoader.loadDataAllFrames
+        let frames = DataLoader.loadDataAllFrames runtime
         {
             initial = initial frames // store data Hera frame as array to model....
             update = update frames
