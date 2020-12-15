@@ -376,12 +376,10 @@ module App =
             | SetFilter i ->
                 let newFilter =
                     match i with
-                    | 1 -> (Box3d(V3d(-3.0, -3.0, -3.0), V3d(3.0, 30.0, 3.0)))
-                    | 2 -> (Box3d(V3d(-4.0, -4.0, -4.0), V3d(4.0, 30.0, 4.0)))
-                    | 3 -> (Box3d(V3d(-5.0, -5.0, -5.0), V3d(5.0, 30.0, 5.0)))
-                    | _ -> Box3d.Infinite
-
-                let newProbeFilter = (createBoxQuery) newFilter
+                    | 1 -> Some(Box3f(V3f(-3.0, -3.0, -3.0), V3f(3.0, 30.0, 3.0)))
+                    | 2 -> Some(Box3f(V3f(-4.0, -4.0, -4.0), V3f(4.0, 30.0, 4.0)))
+                    | 3 -> Some(Box3f(V3f(-5.0, -5.0, -5.0), V3f(5.0, 30.0, 5.0)))
+                    | _ -> None
 
                 let newDataPath =
                     match i with
@@ -401,7 +399,7 @@ module App =
                 let filteredData = filterDataForOneFrameBox frames.[m.frame] newFilter m.renderValue
 
                 {m with 
-                    filter = Some (newProbeFilter)
+                    filter = newFilter
                     data = { version = m.data.version + 1 ; arr = filteredData }
                     filteredAllFrames = filteredDataAllFrames
                     dataPath = newDataPath}
@@ -518,11 +516,11 @@ module App =
 
             builder.AppendLine("energy,cubicRoot,strain,alphaJutzi,pressure") |> ignore
 
-            let filter = Box3d(V3d(-5.0, -5.0, -5.0), V3d(5.0, 30.0, 5.0))
+            let filter = Box3f(V3f(-5.0, -5.0, -5.0), V3f(5.0, 30.0, 5.0))
 
             let filteredValues = filterAllDataForOneFrame filter data.[0]
 
-            let filteredValues = filterDataFrames newProbeFilter data.[0]
+           // let filteredValues = filterDataFrames newProbeFilter data.[0]
 
             let randomlyPickedData = filteredValues |> shuffleR (Random ()) |> Seq.take 3800 |> Seq.toArray
             let values = unzipValues randomlyPickedData
@@ -545,14 +543,14 @@ module App =
             Frustum.perspective 60.0 0.1 100.0 1.0 
                 |> AVal.constant
 
-        let filter = 
-            m.filter |> AVal.map (fun filter ->
-                match filter with 
-                | Some f -> 
-                    match f.probe with 
-                    | Box b -> b
-                    | Sphere s -> Box3d.Infinite 
-                | None -> Box3d.Infinite)
+        //let filter = 
+        //    m.filter |> AVal.map (fun filter ->
+        //        match filter with 
+        //        | Some f -> 
+        //            match f.probe with 
+        //            | Box b -> b
+        //            | Sphere s -> Box3d.Infinite 
+        //        | None -> Box3d.Infinite)
 
         
 
@@ -564,15 +562,15 @@ module App =
                 runtime
             |> Sg.noEvents
 
-        //let currentBox = 
-        //    m.filter |> AVal.map (fun b ->
-        //        match b with 
-        //            | Some box -> box.BoundingBox3d
-        //            | None -> Box3d.Infinite
-        //        )
+        let currentBox = 
+            m.filter |> AVal.map (fun b ->
+                match b with 
+                    | Some box -> box.BoundingBox3d
+                    | None -> Box3d.Infinite
+                )
 
         let boxSg = 
-            Sg.box m.boxColor filter
+            Sg.box m.boxColor currentBox
             |> Sg.noEvents
             |> Sg.fillMode (FillMode.Line |> AVal.constant)
 

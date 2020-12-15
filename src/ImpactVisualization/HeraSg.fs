@@ -267,7 +267,7 @@ module HeraSg =
     let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>)  
                          (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
                          (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
-                         (filter : aval<Box3d>) (currFilters : aval<Filters>) 
+                         (filter : aval<option<Box3f>>) (currFilters : aval<Filters>) 
                          (dataRange : aval<Range>) (colorValue : aval<C4b>) 
                          (cameraView : aval<CameraView>)
                          (runtime : IRuntime)
@@ -282,7 +282,10 @@ module HeraSg =
         mode.SourceAlphaFactor <- BlendFactor.One
         mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
 
-        let filterNew = filter |> AVal.map (fun f -> Box3f f)
+        //let filterNew = filter |> AVal.map (fun f -> Box3f f)
+        let filterNew = filter |> AVal.map (fun f -> match f with 
+                                            | Some i -> i
+                                            | None -> Box3f.Infinite)
 
         let currFrame = frame |> AVal.map (fun i -> frames.[i])
         let color = colorValue |> AVal.map (fun c -> C4d c) |> AVal.map (fun x -> V4d(x.R, x.G, x.B, x.A))
