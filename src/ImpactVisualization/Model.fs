@@ -90,7 +90,6 @@ type ClippingPlane =
     z : float
     }
 
-
 [<ModelType;CustomEquality;NoComparison>]
 type VersionedArray = 
     {
