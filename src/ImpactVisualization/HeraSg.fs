@@ -159,9 +159,11 @@ module Shaders =
         point {
             let wp = p.Value.wp
 
+            let modelMatrix = uniform.ModelTrafo
+
             let dm : DomainRange = uniform?DomainRange
             let dataRange : Range = uniform?DataRange
-            let filterBox : Box3f = uniform?FilterBox
+            let filterBox : Box3f = uniform?Filter
             let sphereProbe : Sphere3d = uniform?SphereProbe
             let filters : Filters = uniform?CurrFilters
             let discardPoints = uniform?DiscardPoints
@@ -186,8 +188,10 @@ module Shaders =
                     (p.Value.alphaJutzi >= filters.filterAlphaJutzi.min && p.Value.alphaJutzi <= filters.filterAlphaJutzi.max) &&
                     (p.Value.pressure >= filters.filterPressure.min && p.Value.pressure <= filters.filterPressure.max) 
 
-            let min = filterBox.Min
-            let max = filterBox.Max
+            let temp = filterBox.IsInfinite
+
+            let min = V3f(modelMatrix.TransformPos(V3d(filterBox.Min)))
+            let max = V3f(modelMatrix.TransformPos(V3d(filterBox.Max)))
 
             let pos = V3f(wp)
             let pPos = V3d(wp)
@@ -206,6 +210,15 @@ module Shaders =
             let isInsideMinMaxRange = min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z
 
             let plane = uniform?ClippingPlane
+            let planePos = V3d(plane.x, plane.y, plane.z)
+            let transformPlane = modelMatrix.TransformPos(planePos)
+            let planeT = 
+                {
+                    x = transformPlane.X
+                    y = transformPlane.Y
+                    z = transformPlane.Z
+                }
+
 
             let controllerPlane : Plane3d = uniform?ControllerClippingPlane
 
@@ -398,7 +411,7 @@ module HeraSg =
         |> Sg.vertexBuffer (Sym.ofString "Pressure") (BufferView(pressures, typeof<float32>))
         |> Sg.shader {  
             do! DefaultSurfaces.trafo
-            do! Shaders.pointSprite
+            do! Shaders.pointSpriteVr
             // do! Shaders.vs
             do! Shaders.fs
         }

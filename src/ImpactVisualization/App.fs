@@ -115,9 +115,9 @@ module App =
                 z = {min = -16.0; max = 16.0}
                 }            
             clippingPlane = {
-                x = 16.0
-                y = 30.0
-                z = 16.0
+                x = infinity
+                y = infinity
+                z = infinity
                 }
             dataRange = {
                 min = minValue

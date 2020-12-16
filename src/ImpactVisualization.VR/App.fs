@@ -704,6 +704,9 @@ module Demo =
         let boxSg = 
             Sg.box m.twoDModel.boxColor currentBox
             |> Sg.noEvents
+            |> Sg.trafo heraScaleTrafo
+            |> Sg.translate 0.0 0.0 0.7
+            |> Sg.trafo trafo
             |> Sg.fillMode (FillMode.Line |> AVal.constant)
 
         let heraBBox = 
