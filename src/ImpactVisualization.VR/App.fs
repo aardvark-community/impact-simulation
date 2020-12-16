@@ -684,8 +684,7 @@ module Demo =
             data
             |> HeraSg.HeraSg.createAnimatedVrSg 
                 m.frame m.pointSize m.discardPoints m.renderValue m.currentMap 
-                m.domainRange m.clippingPlane contrClippingPlane m.filter m.currFilters m.dataRange m.colorValue.c 
-                sphereProbe
+                m.domainRange m.clippingPlane contrClippingPlane m.boxFilter sphereProbe m.currFilters m.dataRange m.colorValue.c 
                 m.cameraState.view
                 runtime
             |> Sg.noEvents
@@ -694,6 +693,18 @@ module Demo =
             |> Sg.trafo trafo
             |> Sg.pass pass0
             //|> Sg.blendMode (AVal.constant mode)
+
+        let currentBox = 
+            m.twoDModel.boxFilter |> AVal.map (fun b ->
+                match b with 
+                    | Some box -> box.BoundingBox3d
+                    | None -> Box3d.Infinite
+                )
+
+        let boxSg = 
+            Sg.box m.twoDModel.boxColor currentBox
+            |> Sg.noEvents
+            |> Sg.fillMode (FillMode.Line |> AVal.constant)
 
         let heraBBox = 
             Sg.box (AVal.constant C4b.White) m.twoDModel.currHeraBBox
@@ -942,7 +953,7 @@ module Demo =
         Sg.ofSeq [
             deviceSgs; currentSphereProbeSg; probesSgs; heraSg; clipPlaneSg; tvSg;
             billboardSg; probeContrSg; laserContrSg; clippingContrSg; ray;
-            browserSg
+            browserSg; boxSg
         ] |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting

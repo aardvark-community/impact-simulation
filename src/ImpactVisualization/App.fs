@@ -131,7 +131,9 @@ module App =
             currFilters = filters
             values = VersionedArray.ofArray initValues
             data = VersionedArray.ofArray [||]
-            filter = None
+            currFilter = None
+            boxFilter = None
+            sphereFilter = None 
             filtered = []
             filteredAllFrames = Array.empty
             dataPath = "data.csv"
@@ -251,7 +253,7 @@ module App =
             | TogglePointDiscarded -> {m with discardPoints = not m.discardPoints}
             | ChangeAnimation -> { m with playAnimation = not m.playAnimation}
             | AnimateAllFrames -> 
-                let filteredDataAllFrames = filterDataForAllFramesBox frames m.filter m.renderValue
+                let filteredDataAllFrames = filterDataForAllFramesBox frames m.boxFilter m.renderValue
 
                 {m with 
                     animateAllFrames = not m.animateAllFrames
@@ -262,7 +264,7 @@ module App =
                 let currFrame = frameId % numOfFrames
                 // update filtered data using frameId and filter
                 let isCurrentFilterSet = 
-                    match m.filter with 
+                    match m.boxFilter with 
                     | None -> false
                     | Some(_) -> true
 
@@ -300,11 +302,11 @@ module App =
                     max = maxValue
                     }
 
-                let filteredData = filterDataForOneFrameBox frames.[m.frame] m.filter v
+                let filteredData = filterDataForOneFrameBox frames.[m.frame] m.boxFilter v
 
                 let filteredDataAllFrames = 
                     if m.animateAllFrames then
-                        let filtered = filterDataForAllFramesBox frames m.filter v
+                        let filtered = filterDataForAllFramesBox frames m.boxFilter v
                         filtered
                     else
                         let temp : float[] [] = Array.empty
@@ -391,12 +393,14 @@ module App =
                 let filteredData = filterDataForOneFrameBox frames.[m.frame] newFilter m.renderValue
 
                 {m with 
-                    filter = newFilter
+                    boxFilter = newFilter
                     data = { version = m.data.version + 1 ; arr = filteredData }
                     filteredAllFrames = filteredDataAllFrames
                     dataPath = newDataPath}
             | ResetFilter -> {m with 
-                                filter = None
+                                currFilter = None
+                                boxFilter = None
+                                sphereFilter = None
                                 data = VersionedArray.ofArray [||]
                                 dataRange = m.initDataRange
                                 dataPath = "data.csv"
@@ -549,13 +553,13 @@ module App =
         let heraSg = 
             data
             |> HeraSg.createAnimatedSg m.frame m.pointSize m.discardPoints m.renderValue m.currentMap 
-                m.domainRange m.clippingPlane m.filter m.currFilters m.dataRange m.colorValue.c 
+                m.domainRange m.clippingPlane m.boxFilter m.currFilters m.dataRange m.colorValue.c 
                 m.cameraState.view
                 runtime
             |> Sg.noEvents
 
         let currentBox = 
-            m.filter |> AVal.map (fun b ->
+            m.boxFilter |> AVal.map (fun b ->
                 match b with 
                     | Some box -> box.BoundingBox3d
                     | None -> Box3d.Infinite

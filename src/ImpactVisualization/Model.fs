@@ -70,6 +70,10 @@ type RenderValue =
 
 //type FilterProbe = FilterProbeGeneric<FilterType>
 
+type Probe = 
+    | SphereProbe of sphere : Sphere3d
+    | CubeProbe of cube : Box3f
+
 type Dim = X | Y | Z
 
 type Value = Min | Max
@@ -143,7 +147,9 @@ type Model =
         data : VersionedArray
         values : VersionedArray
 
-        filter : option<Box3f>
+        currFilter : option<Probe>
+        boxFilter : option<Box3f>
+        sphereFilter : option<Sphere3d>
         filtered : list<float> 
         filteredAllFrames : float [] []
 

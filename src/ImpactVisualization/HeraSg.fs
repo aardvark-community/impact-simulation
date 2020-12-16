@@ -161,12 +161,12 @@ module Shaders =
 
             let dm : DomainRange = uniform?DomainRange
             let dataRange : Range = uniform?DataRange
-            let filter : Box3f = uniform?Filter
+            let filterBox : Box3f = uniform?FilterBox
+            let sphereProbe : Sphere3d = uniform?SphereProbe
             let filters : Filters = uniform?CurrFilters
             let discardPoints = uniform?DiscardPoints
             let renderValue = uniform?RenderValue
             let colorValue = uniform?Color
-            let sphereProbe : Sphere3d = uniform?SphereProbe
            
             let value renderValue = 
                 match renderValue with
@@ -186,8 +186,8 @@ module Shaders =
                     (p.Value.alphaJutzi >= filters.filterAlphaJutzi.min && p.Value.alphaJutzi <= filters.filterAlphaJutzi.max) &&
                     (p.Value.pressure >= filters.filterPressure.min && p.Value.pressure <= filters.filterPressure.max) 
 
-            let min = filter.Min
-            let max = filter.Max
+            let min = filterBox.Min
+            let max = filterBox.Max
 
             let pos = V3f(wp)
             let pPos = V3d(wp)
@@ -215,7 +215,7 @@ module Shaders =
                 else 
                     Vec.Dot(controllerPlane.Normal, pPos) - controllerPlane.Distance >= 0.0
 
-            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && isNotInsideSphere && minRange <= linearCoord && linearCoord <= maxRange
+            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && minRange <= linearCoord && linearCoord <= maxRange
 
             let color = if (isInAllRanges) then transferFunc else colorValue
 
@@ -267,7 +267,8 @@ module HeraSg =
     let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>)  
                          (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
                          (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
-                         (filter : aval<option<Box3f>>) (currFilters : aval<Filters>) 
+                         (filterBox : aval<option<Box3f>>)
+                         (currFilters : aval<Filters>) 
                          (dataRange : aval<Range>) (colorValue : aval<C4b>) 
                          (cameraView : aval<CameraView>)
                          (runtime : IRuntime)
@@ -286,9 +287,9 @@ module HeraSg =
         mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
 
         //let filterNew = filter |> AVal.map (fun f -> Box3f f)
-        let filterNew = filter |> AVal.map (fun f -> match f with 
-                                            | Some i -> i
-                                            | None -> Box3f.Infinite)
+        let filterNew = filterBox |> AVal.map (fun f -> match f with 
+                                                        | Some i -> i
+                                                        | None -> Box3f.Infinite)
 
         let currentBuffers = frame |> AVal.map (fun i -> frames.[i].preparedFrame)
         let color = colorValue |> AVal.map (fun c -> C4d c) |> AVal.map (fun x -> V4d(x.R, x.G, x.B, x.A))
@@ -348,9 +349,9 @@ module HeraSg =
                            (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
                            (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
                            (contrClippingPlane : aval<Plane3d>)
-                           (filter : aval<option<Box3f>>) (currFilters : aval<Filters>) 
+                           (filterBox : aval<option<Box3f>>) (sphereProbe : aval<Sphere3d>)
+                           (currFilters : aval<Filters>) 
                            (dataRange : aval<Range>) (colorValue : aval<C4b>) 
-                           (sphereProbe : aval<Sphere3d>)
                            (cameraView : aval<CameraView>)
                            (runtime : IRuntime)
                            (frames : Frame[])  = 
@@ -358,9 +359,9 @@ module HeraSg =
         let vertexCount = frames.[0].positions.Length       
         let dci = DrawCallInfo(vertexCount, InstanceCount = 1)
 
-        let filterNew = filter |> AVal.map (fun f -> match f with
-                                                        | Some i -> i
-                                                        | None -> Box3f.Infinite)
+        let filterBoxNew = filterBox |> AVal.map (fun f -> match f with
+                                                            | Some b -> b
+                                                            | None -> Box3f.Infinite)
 
        // let currFrame = frame |> AVal.map (fun i -> frames.[i])
         let currentBuffers = frame |> AVal.map (fun i -> frames.[i].preparedFrame)
@@ -408,7 +409,7 @@ module HeraSg =
         |> Sg.uniform "DomainRange" domainRange
         |> Sg.uniform "ClippingPlane" clippingPlane
         |> Sg.uniform "ControllerClippingPlane" contrClippingPlane
-        |> Sg.uniform "Filter" filterNew 
+        |> Sg.uniform "Filter" filterBoxNew 
         |> Sg.uniform "CurrFilters" currFilters
         |> Sg.uniform "DataRange" dataRange
         |> Sg.uniform "Color" color
