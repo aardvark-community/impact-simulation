@@ -678,6 +678,24 @@ module Demo =
         //        ) m.sphereControllerTrafo m.sphereScale m.sphereRadius
 
         let sphereProbe = Sphere3d.Invalid |> AVal.constant
+
+        let heraTransformations = 
+            AVal.map2 (fun heraScale heraMove -> 
+                heraScale * Trafo3d.Translation(0.0, 0.0, 0.7) * heraMove
+                ) heraScaleTrafo trafo
+
+        let boxFilter = 
+            let temp = Box
+            AVal.map2 (fun boxF (heraTrafo : Trafo3d) -> 
+                            match boxF with 
+                            | Some (box : Box3f) -> 
+                                let b3d = Box3d(box)
+                                let newBBox = 
+                                    b3d.Corners |> Seq.map (fun corner ->
+                                        heraTrafo.Forward.TransformPos(corner))
+                                Some newBBox
+                            | None -> None
+                        ) m.twoDModel.boxFilter heraTransformations
         
         let heraSg =    
             let m = m.twoDModel
@@ -688,9 +706,7 @@ module Demo =
                 m.cameraState.view
                 runtime
             |> Sg.noEvents
-            |> Sg.trafo heraScaleTrafo
-            |> Sg.translate 0.0 0.0 0.7
-            |> Sg.trafo trafo
+            |> Sg.trafo heraTransformations
             |> Sg.pass pass0
             //|> Sg.blendMode (AVal.constant mode)
 
@@ -704,9 +720,7 @@ module Demo =
         let boxSg = 
             Sg.box m.twoDModel.boxColor currentBox
             |> Sg.noEvents
-            |> Sg.trafo heraScaleTrafo
-            |> Sg.translate 0.0 0.0 0.7
-            |> Sg.trafo trafo
+            |> Sg.trafo heraTransformations
             |> Sg.fillMode (FillMode.Line |> AVal.constant)
 
         let heraBBox = 

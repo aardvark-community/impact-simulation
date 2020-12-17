@@ -164,6 +164,7 @@ module Shaders =
             let dm : DomainRange = uniform?DomainRange
             let dataRange : Range = uniform?DataRange
             let filterBox : Box3f = uniform?Filter
+            let boxIsSet : bool = uniform?BoxSet
             let sphereProbe : Sphere3d = uniform?SphereProbe
             let filters : Filters = uniform?CurrFilters
             let discardPoints = uniform?DiscardPoints
@@ -188,10 +189,13 @@ module Shaders =
                     (p.Value.alphaJutzi >= filters.filterAlphaJutzi.min && p.Value.alphaJutzi <= filters.filterAlphaJutzi.max) &&
                     (p.Value.pressure >= filters.filterPressure.min && p.Value.pressure <= filters.filterPressure.max) 
 
-            let temp = filterBox.IsInfinite
 
-            let min = V3f(modelMatrix.TransformPos(V3d(filterBox.Min)))
-            let max = V3f(modelMatrix.TransformPos(V3d(filterBox.Max)))
+
+            let min = if boxIsSet then V3f(modelMatrix.TransformPos(V3d(filterBox.Min))) else filterBox.Min
+            let max = if boxIsSet then V3f(modelMatrix.TransformPos(V3d(filterBox.Max))) else filterBox.Max
+            //let min = if temp then filterBox.Min else V3f(modelMatrix.TransformPos(V3d(filterBox.Min)))
+            //let min = filterBox.Min
+            //let max = filterBox.Max
 
             let pos = V3f(wp)
             let pPos = V3d(wp)
@@ -376,6 +380,10 @@ module HeraSg =
                                                             | Some b -> b
                                                             | None -> Box3f.Infinite)
 
+        let boxIsSet = filterBox |> AVal.map (fun f -> match f with 
+                                                        | Some i -> true
+                                                        | None -> false)
+                                                            
        // let currFrame = frame |> AVal.map (fun i -> frames.[i])
         let currentBuffers = frame |> AVal.map (fun i -> frames.[i].preparedFrame)
         let color = colorValue |> AVal.map (fun c -> C4d c) |> AVal.map (fun x -> V4d(x.R, x.G, x.B, x.A))
@@ -423,6 +431,7 @@ module HeraSg =
         |> Sg.uniform "ClippingPlane" clippingPlane
         |> Sg.uniform "ControllerClippingPlane" contrClippingPlane
         |> Sg.uniform "Filter" filterBoxNew 
+        |> Sg.uniform "BoxSet" boxIsSet
         |> Sg.uniform "CurrFilters" currFilters
         |> Sg.uniform "DataRange" dataRange
         |> Sg.uniform "Color" color
