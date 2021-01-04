@@ -566,13 +566,31 @@ module App =
                     | None -> Box3d.Infinite
                 )
 
+        let currentSpherePosTrafo = 
+            m.sphereFilter |> AVal.map (fun s ->
+                match s with 
+                    | Some sphere -> Trafo3d.Translation(sphere.Center)
+                    | None -> Trafo3d.Identity)
+
+        let currentSphereRadius = 
+            m.sphereFilter |> AVal.map (fun s ->
+                match s with 
+                    | Some sphere -> sphere.Radius
+                    | None -> 0.0)
+
+        let sphereSg = 
+            Sg.sphere 6 m.boxColor currentSphereRadius
+            |> Sg.noEvents
+            |> Sg.trafo currentSpherePosTrafo
+            |> Sg.fillMode (FillMode.Line |> AVal.constant)
+
         let boxSg = 
             Sg.box m.boxColor currentBox
             |> Sg.noEvents
             |> Sg.fillMode (FillMode.Line |> AVal.constant)
 
         let sg = 
-            Sg.ofSeq [heraSg; boxSg]
+            Sg.ofSeq [heraSg; boxSg; sphereSg]
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting

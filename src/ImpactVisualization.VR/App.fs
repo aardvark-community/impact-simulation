@@ -110,7 +110,7 @@ module Demo =
             controllerMenuOpen = false
             menuControllerTrafo = None
             menuControllerId = None
-            controllerMode = ControllerMode.Ray
+            controllerMode = ControllerMode.Probe
             currTouchPadPos = V2d.OO
             heraBox = Box3d.Infinite
             heraTransformations = Trafo3d.Identity
@@ -452,8 +452,10 @@ module Demo =
                                             array
                                         else 
                                             mTwoD.data.arr
+
                                     let updatedTwoDmodel = 
                                         { mTwoD with
+                                            sphereFilter = Some sphereTransformed
                                             data = { version = mTwoD.data.version + 1; arr = filteredData}
                                         }
 
