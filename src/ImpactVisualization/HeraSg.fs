@@ -159,6 +159,10 @@ module Shaders =
         point {
             let wp = p.Value.wp
 
+            let modelMatrixInv = uniform.ModelTrafoInv
+
+            let wpInv = modelMatrixInv * wp
+
             let modelMatrix = uniform.ModelTrafo
 
             let dm : DomainRange = uniform?DomainRange
@@ -191,13 +195,13 @@ module Shaders =
 
 
 
-            let min = if boxIsSet then V3f(modelMatrix.TransformPos(V3d(filterBox.Min))) else filterBox.Min
-            let max = if boxIsSet then V3f(modelMatrix.TransformPos(V3d(filterBox.Max))) else filterBox.Max
+            //let min = if boxIsSet then V3f(modelMatrix.TransformPos(V3d(filterBox.Min))) else filterBox.Min
+            //let max = if boxIsSet then V3f(modelMatrix.TransformPos(V3d(filterBox.Max))) else filterBox.Max
             //let min = if temp then filterBox.Min else V3f(modelMatrix.TransformPos(V3d(filterBox.Min)))
-            //let min = filterBox.Min
-            //let max = filterBox.Max
+            let min = filterBox.Min
+            let max = filterBox.Max
 
-            let pos = V3f(wp)
+            let pos = V3f(wpInv)
             let pPos = V3d(wp)
 
             let spPos = sphereProbe.Center
@@ -214,14 +218,18 @@ module Shaders =
             let isInsideMinMaxRange = min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z
 
             let plane = uniform?ClippingPlane
-            let planePos = V3d(plane.x, plane.y, plane.z)
-            let transformPlane = modelMatrix.TransformPos(planePos)
-            let planeT = 
-                {
-                    x = transformPlane.X
-                    y = transformPlane.Y
-                    z = transformPlane.Z
-                }
+            //let planePos = 
+            //    //let newX = if plane.x >= 16.0 then infinity else plane.x
+            //    //let newY = if plane.y >= 30.0 then infinity else plane.y
+            //    //let newZ = if plane.z >= 16.0 then infinity else plane.z
+            //    V3d(plane.x, plane.y, plane.z)
+            //let transformPlane = modelMatrix.TransformPos(planePos)
+            //let planeT = 
+            //    {
+            //        x = transformPlane.X
+            //        y = transformPlane.Y
+            //        z = transformPlane.Z
+            //    }
 
 
             let controllerPlane : Plane3d = uniform?ControllerClippingPlane
@@ -232,12 +240,12 @@ module Shaders =
                 else 
                     Vec.Dot(controllerPlane.Normal, pPos) - controllerPlane.Distance >= 0.0
 
-            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && minRange <= linearCoord && linearCoord <= maxRange
+            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && isNotInsideSphere && minRange <= linearCoord && linearCoord <= maxRange
 
             let color = if (isInAllRanges) then transferFunc else colorValue
 
-            if (wp.X >= dm.x.min && wp.X <= dm.x.max && wp.Y >= dm.y.min && wp.Y <= dm.y.max && wp.Z >= dm.z.min && wp.Z <= dm.z.max) &&
-                (wp.X <= plane.x && wp.Y <= plane.y && wp.Z <= plane.z) && isOutsideControllerPlane then
+            if (wpInv.X >= dm.x.min && wpInv.X <= dm.x.max && wpInv.Y >= dm.y.min && wpInv.Y <= dm.y.max && wpInv.Z >= dm.z.min && wpInv.Z <= dm.z.max) &&
+                (wpInv.X <= plane.x && wpInv.Y <= plane.y && wpInv.Z <= plane.z) && isOutsideControllerPlane then
                 if (discardPoints) then
                     if (isInAllRanges) then
                         yield  { p.Value with 

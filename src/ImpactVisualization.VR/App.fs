@@ -664,38 +664,25 @@ module Demo =
         mode.SourceAlphaFactor <- BlendFactor.One
         mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
 
-        //let sphereProbe = 
-        //    AVal.map3 (fun trafo scale initRadius -> 
-        //        match trafo with 
-        //        | Some (t : Trafo3d) -> 
-        //            if t.Forward.IsIdentity() then 
-        //                Sphere3d.Invalid
-        //            else 
-        //                let spherePos = t.Forward.TransformPos(V3d.OOO)
-        //                let sphereRadius : float = initRadius * scale
-        //                Sphere3d(spherePos, sphereRadius)
-        //        | None -> Sphere3d.Invalid
-        //        ) m.sphereControllerTrafo m.sphereScale m.sphereRadius
+        let sphereProbe = 
+            AVal.map3 (fun trafo scale initRadius -> 
+                match trafo with 
+                | Some (t : Trafo3d) -> 
+                    if t.Forward.IsIdentity() then 
+                        Sphere3d.Invalid
+                    else 
+                        let spherePos = t.Forward.TransformPos(V3d.OOO)
+                        let sphereRadius : float = initRadius * scale
+                        Sphere3d(spherePos, sphereRadius)
+                | None -> Sphere3d.Invalid
+                ) m.sphereControllerTrafo m.sphereScale m.sphereRadius
 
-        let sphereProbe = Sphere3d.Invalid |> AVal.constant
+        //let sphereProbe = Sphere3d.Invalid |> AVal.constant
 
         let heraTransformations = 
             AVal.map2 (fun heraScale heraMove -> 
                 heraScale * Trafo3d.Translation(0.0, 0.0, 0.7) * heraMove
                 ) heraScaleTrafo trafo
-
-        let boxFilter = 
-            let temp = Box
-            AVal.map2 (fun boxF (heraTrafo : Trafo3d) -> 
-                            match boxF with 
-                            | Some (box : Box3f) -> 
-                                let b3d = Box3d(box)
-                                let newBBox = 
-                                    b3d.Corners |> Seq.map (fun corner ->
-                                        heraTrafo.Forward.TransformPos(corner))
-                                Some newBBox
-                            | None -> None
-                        ) m.twoDModel.boxFilter heraTransformations
         
         let heraSg =    
             let m = m.twoDModel
