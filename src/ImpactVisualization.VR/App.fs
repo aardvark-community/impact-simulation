@@ -113,6 +113,7 @@ module Demo =
             controllerMode = ControllerMode.Ray
             currTouchPadPos = V2d.OO
             heraBox = Box3d.Infinite
+            heraTransformations = Trafo3d.Identity
         }
 
     //let updateController (m : Model) : Model = 
@@ -278,9 +279,15 @@ module Demo =
                 | None -> model.planeCorners
             let currMenuTrafo = newOrOldTrafo id trafo model.menuControllerId model.menuControllerTrafo
 
-            let scale = Trafo3d(Scale3d(model.scalingFactorHera))
-            let translation = Trafo3d.Translation(0.0, 0.0, 0.7)
-            let heraBBox = model.twoDModel.currHeraBBox.Transformed(scale * translation * ((trafoOrIdentity model.heraToControllerTrafo) * (trafoOrIdentity contrTrafo)))
+            let heraTrafo = 
+                let cT = trafoOrIdentity contrTrafo 
+                let heraCT = trafoOrIdentity model.heraToControllerTrafo
+                heraCT * cT
+            let heraScaleTrafo = Trafo3d(Scale3d(model.scalingFactorHera))
+            let heraTranslation = Trafo3d.Translation(0.0, 0.0, 0.7)
+            let heraTrafos = heraScaleTrafo * heraTranslation * heraTrafo
+
+            let heraBBox = model.twoDModel.currHeraBBox.Transformed(heraTrafos)
 
             let allProbesUpdated =
                 if model.grabberId.IsSome && not model.allProbes.IsEmpty then 
@@ -299,6 +306,7 @@ module Demo =
                         )
                 else 
                     model.allProbes
+
             {model with 
                 controllerTrafo = contrTrafo
                 sphereControllerTrafo = sphereContrTrafo
@@ -316,7 +324,8 @@ module Demo =
                 screenCoordsHitPos = screenCoordsHitPos
                 probeIntersectionId = probeIntersection
                 heraBox = heraBBox
-                allProbes = allProbesUpdated}
+                allProbes = allProbesUpdated
+                heraTransformations = heraTrafos}
         | ActivateControllerMode id ->
             let currDevice = model.devicesTrafos.TryFind(id)
             let currDeviceTrafo = trafoOrIdentity currDevice
@@ -419,9 +428,19 @@ module Demo =
                     match model.sphereControllerId with
                     | Some i -> if i = id then 
                                     let t = trafoOrIdentity model.sphereControllerTrafo
+                                    let heraInvMatrix = model.heraTransformations.Backward
+
                                     let spherePos = t.Forward.TransformPos(V3d.OOO)
+                                    let spherePosTransformed = heraInvMatrix.TransformPos(spherePos)
+
                                     let sphereRadius = model.sphereRadius * model.sphereScale
+                                    let posToRadius = spherePos + V3d(sphereRadius, 0.0, 0.0)
+                                    let posToRadiusTransformed = heraInvMatrix.TransformPos(posToRadius)
+                                    let radiusTransformed = posToRadiusTransformed - spherePosTransformed
+
                                     let sphere = Sphere3d(spherePos, sphereRadius)
+                                    let sphereTransformed = Sphere3d(spherePosTransformed, radiusTransformed.X)
+
                                     printf "sphere Pos %A" spherePos
                                     let intersection = model.heraBox.Intersects(sphere)
                                     let probe = createProbe spherePos sphereRadius intersection
@@ -429,7 +448,7 @@ module Demo =
 
                                     let filteredData = 
                                         if intersection then
-                                            let array = filterDataForOneFrameSphere frames.[mTwoD.frame] (Some sphere) mTwoD.renderValue
+                                            let array = filterDataForOneFrameSphere frames.[mTwoD.frame] (Some sphereTransformed) mTwoD.renderValue
                                             array
                                         else 
                                             mTwoD.data.arr
@@ -684,7 +703,8 @@ module Demo =
                 heraScale * Trafo3d.Translation(0.0, 0.0, 0.7) * heraMove
                 ) heraScaleTrafo trafo
         
-        let heraSg =    
+        let heraSg = 
+            let model = m
             let m = m.twoDModel
             data
             |> HeraSg.HeraSg.createAnimatedVrSg 
@@ -693,7 +713,7 @@ module Demo =
                 m.cameraState.view
                 runtime
             |> Sg.noEvents
-            |> Sg.trafo heraTransformations
+            |> Sg.trafo model.heraTransformations
             |> Sg.pass pass0
             //|> Sg.blendMode (AVal.constant mode)
 
@@ -707,15 +727,13 @@ module Demo =
         let boxSg = 
             Sg.box m.twoDModel.boxColor currentBox
             |> Sg.noEvents
-            |> Sg.trafo heraTransformations
+            |> Sg.trafo m.heraTransformations
             |> Sg.fillMode (FillMode.Line |> AVal.constant)
 
         let heraBBox = 
             Sg.box (AVal.constant C4b.White) m.twoDModel.currHeraBBox
             |> Sg.noEvents
-            |> Sg.trafo heraScaleTrafo
-            |> Sg.translate 0.0 0.0 0.7
-            |> Sg.trafo trafo
+            |> Sg.trafo m.heraTransformations
             |> Sg.fillMode (FillMode.Line |> AVal.constant)
 
         let currentSphereProbeSg = 

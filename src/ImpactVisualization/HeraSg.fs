@@ -193,8 +193,6 @@ module Shaders =
                     (p.Value.alphaJutzi >= filters.filterAlphaJutzi.min && p.Value.alphaJutzi <= filters.filterAlphaJutzi.max) &&
                     (p.Value.pressure >= filters.filterPressure.min && p.Value.pressure <= filters.filterPressure.max) 
 
-
-
             //let min = if boxIsSet then V3f(modelMatrix.TransformPos(V3d(filterBox.Min))) else filterBox.Min
             //let max = if boxIsSet then V3f(modelMatrix.TransformPos(V3d(filterBox.Max))) else filterBox.Max
             //let min = if temp then filterBox.Min else V3f(modelMatrix.TransformPos(V3d(filterBox.Min)))

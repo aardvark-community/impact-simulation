@@ -44,6 +44,7 @@ type Model =
         grabberId : Option<int>
         allowHeraScaling : bool
         heraBox : Box3d
+        heraTransformations : Trafo3d
 
         //Sphere translation and scaling
         sphereControllerTrafo: Option<Trafo3d>

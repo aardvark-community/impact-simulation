@@ -191,11 +191,12 @@ module App =
     //TODO: Must be improved to really check intersection between Sphere and Box
     let createSphereQuery (sphere : Sphere3d) (frame : Frame) =
         let chunk = 
+            let sphereBox = sphere.BoundingBox3d
             let squaredR = sphere.Radius * sphere.Radius
             Queries.QueryPointsCustom frame.pointSet.Root.Value
-                (fun n -> sphereContainsBox sphere n.BoundingBoxExactGlobal) 
-                (fun n -> not (n.BoundingBoxExactGlobal.Intersects(sphere))) 
-                (fun p -> sphere.Center.DistanceSquared(p) <= squaredR)
+                (fun n -> sphereBox.Contains n.BoundingBoxExactGlobal) 
+                (fun n -> not (sphereBox.Intersects n.BoundingBoxExactGlobal)) 
+                (fun p -> sphere.Center.Distance(p) <= sphere.Radius)
                 Hera.Defs.all
                 None
             |> Seq.toArray
@@ -206,10 +207,10 @@ module App =
         let currFilteredData = 
             match renderVal with
             | RenderValue.Energy -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) 
-            | RenderValue.CubicRoot -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
-            | RenderValue.Strain -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
-            | RenderValue.AlphaJutzi -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
-            | RenderValue.Pressure -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) 
+            | RenderValue.CubicRoot -> extract (fun c -> c.Data.[Hera.Defs.CubicRootsOfDamage] :?> float32[])
+            | RenderValue.Strain -> extract (fun c -> c.Data.[Hera.Defs.LocalStrains] :?> float32[])
+            | RenderValue.AlphaJutzi -> extract (fun c -> c.Data.[Hera.Defs.AlphaJutzi] :?> float32[])
+            | RenderValue.Pressure -> extract (fun c -> c.Data.[Hera.Defs.Pressures] :?> float32[]) 
             | _ -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
         currFilteredData |> Array.map (fun v -> float v)
 
@@ -229,10 +230,10 @@ module App =
         let chunk = createBoxQuery box frame
         let extract f = chunk |> Array.map f |> Array.concat
         let energies =  extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
-        let cubicRoots = extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
-        let strain = extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
-        let alphaJutzi = extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
-        let pressure = extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
+        let cubicRoots = extract (fun c -> c.Data.[Hera.Defs.CubicRootsOfDamage] :?> float32[]) |> Array.map (fun v -> float v)
+        let strain = extract (fun c -> c.Data.[Hera.Defs.LocalStrains] :?> float32[]) |> Array.map (fun v -> float v)
+        let alphaJutzi = extract (fun c -> c.Data.[Hera.Defs.AlphaJutzi] :?> float32[]) |> Array.map (fun v -> float v)
+        let pressure = extract (fun c -> c.Data.[Hera.Defs.Pressures] :?> float32[]) |> Array.map (fun v -> float v)
         zip5 energies cubicRoots strain alphaJutzi pressure
 
     let filterDataForAllFramesBox (frames : Frame[]) (filter : option<Box3f>) (renderVal : RenderValue) = 
