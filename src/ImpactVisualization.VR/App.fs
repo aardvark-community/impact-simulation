@@ -343,13 +343,13 @@ module Demo =
                     clippingPlaneDeviceId = None 
                 }
         | CreateProbe (id, trafo) ->
-            match model.probeIntersectionId with 
+            match model.probeIntersectionId with // is the controller currently intersecting a probe (id of probe is a string)
             | Some probe -> 
-                match model.intersectionControllerId with 
+                match model.intersectionControllerId with // id of the controller intersecting with sphere
                 | Some i -> if i = id then 
-                                if model.deletionControllerId.IsSome then 
+                                if model.deletionControllerId.IsSome then // if deletion controller is set then DELETE current probe with main controller 
                                     {model with allProbes = model.allProbes.Remove(probe)} 
-                                else 
+                                else // if deletion controller is not set -> MANIPULATE probe
                                     let currProbe = model.allProbes.TryFind(probe)
                                     let currScale = 
                                         match currProbe with
@@ -362,23 +362,23 @@ module Demo =
                                         sphereControllerId = Some id
                                         sphereScale = currScale
                                         probeIntersectionId = None}
-                            else 
+                            else // if probe is interseecting but current controller is not the same as intersection controller -> set deletion controller
                                 {model with deletionControllerId = Some id}
-                | None -> {model with deletionControllerId = None}
-            | None -> 
-                match model.sphereControllerId with 
-                | Some i -> if i = id then 
+                | None -> {model with deletionControllerId = None} // if no controller is intersectiong, then the probe cannot be deleted
+            | None -> // controller is not intersecting with a probe
+                match model.sphereControllerId with // is the id of the controller creating spheres set 
+                | Some i -> if i = id then // if the current id is the same as the previous -> set new trafos for the sphere
                                 {model with 
                                     currentProbeManipulated = true
                                     sphereControllerTrafo = trafo
                                     sphereControllerId = Some id
                                     intersectionControllerId = Some id}
-                            else
+                            else // if not the same id -> sphere shold be scaled 
                                 {model with
                                     currentProbeManipulated = true
                                     sphereScalerId = Some id
                                     sphereScalerTrafo = trafo} 
-                | None -> 
+                | None -> //  set new trafos for the sphere
                         {model with 
                             currentProbeManipulated = true
                             sphereControllerTrafo = trafo
@@ -434,14 +434,22 @@ module Demo =
                                     let spherePosTransformed = heraInvMatrix.TransformPos(spherePos)
 
                                     let sphereRadius = model.sphereRadius * model.sphereScale
-                                    let posToRadius = spherePos + V3d(sphereRadius, 0.0, 0.0)
-                                    let posToRadiusTransformed = heraInvMatrix.TransformPos(posToRadius)
-                                    let radiusTransformed = posToRadiusTransformed - spherePosTransformed
+                                    //let posToRadius = spherePos + V3d(sphereRadius, 0.0, 0.0)
+                                    //let posToRadiusTransformed = heraInvMatrix.TransformPos(posToRadius)
+                                    //let radiusTransformed = posToRadiusTransformed - spherePosTransformed
+                                    let heraScale = heraInvMatrix.GetScaleVector3()
+                                    let radiusTransformed = sphereRadius * heraScale.X
 
                                     let sphere = Sphere3d(spherePos, sphereRadius)
-                                    let sphereTransformed = Sphere3d(spherePosTransformed, radiusTransformed.X)
+                                    let sphereTransformed = Sphere3d(spherePosTransformed, radiusTransformed)
+                                    printf "hera Scale %A \n" heraScale
+                                    printf "sphere Scale %A \n" model.sphereScale
+                                    printf "sphere Pos %A \n" spherePos
+                                    printf "sphere Pos Transformed %A \n" spherePosTransformed
+                                    printf "sphere Radius %A \n" sphereRadius
+                                    printf "sphere Radius Transformed %A \n" radiusTransformed
 
-                                    printf "sphere Pos %A" spherePos
+
                                     let intersection = model.heraBox.Intersects(sphere)
                                     let probe = createProbe spherePos sphereRadius intersection
                                     let mTwoD = model.twoDModel
