@@ -685,6 +685,8 @@ module Demo =
             | Some t -> t
             | None -> Trafo3d.Identity
 
+
+        //TODO: Why not directly use hera trafo?!?!?!
         let trafo = 
             AVal.map2 (fun contr heraContr -> 
                 let contrTrafo = trafoOrIdentity contr 
