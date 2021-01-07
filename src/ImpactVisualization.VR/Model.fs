@@ -55,6 +55,7 @@ type Model =
         //Scaling factors
         scalingFactorHera : float
         sphereScale : float 
+        lastSphereScale : float
         sphereRadius : float 
         sphereColor : C4b
 

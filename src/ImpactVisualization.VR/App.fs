@@ -79,6 +79,7 @@ module Demo =
             sphereScalerId = None
             scalingFactorHera = 0.05
             sphereScale = 1.0
+            lastSphereScale = 1.0
             sphereRadius = 0.2
             sphereColor = C4b(1.0,1.0,1.0,0.4)
             currentProbeManipulated = false
@@ -135,6 +136,8 @@ module Demo =
         let planePos3 = V3d(0.7, 0.05, -0.5)
 
         //let res = model.client.LoadUrl "http://localhost:4321"
+        let mTwoD = model.twoDModel
+
 
         let trafoOrIdentity trafo = 
             match trafo with 
@@ -348,7 +351,17 @@ module Demo =
                 match model.intersectionControllerId with // id of the controller intersecting with sphere
                 | Some i -> if i = id then 
                                 if model.deletionControllerId.IsSome then // if deletion controller is set then DELETE current probe with main controller 
-                                    {model with allProbes = model.allProbes.Remove(probe)} 
+                                    //TODO: Check if the deleted probbe is the last one used for filtering
+                                    let updatedTwoDmodel = 
+                                        { mTwoD with
+                                            sphereFilter = None
+                                            data = VersionedArray.ofArray [||] 
+                                            dataRange = mTwoD.initDataRange
+                                        }
+                                    {model with 
+                                        allProbes = model.allProbes.Remove(probe)
+                                        twoDModel = updatedTwoDmodel
+                                        } 
                                 else // if deletion controller is not set -> MANIPULATE probe
                                     let currProbe = model.allProbes.TryFind(probe)
                                     let currScale = 
@@ -442,17 +455,16 @@ module Demo =
 
                                     let sphere = Sphere3d(spherePos, sphereRadius)
                                     let sphereTransformed = Sphere3d(spherePosTransformed, radiusTransformed)
-                                    printf "hera Scale %A \n" heraScale
-                                    printf "sphere Scale %A \n" model.sphereScale
-                                    printf "sphere Pos %A \n" spherePos
-                                    printf "sphere Pos Transformed %A \n" spherePosTransformed
-                                    printf "sphere Radius %A \n" sphereRadius
-                                    printf "sphere Radius Transformed %A \n" radiusTransformed
 
+                                    //printf "hera Scale %A \n" heraScale
+                                    //printf "sphere Scale %A \n" model.sphereScale
+                                    //printf "sphere Pos %A \n" spherePos
+                                    //printf "sphere Pos Transformed %A \n" spherePosTransformed
+                                    //printf "sphere Radius %A \n" sphereRadius
+                                    //printf "sphere Radius Transformed %A \n" radiusTransformed
 
                                     let intersection = model.heraBox.Intersects(sphere)
                                     let probe = createProbe spherePos sphereRadius intersection
-                                    let mTwoD = model.twoDModel
 
                                     let filteredData = 
                                         if intersection then
@@ -467,9 +479,13 @@ module Demo =
                                             data = { version = mTwoD.data.version + 1; arr = filteredData}
                                         }
 
+                                    let temp = model.sphereScale
+                                    printf "sphere Scale %A \n" temp
+
                                     {model with
                                         currentProbeManipulated = false
                                         allProbes = model.allProbes.Add(probe.id, probe)
+                                        lastSphereScale = temp
                                         sphereScale = 1.0
                                         sphereControllerId = None
                                         sphereScalerId = None
@@ -693,6 +709,17 @@ module Demo =
         mode.SourceAlphaFactor <- BlendFactor.One
         mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
 
+
+        let probeScale = 
+            AVal.map3 (fun currProbMan currScale lastScale ->
+                if currProbMan then 
+                    currScale
+                else
+                    lastScale
+                ) m.currentProbeManipulated m.sphereScale m.lastSphereScale
+
+
+        //TODO: Must be changed, escpesially for deleting of probes and filtering
         let sphereProbe = 
             AVal.map3 (fun trafo scale initRadius -> 
                 match trafo with 
@@ -701,10 +728,10 @@ module Demo =
                         Sphere3d.Invalid
                     else 
                         let spherePos = t.Forward.TransformPos(V3d.OOO)
-                        let sphereRadius : float = initRadius * scale
+                        let sphereRadius : float = initRadius * scale 
                         Sphere3d(spherePos, sphereRadius)
                 | None -> Sphere3d.Invalid
-                ) m.sphereControllerTrafo m.sphereScale m.sphereRadius
+                ) m.sphereControllerTrafo probeScale m.sphereRadius
 
         //let sphereProbe = Sphere3d.Invalid |> AVal.constant
 
