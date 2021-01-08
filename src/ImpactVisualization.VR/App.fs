@@ -120,11 +120,11 @@ module Demo =
     //let updateController (m : Model) : Model = 
     //    failwith ""
 
-    let createProbe (pos : V3d) (radius : float) (inside: bool) : Probe = 
+    let createProbe (posToHera : V3d) (radToHera : float) (inside: bool)  : Probe = 
         {
             id = Guid.NewGuid().ToString()
-            center = pos
-            radius = radius
+            centerRelToHera = posToHera
+            radiusRelToHera = radToHera
             insideHera = inside
         }
         
@@ -237,6 +237,17 @@ module Demo =
                     client.SetFocus false
                     initRay
            // if hitPoint then printf "Hit Point %A \n" hit.Point
+
+            let heraTrafo = 
+                let cT = trafoOrIdentity contrTrafo 
+                let heraCT = trafoOrIdentity model.heraToControllerTrafo
+                heraCT * cT
+            let heraScaleTrafo = Trafo3d(Scale3d(model.scalingFactorHera))
+            let heraTranslation = Trafo3d.Translation(0.0, 0.0, 0.7)
+            let heraTrafos = heraScaleTrafo * heraTranslation * heraTrafo
+
+            let heraBBox = model.twoDModel.currHeraBBox.Transformed(heraTrafos)
+
             let sphereIntersection (controllerSphere : Sphere3d) (probe : Sphere3d) = controllerSphere.Intersects(probe)
             let probeIntersection = 
                 match model.intersectionControllerId with 
@@ -248,7 +259,9 @@ module Demo =
                         let probeId =  
                             model.allProbes
                             |> HashMap.filter (fun key probe ->
-                                let sphere = Sphere3d(probe.center, probe.radius)
+                                let newCenter = heraTrafos.Forward.TransformPos(probe.centerRelToHera)
+                                let newRadius = probe.radiusRelToHera * heraTrafos.Forward.GetScaleVector3().X
+                                let sphere = Sphere3d(newCenter, newRadius)
                                 sphereIntersection controllerSphere sphere)
                             |> HashMap.toSeq
                             |> Seq.map (fun (key, probe) -> key)
@@ -282,26 +295,18 @@ module Demo =
                 | None -> model.planeCorners
             let currMenuTrafo = newOrOldTrafo id trafo model.menuControllerId model.menuControllerTrafo
 
-            let heraTrafo = 
-                let cT = trafoOrIdentity contrTrafo 
-                let heraCT = trafoOrIdentity model.heraToControllerTrafo
-                heraCT * cT
-            let heraScaleTrafo = Trafo3d(Scale3d(model.scalingFactorHera))
-            let heraTranslation = Trafo3d.Translation(0.0, 0.0, 0.7)
-            let heraTrafos = heraScaleTrafo * heraTranslation * heraTrafo
-
-            let heraBBox = model.twoDModel.currHeraBBox.Transformed(heraTrafos)
-
             let allProbesUpdated =
                 if model.grabberId.IsSome && not model.allProbes.IsEmpty then 
                     model.allProbes
                     |> HashMap.map (fun key probe -> 
-                        let sphere = Sphere3d(probe.center, probe.radius)
+                        let newCenter = heraTrafos.Forward.TransformPos(probe.centerRelToHera)
+                        let newRadius = probe.radiusRelToHera * heraTrafos.Forward.GetScaleVector3().X
+                        let sphere = Sphere3d(newCenter, newRadius)
                         let intersection = heraBBox.Intersects(sphere)
                         let updatedProbe = 
                             {
-                                center = probe.center
-                                radius = probe.radius
+                                centerRelToHera = probe.centerRelToHera
+                                radiusRelToHera = probe.radiusRelToHera
                                 insideHera = intersection
                                 id = probe.id
                             }
@@ -366,7 +371,9 @@ module Demo =
                                     let currProbe = model.allProbes.TryFind(probe)
                                     let currScale = 
                                         match currProbe with
-                                        | Some pr -> (pr.radius / model.sphereRadius)
+                                        | Some pr -> 
+                                            let newRadius = pr.radiusRelToHera * model.heraTransformations.Forward.GetScaleVector3().X
+                                            (newRadius / model.sphereRadius)
                                         | None -> model.sphereScale
                                     {model with 
                                         allProbes = model.allProbes.Remove(probe)
@@ -441,6 +448,7 @@ module Demo =
                     match model.sphereControllerId with
                     | Some i -> if i = id then 
                                     let t = trafoOrIdentity model.sphereControllerTrafo
+                                  //  let sphereTrafo = Trafo3d(Scale3d(model.sphereScale)) * t
                                     let heraInvMatrix = model.heraTransformations.Backward
 
                                     let spherePos = t.Forward.TransformPos(V3d.OOO)
@@ -463,8 +471,9 @@ module Demo =
                                     //printf "sphere Radius %A \n" sphereRadius
                                     //printf "sphere Radius Transformed %A \n" radiusTransformed
 
+                                    //TODO: use only the relative Pos and Radius to spare code and storage
                                     let intersection = model.heraBox.Intersects(sphere)
-                                    let probe = createProbe spherePos sphereRadius intersection
+                                    let probe = createProbe spherePosTransformed radiusTransformed intersection 
 
                                     let filteredData = 
                                         if intersection then
@@ -696,9 +705,17 @@ module Demo =
 
         let heraScaleTrafo = m.scalingFactorHera |> AVal.map(fun s -> Trafo3d (Scale3d(s)))
 
-        let sphereScaleTrafo = m.sphereScale |> AVal.map(fun s -> Trafo3d (Scale3d(s)))
 
-        let sphereTrafo = m.sphereControllerTrafo |> AVal.map (fun t -> trafoOrIdentity t)
+        let sphereTrafo = 
+            AVal.map2 (fun sphereContrTrafo (sphereScale : float) -> 
+                let spContrT = trafoOrIdentity sphereContrTrafo
+                let scale = Trafo3d(Scale3d(sphereScale))
+                scale * spContrT
+                ) m.sphereControllerTrafo m.sphereScale
+
+       // let sphereScaleTrafo = m.sphereScale |> AVal.map(fun s -> Trafo3d (Scale3d(s)))
+
+      //  let sphereTrafo = m.sphereControllerTrafo |> AVal.map (fun t -> trafoOrIdentity t)
 
         let contrClippingPlane = m.planeCorners |> AVal.map (fun c -> Plane3d(c.P0, c.P1, c.P2))
 
@@ -778,7 +795,6 @@ module Demo =
         let currentSphereProbeSg = 
             Sg.sphere 9 m.sphereColor m.sphereRadius
             |> Sg.noEvents
-            |> Sg.trafo sphereScaleTrafo
             |> Sg.trafo sphereTrafo
             |> Sg.onOff m.currentProbeManipulated
            // |> Sg.fillMode (FillMode.Fill |> AVal.constant)
@@ -800,11 +816,12 @@ module Demo =
                                             if p.insideHera then C4b(0.0,0.0,1.0,0.4)  else C4b(1.0,1.0,1.0,0.4)
                             | None -> if p.insideHera then C4b(0.0,0.0,1.0,0.4)  else C4b(1.0,1.0,1.0,0.4)
                         ) m.probeIntersectionId m.deletionControllerId
-                    let sphere = Sphere3d(p.center, p.radius)
-                    let sphereBoxSg = Sg.box' C4b.White sphere.BoundingBox3d |> Sg.noEvents |> Sg.fillMode (FillMode.Line |> AVal.constant)
-                    Sg.sphere 9 color (AVal.constant p.radius)
+                    //let sphere = Sphere3d(p.center, p.radius)
+                  //  let sphereBoxSg = Sg.box' C4b.White sphere.BoundingBox3d |> Sg.noEvents |> Sg.fillMode (FillMode.Line |> AVal.constant)
+                    Sg.sphere 9 color (AVal.constant p.radiusRelToHera)
                     |> Sg.noEvents
-                    |> Sg.transform (Trafo3d.Translation(p.center))
+                    |> Sg.transform (Trafo3d.Translation(p.centerRelToHera))
+                    |> Sg.trafo m.heraTransformations // so that it moves with hera!!!
                    // |> Sg.andAlso sphereBoxSg
                     |> Some
                 )
