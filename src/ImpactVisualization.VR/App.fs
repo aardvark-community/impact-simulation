@@ -687,11 +687,11 @@ module Demo =
 
 
         //TODO: Why not directly use hera trafo?!?!?!
-        let trafo = 
-            AVal.map2 (fun contr heraContr -> 
-                let contrTrafo = trafoOrIdentity contr 
-                let heraContrTrafo = trafoOrIdentity heraContr
-                heraContrTrafo * contrTrafo) m.controllerTrafo m.heraToControllerTrafo
+        let trafo = m.heraTrafo |> AVal.map (fun t -> trafoOrIdentity t)
+            //AVal.map2 (fun contr heraContr -> 
+            //    let contrTrafo = trafoOrIdentity contr 
+            //    let heraContrTrafo = trafoOrIdentity heraContr
+            //    heraContrTrafo * contrTrafo) m.controllerTrafo m.heraToControllerTrafo
 
 
         let heraScaleTrafo = m.scalingFactorHera |> AVal.map(fun s -> Trafo3d (Scale3d(s)))
