@@ -107,6 +107,17 @@ type ClippingPlane =
     z : float
     }
 
+type Statistics = 
+    {
+        attribute         : RenderValue
+        numOfPoints       : int 
+        maxValue          : float 
+        minValue          : float
+        meanValue         : float
+        variance          : float
+        standardDeviation : float
+    }
+
 [<ModelType;CustomEquality;NoComparison>]
 type VersionedArray = 
     {

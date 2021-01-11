@@ -11,6 +11,7 @@ open Aardvark.UI.Primitives
 open Aardvark.UI.Generic
 open Aardvark.Application
 open Aardvark.Application.OpenVR
+open Adaptify.FSharp.Core
 
 open FSharp.Data.Adaptive
 
@@ -88,6 +89,8 @@ module Demo =
             probeIntersectionId = None
             intersectionControllerId = None
             deletionControllerId = None
+            lastFilterProbe = None
+            statistics = ""
             rayDeviceId = None
             ray = Ray3d.Invalid
             rayTriggerClicked = false
@@ -357,6 +360,10 @@ module Demo =
                 | Some i -> if i = id then 
                                 if model.deletionControllerId.IsSome then // if deletion controller is set then DELETE current probe with main controller 
                                     //TODO: Check if the deleted probbe is the last one used for filtering
+                                    let filterProbe = 
+                                        match model.lastFilterProbe with 
+                                            | Some pr -> if pr.id == probe then None else model.lastFilterProbe
+                                            | None -> None
                                     let updatedTwoDmodel = 
                                         { mTwoD with
                                             sphereFilter = None
@@ -365,6 +372,7 @@ module Demo =
                                         }
                                     {model with 
                                         allProbes = model.allProbes.Remove(probe)
+                                        lastFilterProbe = filterProbe
                                         twoDModel = updatedTwoDmodel
                                         } 
                                 else // if deletion controller is not set -> MANIPULATE probe
@@ -377,6 +385,7 @@ module Demo =
                                         | None -> model.sphereScale
                                     {model with 
                                         allProbes = model.allProbes.Remove(probe)
+                                        lastFilterProbe = currProbe
                                         currentProbeManipulated = true
                                         sphereControllerTrafo = trafo
                                         sphereControllerId = Some id
@@ -475,9 +484,14 @@ module Demo =
                                     let intersection = model.heraBox.Intersects(sphere)
                                     let probe = createProbe spherePosTransformed radiusTransformed intersection 
 
+                                    let result = filterDataForOneFrameSphere frames.[mTwoD.frame] (Some sphereTransformed) mTwoD.renderValue
+                                    let stats = snd result
+
+                                    printf "Statistics: \n %A" stats
+
                                     let filteredData = 
                                         if intersection then
-                                            let array = filterDataForOneFrameSphere frames.[mTwoD.frame] (Some sphereTransformed) mTwoD.renderValue
+                                            let array = fst result
                                             array
                                         else 
                                             mTwoD.data.arr
@@ -495,6 +509,8 @@ module Demo =
                                         currentProbeManipulated = false
                                         allProbes = model.allProbes.Add(probe.id, probe)
                                         lastSphereScale = temp
+                                        lastFilterProbe = Some probe
+                                        statistics = stats
                                         sphereScale = 1.0
                                         sphereControllerId = None
                                         sphereScalerId = None
@@ -729,6 +745,11 @@ module Demo =
         mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
 
 
+        let heraTransformations = 
+            AVal.map2 (fun heraScale heraMove -> 
+                heraScale * Trafo3d.Translation(0.0, 0.0, 0.7) * heraMove
+                ) heraScaleTrafo trafo 
+
         let probeScale = 
             AVal.map3 (fun currProbMan currScale lastScale ->
                 if currProbMan then 
@@ -738,7 +759,6 @@ module Demo =
                 ) m.currentProbeManipulated m.sphereScale m.lastSphereScale
 
 
-        //TODO: Must be changed, escpesially for deleting of probes and filtering
         let sphereProbe = 
             AVal.map3 (fun trafo scale initRadius -> 
                 match trafo with 
@@ -752,12 +772,24 @@ module Demo =
                 | None -> Sphere3d.Invalid
                 ) m.sphereControllerTrafo probeScale m.sphereRadius
 
+        //let probe = m.lastFilterProbe |> AVal.map (fun pr -> AdaptiveProbe.)
+
+        ////TODO: Must be changed, escpesially for deleting of probes and filtering
+        //let probeWhenHeraMoved = 
+        //    AVal.map2 (fun lastProbe  (heraTrafos : Trafo3d) -> 
+        //        //match lastProbe with 
+        //        //    | Some probe ->
+        //        //        let newCenter = heraTrafos.Forward.TransformPos(probe.centerRelToHera)
+        //        //        let newRadius = probe.radiusRelToHera * heraTrafos.Forward.GetScaleVector3().X
+        //        //        let sphere = Sphere3d(newCenter, newRadius)
+        //        //        sphere 
+        //        //    | None -> Sphere3d.Invalid
+        //    ) m.lastFilterProbe m.heraTransformations
+           
+
         //let sphereProbe = Sphere3d.Invalid |> AVal.constant
 
-        let heraTransformations = 
-            AVal.map2 (fun heraScale heraMove -> 
-                heraScale * Trafo3d.Translation(0.0, 0.0, 0.7) * heraMove
-                ) heraScaleTrafo trafo
+
         
         let heraSg = 
             let model = m

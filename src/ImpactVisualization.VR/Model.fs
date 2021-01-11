@@ -83,6 +83,9 @@ type Model =
         intersectionControllerId : Option<int>
         deletionControllerId : Option<int>
         probeIntersectionId : Option<string>
+        lastFilterProbe : Option<Probe>
+
+        statistics : string
         
         //Controller clipping plane
         clippingPlaneDeviceTrafo : Option<Trafo3d>

@@ -202,6 +202,31 @@ module App =
             |> Seq.toArray
         chunk
 
+    let computeStatistics (filteredPoints : float[]) (renderValue : RenderValue) = 
+        let renderVal = 
+            match renderValue with 
+            | RenderValue.Energy -> "Energy"
+            | RenderValue.CubicRoot -> "Cubic Root"
+            | RenderValue.Strain -> "Strain"
+            | RenderValue.AlphaJutzi -> "Alpha Jutzi"
+            | RenderValue.Pressure -> "Pressure"
+            | _ -> "Energy"
+        let numOfPoints = filteredPoints.Length
+        let max = filteredPoints.Max() //TODO: Probably directly use the data range somehow ?!?!?!
+        let min = filteredPoints.Min() 
+        let mean = filteredPoints.Mean()
+        let variance = filteredPoints.Variance()
+        let standardDeviation = filteredPoints.StandardDeviation()
+        let statisticsText = 
+            "Attribute: " + renderVal + "\n" + 
+            "Number of Points: " + string numOfPoints + "\n" + 
+            "Min: " + string min + "\n" + 
+            "Max: " + string max + "\n" + 
+            "Mean: " + string mean + "\n" + 
+            "Variance: " + string variance + "\n" + 
+            "Standard Deviation: " + string standardDeviation
+        statisticsText
+
     let filterDataForOneFrame (chunk : GenericChunk[]) (renderVal : RenderValue) =
         let extract f = chunk |> Array.map f |> Array.concat
         let currFilteredData = 
@@ -212,7 +237,8 @@ module App =
             | RenderValue.AlphaJutzi -> extract (fun c -> c.Data.[Hera.Defs.AlphaJutzi] :?> float32[])
             | RenderValue.Pressure -> extract (fun c -> c.Data.[Hera.Defs.Pressures] :?> float32[]) 
             | _ -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
-        currFilteredData |> Array.map (fun v -> float v)
+        let result = currFilteredData |> Array.map (fun v -> float v)
+        result
 
     let filterDataForOneFrameBox (frame : Frame) (filter : option<Box3f>) (renderVal : RenderValue) = 
          let box = filter |> (fun elem -> defaultArg elem Box3f.Invalid) |> (fun b -> b.BoundingBox3d)
@@ -223,7 +249,10 @@ module App =
     let filterDataForOneFrameSphere (frame : Frame) (filter : option<Sphere3d>) (renderVal : RenderValue) = 
          let sphere = filter |> (fun elem -> defaultArg elem Sphere3d.Invalid)
          let chunk = createSphereQuery sphere frame
-         filterDataForOneFrame chunk renderVal
+         let result = filterDataForOneFrame chunk renderVal
+         let statistics = computeStatistics result renderVal
+         result, statistics
+
 
     let filterAllDataForOneFrame (filter : Box3f) (frame : Frame) = 
         let box = filter.BoundingBox3d
