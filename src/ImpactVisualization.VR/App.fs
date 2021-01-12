@@ -772,7 +772,11 @@ module Demo =
                 | None -> Sphere3d.Invalid
                 ) m.sphereControllerTrafo probeScale m.sphereRadius
 
-        //let probe = m.lastFilterProbe |> AVal.map (fun pr -> AdaptiveProbe.)
+        //let probe = 
+        //    m.lastFilterProbe |> AVal.map (fun pr -> 
+        //        match pr with 
+        //        | AdaptiveSome p -> 
+        //        | AdaptiveNone -> )
 
         ////TODO: Must be changed, escpesially for deleting of probes and filtering
         //let probeWhenHeraMoved = 
