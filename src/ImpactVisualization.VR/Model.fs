@@ -24,6 +24,7 @@ type Probe = {
     centerRelToHera : V3d
     radiusRelToHera : float
     insideHera : bool
+    currStatistics : string
 
     [<NonAdaptive>]
     id : string

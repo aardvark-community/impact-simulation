@@ -115,10 +115,13 @@ module Shaders =
                 | RenderValue.AlphaJutzi -> p.Value.alphaJutzi
                 | RenderValue.Pressure -> p.Value.pressure
                 | _ -> p.Value.energy
-            let currValue = value renderValue  
-            let temp = (currValue - dataRange.min) / (dataRange.max - dataRange.min) // normalized values!!! 
-            let linearCoord = Math.Pow(temp, 1.0/2.0)
-            let transferFunc = transfer.SampleLevel(V2d(currValue, 0.0), 0.0)
+            //let currValue = value renderValue  
+            //let temp = (currValue - dataRange.min) / (dataRange.max - dataRange.min) // normalized values!!! 
+            //let linearCoord = Math.Pow(temp, 1.0/2.0)
+            //let transferFunc = transfer.SampleLevel(V2d(currValue, 0.0), 0.0)
+
+            let linearCoord = value renderValue         
+            let transferFunc = transfer.SampleLevel(V2d(linearCoord, 0.0), 0.0)
 
             let notDiscardByFilters = 
                     (p.Value.energy >= filters.filterEnergy.min && p.Value.energy <= filters.filterEnergy.max) &&

@@ -123,12 +123,13 @@ module Demo =
     //let updateController (m : Model) : Model = 
     //    failwith ""
 
-    let createProbe (posToHera : V3d) (radToHera : float) (inside: bool)  : Probe = 
+    let createProbe (posToHera : V3d) (radToHera : float) (inside : bool) (statistics : string )  : Probe = 
         {
             id = Guid.NewGuid().ToString()
             centerRelToHera = posToHera
             radiusRelToHera = radToHera
             insideHera = inside
+            currStatistics = statistics
         }
         
     let rec update (runtime : IRuntime) (client : Browser) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
@@ -312,6 +313,7 @@ module Demo =
                                 radiusRelToHera = probe.radiusRelToHera
                                 insideHera = intersection
                                 id = probe.id
+                                currStatistics = probe.currStatistics
                             }
                         updatedProbe
                         )
@@ -482,10 +484,11 @@ module Demo =
 
                                     //TODO: use only the relative Pos and Radius to spare code and storage
                                     let intersection = model.heraBox.Intersects(sphere)
-                                    let probe = createProbe spherePosTransformed radiusTransformed intersection 
-
+                                    
                                     let result = filterDataForOneFrameSphere frames.[mTwoD.frame] (Some sphereTransformed) mTwoD.renderValue
                                     let stats = snd result
+
+                                    let probe = createProbe spherePosTransformed radiusTransformed intersection stats
 
                                     printf "Statistics: \n %A" stats
 
@@ -837,6 +840,15 @@ module Demo =
             |> Sg.cullMode (CullMode.Front |> AVal.constant)
             |> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass1
+
+        let cfg : Aardvark.Rendering.Text.TextConfig = 
+               {
+                   font = Font "Calibri"
+                   color = C4b.White
+                   align = TextAlignment.Center
+                   flipViewDependent = true
+                   renderStyle       = RenderStyle.Billboard
+               }
             
         let probesSgs = 
             m.allProbes |> AMap.toASet |> ASet.chooseA (fun (key, probe) ->
@@ -854,11 +866,21 @@ module Demo =
                         ) m.probeIntersectionId m.deletionControllerId
                     //let sphere = Sphere3d(p.center, p.radius)
                   //  let sphereBoxSg = Sg.box' C4b.White sphere.BoundingBox3d |> Sg.noEvents |> Sg.fillMode (FillMode.Line |> AVal.constant)
+                    //let statisticsSg = 
+                    //    Sg.markdown MarkdownConfig.light (AVal.constant p.currStatistics)
+                    //        |> Sg.billboard
+                    //        |> Sg.noEvents
+                    let text = AVal.constant p.currStatistics
+                    let statisticsSg = 
+                        Sg.textWithConfig cfg text
+                        |> Sg.noEvents
+                        |> Sg.scale 0.1
+
                     Sg.sphere 9 color (AVal.constant p.radiusRelToHera)
                     |> Sg.noEvents
                     |> Sg.transform (Trafo3d.Translation(p.centerRelToHera))
                     |> Sg.trafo m.heraTransformations // so that it moves with hera!!!
-                   // |> Sg.andAlso sphereBoxSg
+                    //|> Sg.andAlso statisticsSg
                     |> Some
                 )
             ) 
@@ -1063,30 +1085,46 @@ module Demo =
         let clippingContrSg = 
             let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"clipping";"clipping.obj"]
             controllerSg path 90.0 0.0 -30.0 clippingScaleTrafo clippingContrPos
-            
+
+
+        let statisticsSg = 
+            Sg.textWithConfig cfg (AVal.constant "Hello, User! \n Flip the text \n Float 5.505050 \n Not working ;(")
+            |> Sg.noEvents
+            |> Sg.transform (Trafo3d.FromOrthoNormalBasis(-V3d.IOO,V3d.OOI,V3d.OIO))
+            |> Sg.scale 0.1
+
+        //let statisticsSg = 
+        //    Sg.textWithBackground (Font "Calibri") C4b.White C4b.Blue Border2d.None ( AVal.constant "Hello, User! \n Flip the text \n Float 5.505050 \n Not working ;(")
+        //    |> Sg.noEvents
+        //    |> Sg.scale 0.1
+        //    |> Sg.transform (Trafo3d.FromOrthoNormalBasis(-V3d.IOO,V3d.OOI,V3d.OIO))
+        //    |> Sg.billboard
+        //    |> Sg.noEvents
+
+            //|> Sg.transform (Trafo3d.RotationZInDegrees(180.0))
+
+
+
+        let label2 =
+           //Sg.text f C4b.Green message
+            Sg.markdown MarkdownConfig.light (AVal.constant "Hello, User! \n Flip the text \n Float 5.505050 \n Not working ;(")
+                |> Sg.noEvents
+                |> Sg.scale 0.1
+                |> Sg.transform (Trafo3d.FromOrthoNormalBasis(-V3d.IOO,V3d.OOI,V3d.OIO))
+                |> Sg.trafo (m.controllerTrafo |> AVal.map (fun mtw -> (trafoOrIdentity mtw).Forward.TransformPos(V3d.OOO) |> Trafo3d.Translation))
+                |> Sg.billboard
+                |> Sg.noEvents
+                |> Sg.translate 0.0 5.0 0.0
+
         Sg.ofSeq [
-            deviceSgs; currentSphereProbeSg; probesSgs; heraSg; clipPlaneSg; tvSg;
+            deviceSgs; currentSphereProbeSg; probesSgs; statisticsSg; clipPlaneSg; tvSg;
             billboardSg; probeContrSg; laserContrSg; clippingContrSg; ray;
-            browserSg; boxSg
+            browserSg; boxSg; label2
         ] |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
             }    
-        //Sg.ofSeq [billboardSg]
-        //|> Sg.shader {
-        //    do! DefaultSurfaces.trafo
-        //    do! DefaultSurfaces.simpleLighting
-        //}
-        //   // |> Sg.blendMode (AVal.constant mode)
-        //Sg.ofSeq [tvSg; quadSg]
-        //    |> Sg.shader {
-        //        do! DefaultSurfaces.trafo
-        //        do! DefaultSurfaces.simpleLighting
-        //    }
-           // |> Sg.blendMode (AVal.constant mode)
 
-
-        
     let pause (info : VrSystemInfo) (m : AdaptiveModel) =
         Sg.box' C4b.Red Box3d.Unit
         |> Sg.noEvents
