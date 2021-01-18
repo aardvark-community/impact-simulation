@@ -791,7 +791,7 @@ module Demo =
         //    ) m.lastFilterProbe m.heraTransformations
            
 
-        //let sphereProbe = Sphere3d.Invalid |> AVal.constant
+        let sphereProbe = Sphere3d.Invalid |> AVal.constant
 
 
         
