@@ -888,21 +888,28 @@ module Demo =
                         ) m.probeIntersectionId m.deletionControllerId
                     //let sphere = Sphere3d(p.center, p.radius)
                     //let sphereBoxSg = Sg.box' C4b.White sphere.BoundingBox3d |> Sg.noEvents |> Sg.fillMode (FillMode.Line |> AVal.constant)
-                    
+                    let statisticsScaleTrafo = 
+                        m.sphereRadius |> AVal.map (fun r -> 
+                                                        let sphereScale = p.radius / r
+                                                        let statScale = 0.05 * sphereScale
+                                                        Trafo3d(Scale3d(statScale)))
                     let text = AVal.constant p.currStatistics
                     let statisticsSg = 
                        Sg.textWithConfig ({ TextConfig.Default with renderStyle = RenderStyle.Normal })  text
                        |> Sg.noEvents
-                       |> Sg.scale 0.05
+                       |> Sg.trafo statisticsScaleTrafo
+                       |> Sg.translate 0.0 (p.radius * 0.75) 0.0
                        |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
                        |> Sg.myBillboard combinedTrafo
                        |> Sg.applyRuntime runtime
                        |> Sg.noEvents
-                    Sg.sphere 9 color (AVal.constant 0.2)
+                       |> Sg.transform (Trafo3d.Translation(p.center))
+                       |> Sg.translate 0.0 0.0 (p.radius * 1.8)
+                    Sg.sphere 9 color (AVal.constant p.radiusRelToHera)
                     |> Sg.noEvents
+                    |> Sg.transform (Trafo3d.Translation(p.centerRelToHera))
+                    |> Sg.trafo m.heraTransformations // so that it moves with hera!!!
                     |> Sg.andAlso statisticsSg
-                    //|> Sg.transform (Trafo3d.Translation(p.centerRelToHera))
-                    //|> Sg.trafo m.heraTransformations // so that it moves with hera!!!
                     |> Some
                 )
             ) 
@@ -1141,7 +1148,7 @@ module Demo =
 
 
         Sg.ofSeq [
-            deviceSgs; currentSphereProbeSg; probesSgs; clipPlaneSg; tvSg;
+            deviceSgs; currentSphereProbeSg; probesSgs; heraSg; clipPlaneSg; tvSg;
             billboardSg; probeContrSg; laserContrSg; clippingContrSg; ray;
             browserSg; boxSg
         ] |> Sg.shader {
