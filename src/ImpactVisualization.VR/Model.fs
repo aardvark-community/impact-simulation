@@ -20,11 +20,13 @@ type ControllerMode =
 
 [<ModelType>]
 type Probe = {
-
+    
+    center          : V3d
+    radius          : float
     centerRelToHera : V3d
     radiusRelToHera : float
-    insideHera : bool
-    currStatistics : string
+    insideHera      : bool
+    currStatistics  : string
 
     [<NonAdaptive>]
     id : string

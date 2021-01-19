@@ -55,7 +55,8 @@ let main argv =
 
     let app = VRApplication.create' (VRDisplay.OpenVR 1.0) Aardvark.Application.Backend.GL 8 false
     let client = new Browser(null,AVal.constant System.DateTime.Now,app.Runtime, true, AVal.constant (ImpactVisualization.Demo.screenResolution))
-    let bla = Demo.app client app.Runtime
+    let viewTrafos = app.SystemInfo.render.viewTrafos
+    let bla = Demo.app client viewTrafos app.Runtime
     let mapp = ComposedApp.start' app true bla
     
     WebPart.startServerLocalhost 4321 [

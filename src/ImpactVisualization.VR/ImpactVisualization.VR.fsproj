@@ -14,6 +14,7 @@
     <Compile Include="Cef.fs" />
     <None Include="paket.references" />
     <Compile Include="Model.fs" />
+    <Compile Include="Billboard.fs" />
     <Compile Include="App.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>

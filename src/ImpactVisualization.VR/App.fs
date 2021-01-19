@@ -123,9 +123,11 @@ module Demo =
     //let updateController (m : Model) : Model = 
     //    failwith ""
 
-    let createProbe (posToHera : V3d) (radToHera : float) (inside : bool) (statistics : string )  : Probe = 
+    let createProbe (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) (inside : bool) (statistics : string )  : Probe = 
         {
             id = Guid.NewGuid().ToString()
+            center = pos
+            radius = rad
             centerRelToHera = posToHera
             radiusRelToHera = radToHera
             insideHera = inside
@@ -263,9 +265,9 @@ module Demo =
                         let probeId =  
                             model.allProbes
                             |> HashMap.filter (fun key probe ->
-                                let newCenter = heraTrafos.Forward.TransformPos(probe.centerRelToHera)
-                                let newRadius = probe.radiusRelToHera * heraTrafos.Forward.GetScaleVector3().X
-                                let sphere = Sphere3d(newCenter, newRadius)
+                                //let newCenter = heraTrafos.Forward.TransformPos(probe.centerRelToHera)
+                                //let newRadius = probe.radiusRelToHera * heraTrafos.Forward.GetScaleVector3().X
+                                let sphere = Sphere3d(probe.center, probe.radius)
                                 sphereIntersection controllerSphere sphere)
                             |> HashMap.toSeq
                             |> Seq.map (fun (key, probe) -> key)
@@ -309,6 +311,8 @@ module Demo =
                         let intersection = heraBBox.Intersects(sphere)
                         let updatedProbe = 
                             {
+                                center = newCenter
+                                radius = newRadius
                                 centerRelToHera = probe.centerRelToHera
                                 radiusRelToHera = probe.radiusRelToHera
                                 insideHera = intersection
@@ -382,8 +386,8 @@ module Demo =
                                     let currScale = 
                                         match currProbe with
                                         | Some pr -> 
-                                            let newRadius = pr.radiusRelToHera * model.heraTransformations.Forward.GetScaleVector3().X
-                                            (newRadius / model.sphereRadius)
+                                            //let newRadius = pr.radiusRelToHera * model.heraTransformations.Forward.GetScaleVector3().X
+                                            (pr.radius / model.sphereRadius)
                                         | None -> model.sphereScale
                                     {model with 
                                         allProbes = model.allProbes.Remove(probe)
@@ -488,7 +492,7 @@ module Demo =
                                     let result = filterDataForOneFrameSphere frames.[mTwoD.frame] (Some sphereTransformed) mTwoD.renderValue
                                     let stats = snd result
 
-                                    let probe = createProbe spherePosTransformed radiusTransformed intersection stats
+                                    let probe = createProbe spherePos sphereRadius spherePosTransformed radiusTransformed intersection stats
 
                                     printf "Statistics: \n %A" stats
 
@@ -671,7 +675,7 @@ module Demo =
             AardVolume.App.view runtime data m.twoDModel |> UI.map TwoD
         ]
 
-    let vr (runtime : IRuntime) (client : Browser) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
+    let vr (runtime : IRuntime) (client : Browser) (viewTrafos : aval<Trafo3d []>) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
 
         let pass0 = RenderPass.main
         let pass1 = RenderPass.after "pass1" RenderPassOrder.Arbitrary pass0 
@@ -849,6 +853,24 @@ module Demo =
                    flipViewDependent = true
                    renderStyle       = RenderStyle.Billboard
                }
+
+        let combinedTrafo = 
+            viewTrafos 
+            |> AVal.map (fun trafos ->
+                            let left = trafos.[0]
+                            let right = trafos.[1]
+                            let combined = (left.Forward + right.Forward)/2.0
+                            let combinedInv = (left.Backward + right.Backward)/2.0
+                            Trafo3d(combined, combinedInv))
+
+        let t = 
+            Sg.textWithConfig ({ TextConfig.Default with renderStyle = RenderStyle.Normal })  (AVal.constant "hello world\nsuperstar")
+            |> Sg.noEvents
+            |> Sg.scale 0.08
+            |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+            |> Sg.myBillboard combinedTrafo
+            |> Sg.applyRuntime runtime
+            |> Sg.noEvents
             
         let probesSgs = 
             m.allProbes |> AMap.toASet |> ASet.chooseA (fun (key, probe) ->
@@ -865,22 +887,22 @@ module Demo =
                             | None -> if p.insideHera then C4b(0.0,0.0,1.0,0.4)  else C4b(1.0,1.0,1.0,0.4)
                         ) m.probeIntersectionId m.deletionControllerId
                     //let sphere = Sphere3d(p.center, p.radius)
-                  //  let sphereBoxSg = Sg.box' C4b.White sphere.BoundingBox3d |> Sg.noEvents |> Sg.fillMode (FillMode.Line |> AVal.constant)
-                    //let statisticsSg = 
-                    //    Sg.markdown MarkdownConfig.light (AVal.constant p.currStatistics)
-                    //        |> Sg.billboard
-                    //        |> Sg.noEvents
+                    //let sphereBoxSg = Sg.box' C4b.White sphere.BoundingBox3d |> Sg.noEvents |> Sg.fillMode (FillMode.Line |> AVal.constant)
+                    
                     let text = AVal.constant p.currStatistics
                     let statisticsSg = 
-                        Sg.textWithConfig cfg text
-                        |> Sg.noEvents
-                        |> Sg.scale 0.1
-
-                    Sg.sphere 9 color (AVal.constant p.radiusRelToHera)
+                       Sg.textWithConfig ({ TextConfig.Default with renderStyle = RenderStyle.Normal })  text
+                       |> Sg.noEvents
+                       |> Sg.scale 0.05
+                       |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+                       |> Sg.myBillboard combinedTrafo
+                       |> Sg.applyRuntime runtime
+                       |> Sg.noEvents
+                    Sg.sphere 9 color (AVal.constant 0.2)
                     |> Sg.noEvents
-                    |> Sg.transform (Trafo3d.Translation(p.centerRelToHera))
-                    |> Sg.trafo m.heraTransformations // so that it moves with hera!!!
-                    //|> Sg.andAlso statisticsSg
+                    |> Sg.andAlso statisticsSg
+                    //|> Sg.transform (Trafo3d.Translation(p.centerRelToHera))
+                    //|> Sg.trafo m.heraTransformations // so that it moves with hera!!!
                     |> Some
                 )
             ) 
@@ -1087,17 +1109,17 @@ module Demo =
             controllerSg path 90.0 0.0 -30.0 clippingScaleTrafo clippingContrPos
 
 
-        let statisticsSg = 
-            Sg.textWithConfig cfg (AVal.constant "Hello, User! \n Flip the text \n Float 5.505050 \n Not working ;(")
-            |> Sg.noEvents
-            |> Sg.transform (Trafo3d.FromOrthoNormalBasis(-V3d.IOO,V3d.OOI,V3d.OIO))
-            |> Sg.scale 0.1
+        //let statisticsSg = 
+        //    Sg.textWithConfig cfg (AVal.constant "Hello, User! \n Flip the text \n Float 5.505050 \n Not working ;(")
+        //    |> Sg.noEvents
+        //    |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+        //    |> Sg.scale 0.1
 
         //let statisticsSg = 
         //    Sg.textWithBackground (Font "Calibri") C4b.White C4b.Blue Border2d.None ( AVal.constant "Hello, User! \n Flip the text \n Float 5.505050 \n Not working ;(")
         //    |> Sg.noEvents
         //    |> Sg.scale 0.1
-        //    |> Sg.transform (Trafo3d.FromOrthoNormalBasis(-V3d.IOO,V3d.OOI,V3d.OIO))
+        //    |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
         //    |> Sg.billboard
         //    |> Sg.noEvents
 
@@ -1116,10 +1138,12 @@ module Demo =
                 |> Sg.noEvents
                 |> Sg.translate 0.0 5.0 0.0
 
+
+
         Sg.ofSeq [
-            deviceSgs; currentSphereProbeSg; probesSgs; statisticsSg; clipPlaneSg; tvSg;
+            deviceSgs; currentSphereProbeSg; probesSgs; clipPlaneSg; tvSg;
             billboardSg; probeContrSg; laserContrSg; clippingContrSg; ray;
-            browserSg; boxSg; label2
+            browserSg; boxSg
         ] |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
@@ -1134,7 +1158,7 @@ module Demo =
             do! DefaultSurfaces.simpleLighting
         }
 
-    let app (client : Browser) (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
+    let app (client : Browser) (viewTrafos : aval<Trafo3d []>) (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
         let frames = DataLoader.loadDataAllFrames runtime
         {
             unpersist = Unpersist.instance
@@ -1143,6 +1167,6 @@ module Demo =
             threads = threads
             input = input 
             ui = ui runtime frames
-            vr = vr runtime client frames
+            vr = vr runtime client viewTrafos frames
             pauseScene = Some pause
         }

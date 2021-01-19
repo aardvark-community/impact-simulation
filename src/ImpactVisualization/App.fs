@@ -212,17 +212,19 @@ module App =
             | RenderValue.Pressure -> "Pressure"
             | _ -> "Energy"
         let numOfPoints = filteredPoints.Length
-        let max = filteredPoints.Max() //TODO: Probably directly use the data range somehow ?!?!?!
-        let min = filteredPoints.Min() 
-        let mean = filteredPoints.Mean()
-        let variance = filteredPoints.Variance()
-        let standardDeviation = filteredPoints.StandardDeviation()
+        let max = roundXdecimal (filteredPoints.Max()) 2.0 //TODO: Probably directly use the data range somehow ?!?!?!
+        let min = roundXdecimal (filteredPoints.Min()) 2.0 
+        let mean = roundXdecimal (filteredPoints.Mean()) 2.0
+       // let median = roundXdecimal (filteredPoints.Median()) 2.0
+        let variance = roundXdecimal (filteredPoints.Variance()) 2.0
+        let standardDeviation = roundXdecimal (filteredPoints.StandardDeviation()) 2.0
         let statisticsText = 
             "Attribute: " + renderVal + "\n" + 
             "Number of Points: " + string numOfPoints + "\n" + 
             "Min: " + string min + "\n" + 
             "Max: " + string max + "\n" + 
             "Mean: " + string mean + "\n" + 
+           // "Median: " + string median + "\n" + 
             "Variance: " + string variance + "\n" + 
             "Standard Deviation: " + string standardDeviation
         statisticsText
