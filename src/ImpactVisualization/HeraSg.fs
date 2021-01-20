@@ -234,6 +234,7 @@ module Shaders =
             //        z = transformPlane.Z
             //    }
 
+            let pSize = uniform?PointSize
 
             let controllerPlane : Plane3d = uniform?ControllerClippingPlane
 
@@ -243,21 +244,22 @@ module Shaders =
                 else 
                     Vec.Dot(controllerPlane.Normal, pPos) - controllerPlane.Distance >= 0.0
 
-            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && isNotInsideSphere && minRange <= linearCoord && linearCoord <= maxRange
+            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && isNotInsideSphere //&& minRange <= linearCoord && linearCoord <= maxRange
 
             let color = if (isInAllRanges) then transferFunc else colorValue
+            let size = if (isNotInsideSphere) then (pSize + 8.0) else pSize
 
             if (wpInv.X >= dm.x.min && wpInv.X <= dm.x.max && wpInv.Y >= dm.y.min && wpInv.Y <= dm.y.max && wpInv.Z >= dm.z.min && wpInv.Z <= dm.z.max) &&
                 (wpInv.X <= plane.x && wpInv.Y <= plane.y && wpInv.Z <= plane.z) && isOutsideControllerPlane then
                 if (discardPoints) then
                     if (isInAllRanges) then
                         yield  { p.Value with 
-                                    pointColor = color
-                                    pointSize = uniform?PointSize}
+                                    pointColor = transferFunc
+                                    pointSize = size}
                 else
                     yield { p.Value with 
-                                pointColor = color
-                                pointSize = uniform?PointSize}
+                                pointColor = transferFunc
+                                pointSize = size}
         }
         
     let fs (v : Vertex) = 
