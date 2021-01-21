@@ -656,9 +656,9 @@ module App =
                     yield button [onClick (fun _ -> ChangeAnimation)] [text "Play"]
 
                 if allFramesAnimation = true then
-                    yield button [onClick (fun _ -> AnimateAllFrames); style "margin-inline-start: 5px"] [text "One Frame"]
+                    yield button [onClick (fun _ -> AnimateAllFrames); style "margin-inline-start: 5px; margin-top: 5px; margin-bottom: 5px"] [text "One Frame"]
                 else 
-                    yield button [onClick (fun _ -> AnimateAllFrames); style "margin-inline-start: 5px"] [text "All Frames"]
+                    yield button [onClick (fun _ -> AnimateAllFrames); style "margin-inline-start: 5px; margin-top: 5px; margin-bottom: 5px"] [text "All Frames"]
 
             }
 
@@ -759,19 +759,20 @@ module App =
                     div[] [
                         div [style "position: fixed; left: 20px; top: 20px; width: 220px"] [
                         Incremental.div AttributeMap.empty dynamicNameChange
-                        br []
-                        numeric { min = 1.0; max = 30.0; smallStep = 1.0; largeStep = 5.0 } AttributeMap.empty m.pointSize SetPointSize
-                        Incremental.div AttributeMap.empty dynamicUI
-                        br []
-                        dropdown { placeholder = "ColorMaps"; allowEmpty = false} [ clazz "ui selection" ] colorMaps (m.currentMap |> AVal.map Some) SetTransferFunc
-                        br []
-                        br []
-                        dropdown1 [ clazz "ui selection" ] renderValues m.renderValue SetRenderValue
-                        br []
-                        br []
+                      //  br []
+                        div [style "margin-top: 3px; margin-bottom: 3px"] [
+                            span [style "padding: 4px; color: white"] [text "Point Size: "]
+                            numeric { min = 1.0; max = 30.0; smallStep = 1.0; largeStep = 5.0 } [style "width: 55%; padding: 2px"] m.pointSize SetPointSize
+                        ]
+                       // Incremental.div AttributeMap.empty dynamicUI
+                       // br []
+                        dropdown { placeholder = "ColorMaps"; allowEmpty = false} [ clazz "ui selection"; style "margin-top: 5px; margin-bottom: 5px"] colorMaps (m.currentMap |> AVal.map Some) SetTransferFunc
+                       // br []
+                        dropdown1 [ clazz "ui selection"; style "margin-top: 5px; margin-bottom: 5px"] renderValues m.renderValue SetRenderValue
+                       // br []
                         div [ style "color: white" ] [
                               
-                            div [style "width: 90%"] [  
+                            div [style "width: 90%; margin-top: 5px; margin-bottom: 5px"] [  
                                 Html.SemUi.accordion "Clipping Box" "plus" false [
                                     Incremental.div (AttributeMap.ofAMap (amap {
                                         yield clazz "item"
@@ -788,21 +789,21 @@ module App =
                                     ]
                             ]
 
-                            br []
+                            //br []
                        
-                            div [ clazz "item"; style "width: 90%" ] [
+                            div [ clazz "item"; style "width: 90%; margin-top: 7px; margin-bottom: 5px" ] [
                                 span [style "padding: 2px"] [text "X: "]
-                                slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 4px"] (m.clippingPlane |> AVal.map (fun cp -> cp.x)) (fun v -> SetClippingPlane (X, v))
+                                slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.x)) (fun v -> SetClippingPlane (X, v))
                                 span [style "padding: 2px"] [text "Y: "]
-                                slider { min = -16.0; max = 30.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 4px"] (m.clippingPlane |> AVal.map (fun cp -> cp.y)) (fun v -> SetClippingPlane (Y, v))
+                                slider { min = -16.0; max = 30.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.y)) (fun v -> SetClippingPlane (Y, v))
                                 span [style "padding: 2px"] [text "Z: "]
-                                slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 4px"] (m.clippingPlane |> AVal.map (fun cp -> cp.z)) (fun v -> SetClippingPlane (Z, v))
+                                slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.z)) (fun v -> SetClippingPlane (Z, v))
 
                             ]
 
-                            br []
+                            //br []
 
-                            div [style "width: 90%"] [ 
+                            div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
                                 simplecheckbox { 
                                     attributes [clazz "ui inverted checkbox"]
                                     state m.discardPoints
@@ -811,17 +812,17 @@ module App =
                                 }
                             ]
 
-                            br []
+                            //br []
 
-                            div [clazz "colorRange"; style "width: 90%"] [ 
+                            div [clazz "colorRange"; style "width: 90%; margin-top: 9px; margin-bottom: 9px"] [ 
                                 span [style "padding: 2px; padding-inline-end: 20px"] [text "Out of Range Color:"]
                                 ColorPicker.view m.colorValue |> UI.map SetColorValue
                             ]
 
-                            br []
+                            //br []
 
                             Incremental.div (AttributeMap.ofAMap (amap {
-                                yield style "width: 95%"
+                                yield style "width: 95%; margin-top: 5px; margin-bottom: 8px"
                             })) (alist {
                                 let! initRange = m.initDataRange
                             
@@ -869,15 +870,15 @@ module App =
                                }
                             )
 
-                            br []
+                           // br []
 
-                            div [] [
+                            div [style "margin-top: 5px; margin-bottom: 5px"] [
                                 button [onClick (fun _ -> SetFilter 1); style "margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 1"]
                                 button [onClick (fun _ -> SetFilter 2); style "margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 2"]
                                 button [onClick (fun _ -> SetFilter 3); style "margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 3"]
               
                             ]
-                            button [onClick (fun _ -> ResetFilter); style "margin: 2px; margin-top: 4px"] [text "Reset"]
+                            button [onClick (fun _ -> ResetFilter); style "margin: 2px; margin-top: 0px; margin-bottom: 5px"] [text "Reset"]
                             ]
                         ]   
 
