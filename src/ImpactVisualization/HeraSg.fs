@@ -112,7 +112,8 @@ module Shaders =
             let discardPoints = uniform?DiscardPoints
             let renderValue = uniform?RenderValue
             let colorValue = uniform?Color
-           
+            let normalizeData = uniform?NormalizeData
+
             let value renderValue = 
                 match renderValue with
                 | RenderValue.Energy -> p.Value.energy
@@ -123,13 +124,17 @@ module Shaders =
                 | RenderValue.Mass -> p.Value.mass
                 | RenderValue.Density -> p.Value.density
                 | _ -> p.Value.energy
+
             let currValue = value renderValue  
-            let temp = (currValue - dataRange.min) / (dataRange.max - dataRange.min) // normalized values!!! 
+            let linearCoord = if normalizeData then (currValue - dataRange.min) / (dataRange.max - dataRange.min) else currValue
+
+            //let temp = (currValue - dataRange.min) / (dataRange.max - dataRange.min) // normalized values!!! 
             //let linearCoord = Math.Pow(temp, 1.0/2.0)
             //let transferFunc = transfer.SampleLevel(V2d(currValue, 0.0), 0.0)
-
-            //let linearCoord = value renderValue         
-            let transferFunc = transfer.SampleLevel(V2d(temp, 0.0), 0.0)
+            //let linearCoord = value renderValue
+            
+            let transferFunc = transfer.SampleLevel(V2d(linearCoord, 0.0), 0.0)
+            
 
             let notDiscardByFilters = 
                     (p.Value.energy >= filters.filterEnergy.min && p.Value.energy <= filters.filterEnergy.max) &&
@@ -141,13 +146,13 @@ module Shaders =
             let min = filter.Min
             let max = filter.Max
             let pos = V3f(wp)
-            let minRange = dataRange.min
-            let maxRange = dataRange.max
+            let minRange = if normalizeData then 0.0 else dataRange.min
+            let maxRange = if normalizeData then 1.0 else dataRange.max
             let isInsideMinMaxRange = min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z
 
             let plane = uniform?ClippingPlane
 
-            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange //&& minRange <= linearCoord && linearCoord <= maxRange
+            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && minRange <= linearCoord && linearCoord <= maxRange
 
             let color = 
                 if (isInAllRanges) then
@@ -187,6 +192,7 @@ module Shaders =
             let discardPoints = uniform?DiscardPoints
             let renderValue = uniform?RenderValue
             let colorValue = uniform?Color
+            let normalizeData = uniform?NormalizeData
            
             let value renderValue = 
                 match renderValue with
@@ -198,7 +204,10 @@ module Shaders =
                 | RenderValue.Mass -> p.Value.mass
                 | RenderValue.Density -> p.Value.density
                 | _ -> p.Value.energy
-            let linearCoord = value renderValue         
+            
+            let currValue = value renderValue  
+            let linearCoord = if normalizeData then (currValue - dataRange.min) / (dataRange.max - dataRange.min) else currValue
+            
             let transferFunc = transfer.SampleLevel(V2d(linearCoord, 0.0), 0.0)
 
             let notDiscardByFilters = 
@@ -304,7 +313,7 @@ module HeraSg =
                     dst.[id] <- viewPos
             }
 
-    let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>)  
+    let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) (normalizeData : aval<bool>)
                          (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
                          (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
                          (filterBox : aval<option<Box3f>>)
@@ -376,6 +385,7 @@ module HeraSg =
         }
         |> Sg.uniform "PointSize" pointSize
         |> Sg.uniform "DiscardPoints" discardPoints
+        |> Sg.uniform "NormalizeData" normalizeData
         |> Sg.uniform "TransferFunction" texture
         |> Sg.uniform "RenderValue" renderValue
         |> Sg.uniform "DomainRange" domainRange
@@ -389,7 +399,7 @@ module HeraSg =
         //|> Sg.blendMode ~~mode
   
     //TODO: Create a function containing repetitive code
-    let createAnimatedVrSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>)  
+    let createAnimatedVrSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) (normalizeData : aval<bool>)  
                            (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
                            (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
                            (contrClippingPlane : aval<Plane3d>)
@@ -456,6 +466,7 @@ module HeraSg =
         }
         |> Sg.uniform "PointSize" pointSize
         |> Sg.uniform "DiscardPoints" discardPoints
+        |> Sg.uniform "NormalizeData" normalizeData
         |> Sg.uniform "TransferFunction" texture
         |> Sg.uniform "RenderValue" renderValue
         |> Sg.uniform "DomainRange" domainRange

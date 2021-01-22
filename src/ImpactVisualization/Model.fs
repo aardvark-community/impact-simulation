@@ -161,6 +161,8 @@ type Model =
         discardPoints : bool
         transition : bool
 
+        normalizeData : bool
+
         data : VersionedArray
         values : VersionedArray
 

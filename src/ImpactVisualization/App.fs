@@ -25,6 +25,7 @@ type Message =
     | StepTime
     | TogglePointSize
     | TogglePointDiscarded
+    | NormalizeData
     | SetPointSize of float
     | ChangeAnimation
     | AnimateAllFrames
@@ -55,6 +56,8 @@ module App =
                 )
         |> HashMap.ofList
 
+
+    //TODO: definitely not the best solution
     let roundXdecimal (number : float) x = 
         let scaled = number * Math.Pow(10.0, x)
         let rounded = Math.Round(scaled)
@@ -105,6 +108,7 @@ module App =
             animateAllFrames = false
             discardPoints = false
             transition = true
+            normalizeData = false
             renderValue = RenderValue.Energy
             colorValue = { c = C4b.Gray}
             colorMaps = listWithValues
@@ -287,6 +291,7 @@ module App =
                 let newPointSize = if m.pointSize = 8.0 then 20.0 elif m.pointSize = 20.0 then 8.0 else m.pointSize
                 { m with pointSize = newPointSize }
             | TogglePointDiscarded -> {m with discardPoints = not m.discardPoints}
+            | NormalizeData -> {m with normalizeData = not m.normalizeData}
             | ChangeAnimation -> { m with playAnimation = not m.playAnimation}
             | AnimateAllFrames -> 
                 let filteredDataAllFrames = filterDataForAllFramesBox frames m.boxFilter m.renderValue
@@ -410,7 +415,7 @@ module App =
                     match i with
                     | 1 -> Some(Box3f(V3f(-3.0, -3.0, -3.0), V3f(3.0, 30.0, 3.0)))
                     | 2 -> Some(Box3f(V3f(-4.0, -4.0, -4.0), V3f(4.0, 30.0, 4.0)))
-                    | 3 -> Some(Box3f(V3f(-5.0, -5.0, -5.0), V3f(5.0, 30.0, 5.0)))
+                    | 3 -> Some(Box3f(V3f(-16.0, -16.0, -16.0), V3f(16.0, 30.0, 16.0)))
                     | _ -> None
 
                 let newDataPath =
@@ -590,7 +595,7 @@ module App =
 
         let heraSg = 
             data
-            |> HeraSg.createAnimatedSg m.frame m.pointSize m.discardPoints m.renderValue m.currentMap 
+            |> HeraSg.createAnimatedSg m.frame m.pointSize m.discardPoints m.normalizeData m.renderValue m.currentMap 
                 m.domainRange m.clippingPlane m.boxFilter m.currFilters m.dataRange m.colorValue.c 
                 m.cameraState.view
                 runtime
@@ -777,6 +782,15 @@ module App =
                         dropdown1 [ clazz "ui selection"; style "margin-top: 5px; margin-bottom: 5px"] renderValues m.renderValue SetRenderValue
                        // br []
                         div [ style "color: white" ] [
+
+                            div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
+                                simplecheckbox { 
+                                    attributes [clazz "ui inverted checkbox"]
+                                    state m.normalizeData
+                                    toggle NormalizeData
+                                    content [ text "Normalize Data"]  
+                                }
+                            ]
                               
                             div [style "width: 90%; margin-top: 5px; margin-bottom: 5px"] [  
                                 Html.SemUi.accordion "Clipping Box" "plus" false [
@@ -832,6 +846,7 @@ module App =
                             })) (alist {
                                 let! initRange = m.initDataRange
                             
+                                //TODO: not very good way... loosing some precision this way!!!
                                 let steps = 
                                     let range = Math.Abs(initRange.max - initRange.min)
                                     
@@ -855,23 +870,23 @@ module App =
                                 yield span [style "padding: 4px"] [text "Min: "]
                                 yield simplenumeric {
                                         attributes [style "width: 80%; padding: 2px"]
-                                        value (m.dataRange |> AVal.map (fun r -> (roundXdecimal r.min 2.0)))
-                                        update (fun v -> SetDataRange (Min, (roundXdecimal v 2.0)))
+                                        value (m.dataRange |> AVal.map (fun r -> (roundXdecimal r.min 9.0)))
+                                        update (fun v -> SetDataRange (Min, (roundXdecimal v 9.0)))
                                         step (fst steps)
                                         largeStep (snd steps)
-                                        min (roundXdecimal initRange.min 2.0)
-                                        max (roundXdecimal initRange.max 2.0)
+                                        min (roundXdecimal initRange.min 9.0)
+                                        max (roundXdecimal initRange.max 9.0)
                                         }
 
                                 yield span [style "padding: 3px"] [text "Max: "]
                                 yield simplenumeric {
                                         attributes [style "width: 80%; padding: 2px"]
-                                        value (m.dataRange |> AVal.map (fun r -> (roundXdecimal r.max 2.0)))
-                                        update (fun v -> SetDataRange (Max, (roundXdecimal v 2.0)))
+                                        value (m.dataRange |> AVal.map (fun r -> (roundXdecimal r.max 9.0)))
+                                        update (fun v -> SetDataRange (Max, (roundXdecimal v 9.0)))
                                         step (fst steps)
                                         largeStep (snd steps)
-                                        min (roundXdecimal initRange.min 2.0)
-                                        max (roundXdecimal initRange.max 2.0)
+                                        min (roundXdecimal initRange.min 9.0)
+                                        max (roundXdecimal initRange.max 9.0)
                                         }    
                                }
                             )
@@ -907,8 +922,8 @@ module App =
                                 style "width: 168px; height: 0px; background-color: #ffffff; margin-block-start: 3px; margin-block-end: 0px; margin-inline-start: 0px"
                             ]
 
-                            yield span [style "position: relative; font-size: 0.8em; right: 10px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundXdecimal r.min 2.0).ToString()))] 
-                            yield span [style "position: inherit; font-size: 0.8em; right: 10px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundXdecimal r.max 2.0).ToString()))]
+                            yield span [style "position: relative; font-size: 0.8em; right: 10px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundXdecimal r.min 9.0).ToString()))] 
+                            yield span [style "position: inherit; font-size: 0.8em; right: 10px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundXdecimal r.max 9.0).ToString()))]
                             }
                         )
                         
