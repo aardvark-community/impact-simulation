@@ -32,6 +32,12 @@ module Shaders =
             [<Semantic("Velocity")>] 
             velocity : V3d
 
+            [<Semantic("Mass")>]
+            mass : float
+
+            [<Semantic("Density")>]
+            density : float
+
             [<Semantic("Energy")>]
             energy : float
             
@@ -114,14 +120,16 @@ module Shaders =
                 | RenderValue.Strain -> p.Value.localStrain
                 | RenderValue.AlphaJutzi -> p.Value.alphaJutzi
                 | RenderValue.Pressure -> p.Value.pressure
+                | RenderValue.Mass -> p.Value.mass
+                | RenderValue.Density -> p.Value.density
                 | _ -> p.Value.energy
-            //let currValue = value renderValue  
-            //let temp = (currValue - dataRange.min) / (dataRange.max - dataRange.min) // normalized values!!! 
+            let currValue = value renderValue  
+            let temp = (currValue - dataRange.min) / (dataRange.max - dataRange.min) // normalized values!!! 
             //let linearCoord = Math.Pow(temp, 1.0/2.0)
             //let transferFunc = transfer.SampleLevel(V2d(currValue, 0.0), 0.0)
 
-            let linearCoord = value renderValue         
-            let transferFunc = transfer.SampleLevel(V2d(linearCoord, 0.0), 0.0)
+            //let linearCoord = value renderValue         
+            let transferFunc = transfer.SampleLevel(V2d(temp, 0.0), 0.0)
 
             let notDiscardByFilters = 
                     (p.Value.energy >= filters.filterEnergy.min && p.Value.energy <= filters.filterEnergy.max) &&
@@ -139,7 +147,7 @@ module Shaders =
 
             let plane = uniform?ClippingPlane
 
-            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && minRange <= linearCoord && linearCoord <= maxRange
+            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange //&& minRange <= linearCoord && linearCoord <= maxRange
 
             let color = 
                 if (isInAllRanges) then
@@ -187,6 +195,8 @@ module Shaders =
                 | RenderValue.Strain -> p.Value.localStrain
                 | RenderValue.AlphaJutzi -> p.Value.alphaJutzi
                 | RenderValue.Pressure -> p.Value.pressure
+                | RenderValue.Mass -> p.Value.mass
+                | RenderValue.Density -> p.Value.density
                 | _ -> p.Value.energy
             let linearCoord = value renderValue         
             let transferFunc = transfer.SampleLevel(V2d(linearCoord, 0.0), 0.0)
@@ -328,6 +338,8 @@ module HeraSg =
         let positions   = currentBuffers |> AVal.map (fun f -> f.positionsBuffer)
         let normals     = currentBuffers |> AVal.map (fun f -> f.normalsBuffer)
         let velocities  = currentBuffers |> AVal.map (fun f -> f.velocitiesBuffer)
+        let masses      = currentBuffers |> AVal.map (fun f -> f.massesBuffer)
+        let densities   = currentBuffers |> AVal.map (fun f -> f.densitiesBuffer)
         let energies    = currentBuffers |> AVal.map (fun f -> f.energiesBuffer)
         let cubicRoots  = currentBuffers |> AVal.map (fun f -> f.cubicRootsBuffer)
         let strains     = currentBuffers |> AVal.map (fun f -> f.strainsBuffer)
@@ -349,6 +361,8 @@ module HeraSg =
         |> Sg.vertexBuffer DefaultSemantic.Positions (BufferView(positions, typeof<V4f>))
         |> Sg.vertexBuffer DefaultSemantic.Normals (BufferView(normals, typeof<V3f>))
         |> Sg.vertexBuffer (Sym.ofString "Velocity") (BufferView(velocities, typeof<V3f>))
+        |> Sg.vertexBuffer (Sym.ofString "Mass") (BufferView(masses, typeof<float32>))
+        |> Sg.vertexBuffer (Sym.ofString "Density") (BufferView(densities, typeof<float32>))
         |> Sg.vertexBuffer (Sym.ofString "Energy") (BufferView(energies, typeof<float32>))
         |> Sg.vertexBuffer (Sym.ofString "CubicRootOfDamage") (BufferView(cubicRoots, typeof<float32>))
         |> Sg.vertexBuffer (Sym.ofString "LocalStrain") (BufferView(strains, typeof<float32>))
@@ -405,6 +419,8 @@ module HeraSg =
         let positions   = currentBuffers |> AVal.map (fun f -> f.positionsBuffer)
         let normals     = currentBuffers |> AVal.map (fun f -> f.normalsBuffer)
         let velocities  = currentBuffers |> AVal.map (fun f -> f.velocitiesBuffer)
+        let masses      = currentBuffers |> AVal.map (fun f -> f.massesBuffer)
+        let densities   = currentBuffers |> AVal.map (fun f -> f.densitiesBuffer)
         let energies    = currentBuffers |> AVal.map (fun f -> f.energiesBuffer)
         let cubicRoots  = currentBuffers |> AVal.map (fun f -> f.cubicRootsBuffer)
         let strains     = currentBuffers |> AVal.map (fun f -> f.strainsBuffer)
@@ -425,6 +441,8 @@ module HeraSg =
         |> Sg.vertexBuffer DefaultSemantic.Positions (BufferView(positions, typeof<V4f>))
         |> Sg.vertexBuffer DefaultSemantic.Normals (BufferView(normals, typeof<V3f>))
         |> Sg.vertexBuffer (Sym.ofString "Velocity") (BufferView(velocities, typeof<V3f>))
+        |> Sg.vertexBuffer (Sym.ofString "Mass") (BufferView(masses, typeof<float32>))
+        |> Sg.vertexBuffer (Sym.ofString "Density") (BufferView(densities, typeof<float32>))
         |> Sg.vertexBuffer (Sym.ofString "Energy") (BufferView(energies, typeof<float32>))
         |> Sg.vertexBuffer (Sym.ofString "CubicRootOfDamage") (BufferView(cubicRoots, typeof<float32>))
         |> Sg.vertexBuffer (Sym.ofString "LocalStrain") (BufferView(strains, typeof<float32>))

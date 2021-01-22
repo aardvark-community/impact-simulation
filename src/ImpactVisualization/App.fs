@@ -210,6 +210,8 @@ module App =
             | RenderValue.Strain -> "Strain"
             | RenderValue.AlphaJutzi -> "Alpha Jutzi"
             | RenderValue.Pressure -> "Pressure"
+            | RenderValue.Mass -> "Mass"
+            | RenderValue.Density -> "Density"
             | _ -> "Energy"
         let numOfPoints = filteredPoints.Length
         let max = roundXdecimal (filteredPoints.Max()) 2.0 //TODO: Probably directly use the data range somehow ?!?!?!
@@ -238,6 +240,8 @@ module App =
             | RenderValue.Strain -> extract (fun c -> c.Data.[Hera.Defs.LocalStrains] :?> float32[])
             | RenderValue.AlphaJutzi -> extract (fun c -> c.Data.[Hera.Defs.AlphaJutzi] :?> float32[])
             | RenderValue.Pressure -> extract (fun c -> c.Data.[Hera.Defs.Pressures] :?> float32[]) 
+            | RenderValue.Mass -> extract (fun c -> c.Data.[Hera.Defs.Masses] :?> float32[]) 
+            | RenderValue.Density -> extract (fun c -> c.Data.[Hera.Defs.Densities] :?> float32[]) 
             | _ -> extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[])
         let result = currFilteredData |> Array.map (fun v -> float v)
         result
@@ -325,6 +329,8 @@ module App =
                     | RenderValue.Strain -> frames.[m.frame].strains
                     | RenderValue.AlphaJutzi -> frames.[m.frame].alphaJutzis
                     | RenderValue.Pressure -> frames.[m.frame].pressures
+                    | RenderValue.Mass -> frames.[m.frame].masses
+                    | RenderValue.Density -> frames.[m.frame].densities
                     | _ -> frames.[m.frame].energies
                 let range = renderValues.GetBoundingRange()
                 let minValue = range.Min
@@ -756,8 +762,8 @@ module App =
                 FreeFlyController.controlledControl m.cameraState CameraMessage frustum (AttributeMap.ofList att) sg
                 require dependencies ( // here we execute Histogram.js.... all values, functions defined in Histogram.js are further down accessible...
 
-                    div[] [
-                        div [style "position: fixed; left: 20px; top: 20px; width: 220px"] [
+                    div[style "margin: 7px"] [
+                        div [style "position: fixed; left: 10px; top: 10px; width: 220px"] [
                         Incremental.div AttributeMap.empty dynamicNameChange
                       //  br []
                         div [style "margin-top: 3px; margin-bottom: 3px"] [

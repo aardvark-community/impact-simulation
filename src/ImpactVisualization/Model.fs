@@ -14,7 +14,7 @@ open Aardvark.Geometry.Points
 open Uncodium.SimpleStore
 
 type Values = 
-    {
+    {   
         energies    : float[]
         cubicRoots  : float[]
         strains     : float[]
@@ -27,6 +27,8 @@ type PreparedFrame =
         positionsBuffer   : IBuffer
         normalsBuffer     : IBuffer
         velocitiesBuffer  : IBuffer
+        massesBuffer      : IBuffer
+        densitiesBuffer   : IBuffer
         energiesBuffer    : IBuffer
         cubicRootsBuffer  : IBuffer
         strainsBuffer     : IBuffer
@@ -40,6 +42,8 @@ type Frame =
         positions     : V3f[]
         normals       : V3f[]
         velocities    : V3f[]
+        masses        : float[]
+        densities     : float[]
         energies      : float[]
         cubicRoots    : float[]
         strains       : float[]
@@ -54,6 +58,8 @@ type RenderValue =
     | Strain = 2
     | AlphaJutzi = 3
     | Pressure = 4
+    | Mass = 5
+    | Density = 6
 
 //type FilterQuery<'a> = 'a -> Frame -> GenericChunk[]
 //type AppliedFilterQuery = Frame -> GenericChunk[]
@@ -90,7 +96,7 @@ type Filters =
         filterCubicRoot  : Range
         filterStrain     : Range
         filterAlphaJutzi : Range
-        filterPressure   : Range    
+        filterPressure   : Range 
     }
 
 type DomainRange = 
@@ -182,9 +188,9 @@ module DataLoader =
     let collectLeafData (extract : IPointCloudNode -> 'a[]) (root : IPointCloudNode) : 'a[] =
         root.EnumerateNodes () |> Seq.filter (fun n -> n.IsLeaf) |> Seq.map extract |> Array.concat
 
-    //let datapath  = @"C:\Users\vasileva\source\hera_data"
+    let datapath  = @"C:\Users\vasileva\source\hera_data"
 
-    let datapath  = @"D:\TU Wien\Master\4. Semester\Praktikum aus Visual Computing\Data\r80_p0_m500_v6000_mbasalt_a1.0_1M\data"
+    //let datapath  = @"D:\TU Wien\Master\4. Semester\Praktikum aus Visual Computing\Data\r80_p0_m500_v6000_mbasalt_a1.0_1M\data"
 
     let createData() =
 
@@ -204,6 +210,8 @@ module DataLoader =
         let positions   = root |> collectLeafData (fun n -> n.PositionsAbsolute |> Array.map V3f)
         let normals     = root |> collectLeafData (fun n -> n.Normals.Value)
         let velocities  = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.Velocities] :?> V3f[])
+        let masses      = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.Masses] :?> float32[]) 
+        let densities   = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.Densities] :?> float32[]) 
         let energies    = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.InternalEnergies] :?> float32[]) 
         let cubicRoots  = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.CubicRootsOfDamage] :?> float32[])
         let strains     = root |> collectLeafData (fun n -> n.Properties.[Hera.Defs.LocalStrains] :?> float32[])
@@ -216,6 +224,8 @@ module DataLoader =
                 positions     = positions
                 normals       = normals
                 velocities    = velocities
+                masses        = masses |> Array.map (fun v -> float v)
+                densities     = densities |> Array.map (fun v -> float v)
                 energies      = energies |> Array.map (fun v -> float v)
                 cubicRoots    = cubicRoots |> Array.map (fun v -> float v)
                 strains       = strains |> Array.map (fun v -> float v)
@@ -226,6 +236,8 @@ module DataLoader =
                         positionsBuffer   = runtime.PrepareBuffer (ArrayBuffer (Array.map (fun v3 -> V4f(v3,1.0f)) positions)) :> IBuffer
                         normalsBuffer     = runtime.PrepareBuffer (ArrayBuffer normals) :> IBuffer
                         velocitiesBuffer  = runtime.PrepareBuffer (ArrayBuffer velocities) :> IBuffer
+                        massesBuffer      = runtime.PrepareBuffer (ArrayBuffer masses) :> IBuffer
+                        densitiesBuffer   = runtime.PrepareBuffer (ArrayBuffer densities) :> IBuffer
                         energiesBuffer    = runtime.PrepareBuffer (ArrayBuffer energies) :> IBuffer
                         cubicRootsBuffer  = runtime.PrepareBuffer (ArrayBuffer cubicRoots) :> IBuffer
                         strainsBuffer     = runtime.PrepareBuffer (ArrayBuffer strains) :> IBuffer
