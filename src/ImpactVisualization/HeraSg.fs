@@ -303,6 +303,11 @@ module Shaders =
             //let diffuse = Vec.dot normal lightDir |> max 0.0
             //let l = ambient + (1.0 - ambient) * diffuse
 
+            let R = 1.0
+            let distToCenter_squared = Vec.dot c c 
+            let normalVec = V3d(c, Math.Sqrt(R - distToCenter_squared))
+            let normalVec_normalized = normalVec |> Vec.normalize
+            let normalVec4 = V4d(normalVec_normalized, 1.0)
 
             //DEPTH RECONSTRUCTION
             //let normal = V4d(v.normal, 1.0)
@@ -312,6 +317,8 @@ module Shaders =
             //let posOnSphere_screen = projectionMatrix * v.wp
             //let ndc_depth = posOnSphere_screen.Z / posOnSphere_screen.W
             //let dep = ((99.9 * ndc_depth) + 0.1 + 100.0) / 2.0;
+
+           // let posOnSphere = v.wp + normalVec4 * R 
             
 
             //BLINN-PHONG LIGHTING MODEL FROM MY LECTURE
@@ -319,14 +326,17 @@ module Shaders =
             let diffuse = 0.5
             let specular = 0.3
 
+            let viewMatrix = uniform.ViewTrafo
             let lightPos = uniform.LightLocation
+           // let lightPos_view = viewMatrix * V4d(lightPos, 1.0)
+            
             let lightDir = Vec.normalize(lightPos - v.wp.XYZ)
             let viewDir = Vec.normalize(-v.wp.XYZ)
             
-            let diff = Math.Abs(Vec.Dot(v.normal, lightDir))
+            let diff = Math.Abs(Vec.Dot(normalVec_normalized, lightDir))
 
             let halfwayDir = Vec.normalize(lightDir + viewDir)
-            let spec = Math.Pow(Math.Max(Vec.Dot(v.normal, halfwayDir), 0.0), 128.0)
+            let spec = Math.Pow(Math.Max(Vec.Dot(normalVec_normalized, halfwayDir), 0.0), 128.0)
 
             let color = V4d(v.pointColor.XYZ, 1.0)
 
