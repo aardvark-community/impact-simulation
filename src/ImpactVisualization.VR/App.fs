@@ -805,7 +805,7 @@ module Demo =
             let m = m.twoDModel
             data
             |> HeraSg.HeraSg.createAnimatedVrSg 
-                m.frame m.pointSize m.discardPoints m.normalizeData m.renderValue m.currentMap 
+                m.frame m.pointSize m.discardPoints m.normalizeData m.enableShading m.renderValue m.currentMap 
                 m.domainRange m.clippingPlane contrClippingPlane m.boxFilter sphereProbe m.currFilters m.dataRange m.colorValue.c 
                 m.cameraState.view
                 runtime

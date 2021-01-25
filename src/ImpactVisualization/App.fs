@@ -26,6 +26,7 @@ type Message =
     | TogglePointSize
     | TogglePointDiscarded
     | NormalizeData
+    | EnableShading
     | SetPointSize of float
     | ChangeAnimation
     | AnimateAllFrames
@@ -109,6 +110,7 @@ module App =
             discardPoints = false
             transition = true
             normalizeData = false
+            enableShading = false
             renderValue = RenderValue.Energy
             colorValue = { c = C4b.Gray}
             colorMaps = listWithValues
@@ -292,6 +294,7 @@ module App =
                 { m with pointSize = newPointSize }
             | TogglePointDiscarded -> {m with discardPoints = not m.discardPoints}
             | NormalizeData -> {m with normalizeData = not m.normalizeData}
+            | EnableShading -> {m with enableShading = not m.enableShading}
             | ChangeAnimation -> { m with playAnimation = not m.playAnimation}
             | AnimateAllFrames -> 
                 let filteredDataAllFrames = filterDataForAllFramesBox frames m.boxFilter m.renderValue
@@ -591,11 +594,11 @@ module App =
         //            | Sphere s -> Box3d.Infinite 
         //        | None -> Box3d.Infinite)
 
-        
-
+       
         let heraSg = 
             data
-            |> HeraSg.createAnimatedSg m.frame m.pointSize m.discardPoints m.normalizeData m.renderValue m.currentMap 
+            |> HeraSg.createAnimatedSg m.frame m.pointSize m.discardPoints m.normalizeData m.enableShading 
+                m.renderValue m.currentMap 
                 m.domainRange m.clippingPlane m.boxFilter m.currFilters m.dataRange m.colorValue.c 
                 m.cameraState.view
                 runtime
@@ -789,6 +792,15 @@ module App =
                                     state m.normalizeData
                                     toggle NormalizeData
                                     content [ text "Normalize Data"]  
+                                }
+                            ]
+
+                            div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
+                                simplecheckbox { 
+                                    attributes [clazz "ui inverted checkbox"]
+                                    state m.enableShading
+                                    toggle EnableShading
+                                    content [ text "Enable Shading"]  
                                 }
                             ]
                               

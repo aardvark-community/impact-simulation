@@ -20,6 +20,12 @@ module Shaders =
             [<WorldPosition>]
             wp : V4d
 
+            [<Normal>]
+            normal : V3d
+
+            [<Depth>]
+            depth : float
+
             [<PointSize>] // gl_PointSize
             pointSize : float
 
@@ -287,11 +293,51 @@ module Shaders =
             let f = Vec.dot c c - 1.0
             if f > 0.0 then discard() // round points magic
 
+            let shading = uniform?EnableShading
+
+            // SIMPLE LIGHTING MODEL FROM AARDVARK
+            //let normal = v.normal |> Vec.normalize
+            //let lightPos = uniform.LightLocation
+            //let lightDir = lightPos - v.wp.XYZ |> Vec.normalize
+            //let ambient = 0.2
+            //let diffuse = Vec.dot normal lightDir |> max 0.0
+            //let l = ambient + (1.0 - ambient) * diffuse
+
+
+            //DEPTH RECONSTRUCTION
+            //let normal = V4d(v.normal, 1.0)
+            //let spherePos = v.pos
+            //let posOnSphere = spherePos + normal * v.pointSize // 1.0 is the radius
+            //let projectionMatrix = uniform.ProjTrafo
+            //let posOnSphere_screen = projectionMatrix * v.wp
+            //let ndc_depth = posOnSphere_screen.Z / posOnSphere_screen.W
+            //let dep = ((99.9 * ndc_depth) + 0.1 + 100.0) / 2.0;
+            
+
+            //BLINN-PHONG LIGHTING MODEL FROM MY LECTURE
+            let ambient = 0.4
+            let diffuse = 0.5
+            let specular = 0.3
+
+            let lightPos = uniform.LightLocation
+            let lightDir = Vec.normalize(lightPos - v.wp.XYZ)
+            let viewDir = Vec.normalize(-v.wp.XYZ)
+            
+            let diff = Math.Abs(Vec.Dot(v.normal, lightDir))
+
+            let halfwayDir = Vec.normalize(lightDir + viewDir)
+            let spec = Math.Pow(Math.Max(Vec.Dot(v.normal, halfwayDir), 0.0), 128.0)
+
+            let color = V4d(v.pointColor.XYZ, 1.0)
+
+            let fragmentColor = (ambient * color) + (diffuse * diff * color) + (specular * spec * color);
+
             let alpha : float = uniform?Alpha
             //return V4d((v.velocity * 0.5 + V3d.Half).XYZ,1.0) // color according to velocity
             //return V4d(V3d(v.cubicRoots), 1.0) // color according to cubic Roots
-            let color = V4d(v.pointColor.XYZ, 1.0)
-            return color
+            //let color = V4d(v.pointColor.XYZ, 1.0)
+            //return V4d(v.pointColor.XYZ * l, 1.0)
+            return if shading then fragmentColor else color
         }
 
 
@@ -313,7 +359,8 @@ module HeraSg =
                     dst.[id] <- viewPos
             }
 
-    let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) (normalizeData : aval<bool>)
+    let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) 
+                         (normalizeData : aval<bool>) (enableShading : aval<bool>)
                          (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
                          (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
                          (filterBox : aval<option<Box3f>>)
@@ -386,6 +433,7 @@ module HeraSg =
         |> Sg.uniform "PointSize" pointSize
         |> Sg.uniform "DiscardPoints" discardPoints
         |> Sg.uniform "NormalizeData" normalizeData
+        |> Sg.uniform "EnableShading" enableShading
         |> Sg.uniform "TransferFunction" texture
         |> Sg.uniform "RenderValue" renderValue
         |> Sg.uniform "DomainRange" domainRange
@@ -399,7 +447,8 @@ module HeraSg =
         //|> Sg.blendMode ~~mode
   
     //TODO: Create a function containing repetitive code
-    let createAnimatedVrSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) (normalizeData : aval<bool>)  
+    let createAnimatedVrSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) 
+                           (normalizeData : aval<bool>) (enableShading : aval<bool>) 
                            (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
                            (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
                            (contrClippingPlane : aval<Plane3d>)
@@ -467,6 +516,7 @@ module HeraSg =
         |> Sg.uniform "PointSize" pointSize
         |> Sg.uniform "DiscardPoints" discardPoints
         |> Sg.uniform "NormalizeData" normalizeData
+        |> Sg.uniform "EnableShading" enableShading
         |> Sg.uniform "TransferFunction" texture
         |> Sg.uniform "RenderValue" renderValue
         |> Sg.uniform "DomainRange" domainRange
