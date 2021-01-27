@@ -23,7 +23,7 @@ module Shaders =
             [<Normal>]
             normal : V3d
 
-            [<Depth>]
+            [<Depth(DepthWriteMode.OnlyLess)>]
             depth : float
 
             [<PointSize>] // gl_PointSize
@@ -296,84 +296,62 @@ module Shaders =
             let f = Vec.dot c c - 1.0
             if f > 0.0 then discard() // round points magic
 
-            let modelMatrix = uniform.ModelTrafo
-            let viewMatrix = uniform.ViewTrafo
-            let projectionMatrix = uniform.ProjTrafo
-
-
-            //let t = 1.0 - sqrt (max 0.0 -f)
-            //let depth = v.fc.Z
-            //let outDepth = 
-
-            let shading = uniform?EnableShading
-            let reconstructNormal = uniform?ReconstructNormal
-            let recomputeView = uniform?RecomputeView
-            let reconstructDepth : bool = uniform?ReconstructDepth
-
-            // SIMPLE LIGHTING MODEL FROM AARDVARK
-            //let normal = v.normal |> Vec.normalize
-            //let lightPos = uniform.LightLocation
-            //let lightDir = lightPos - v.wp.XYZ |> Vec.normalize
-            //let ambient = 0.2
-            //let diffuse = Vec.dot normal lightDir |> max 0.0
-            //let l = ambient + (1.0 - ambient) * diffuse
-
-            let R = 1.0
-            let distToCenter_squared = Vec.dot c c 
-            let normalVec = V3d(c, Math.Sqrt(R - distToCenter_squared))
-            let normalVec_normalized = normalVec |> Vec.normalize // IN VIEW SPACE!!!!!!!!
-            let normalVec4 = V4d(normalVec_normalized, 1.0)
-
-            let norm = if reconstructNormal then normalVec_normalized else v.normal
-
-            //DEPTH RECONSTRUCTION
-            //let normal = V4d(v.normal, 1.0)
-            //let spherePos = v.pos
-            //let posOnSphere = spherePos + normal * v.pointSize // 1.0 is the radius
-            //let projectionMatrix = uniform.ProjTrafo
-            //let posOnSphere_screen = projectionMatrix * v.wp
-            //let ndc_depth = posOnSphere_screen.Z / posOnSphere_screen.W
-            //let dep = ((99.9 * ndc_depth) + 0.1 + 100.0) / 2.0;
-
-            //BLINN-PHONG LIGHTING MODEL FROM MY LECTURE
-            let ambient = 0.5
+            let ambient = V4d(0.5, 0.4, 0.3, 1.0)
             let diffuse = 0.6
             let specular = 0.3
 
-            let lightPos = uniform.LightLocation
+            let modelMatrix = uniform.ModelTrafo
+            let viewMatrix : M44d = uniform?ViewTrafo
+            let projectionMatrix = uniform.ProjTrafo
+            let modelMatrixInv = uniform.ModelTrafoInv
+    
+            let shading = uniform?EnableShading
+            let reconstructNormal = uniform?ReconstructNormal
+            let reconstructDepth : bool = uniform?ReconstructDepth
+
+            //Normal reconstruction
+            let distToCenter_squared = Vec.dot c c 
+            let normalVec = V3d(c, Math.Sqrt(1.0 - distToCenter_squared))
+            let normalVec_normalized = normalVec |> Vec.normalize // IN VIEW SPACE!!!!!!!!
+
+            let norm = if reconstructNormal then normalVec_normalized else v.normal
+
+            //BLINN-PHONG LIGHTING MODEL FROM MY LECTURE
+            let lp = V3d(0.0, 40.0, 0.0)
             let spherePos_view = viewMatrix * v.wp
-            let posOnSphere = spherePos_view + V4d(norm, 1.0) * 1.0 // TODO: not sure if R ist the radius and if it is always one
+            let posOnSphere = spherePos_view + V4d(norm, 1.0) * 0.05 // TODO: not sure if the radius is always one
 
-
+            //Depth reconstruction
             let posOnSphere_screen = projectionMatrix * posOnSphere
             let ndc_depth = posOnSphere_screen.Z / posOnSphere_screen.W
             let dep = if reconstructDepth then ((ndc_depth + 1.0) / 2.0) else v.fc.Z
 
-            let lightPos_view = viewMatrix * V4d(lightPos, 1.0)
-
-            let lPos = if recomputeView then lightPos_view else V4d(lightPos, 1.0)
-            let posSphere = if recomputeView then posOnSphere else v.wp
-            
-            let lightDir = Vec.normalize(lPos.XYZ - posSphere.XYZ)
+            let lightPos_view = viewMatrix * V4d(lp, 1.0)
+            let lightPos = if reconstructNormal then lightPos_view else V4d(lp, 1.0)
+            let posSphere = if reconstructNormal then posOnSphere else v.wp
+            let lightDir = Vec.normalize(lightPos.XYZ - posSphere.XYZ)
             let viewDir = Vec.normalize(-posSphere.XYZ)
             
-            let f = Vec.dot c c
-            let diff = max 0.0 (Vec.dot norm lightDir)
-            //let diff = sqrt (max 0.0 (1.0 - f))
+            //Diffuse term
+            let diff =
+                let value = Vec.dot norm lightDir
+                if reconstructNormal then (max 0.0 value) else (abs value)
 
+            //Speculat term 
             let halfwayDir = Vec.normalize(lightDir + viewDir)
             let spec = Math.Pow(Math.Max(Vec.Dot(norm, halfwayDir), 0.0), 128.0)
 
+            // Final Color
             let color = V4d(v.pointColor.XYZ, 1.0)
-
-            let fragmentColor = (ambient * color) + (diffuse * diff * color)
+            let fragmentColor = (ambient * color) + (diffuse * diff * color) //+ (specular * spec * color)
+            let c = if shading then fragmentColor else color
 
             let alpha : float = uniform?Alpha
             //return V4d((v.velocity * 0.5 + V3d.Half).XYZ,1.0) // color according to velocity
             //return V4d(V3d(v.cubicRoots), 1.0) // color according to cubic Roots
             //let color = V4d(v.pointColor.XYZ, 1.0)
             //return V4d(v.pointColor.XYZ * l, 1.0)
-            let c = if shading then fragmentColor else color
+
             return {v with 
                         pointColor = c
                         depth = dep}
@@ -400,7 +378,7 @@ module HeraSg =
 
     let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) 
                          (normalizeData : aval<bool>) (enableShading : aval<bool>)
-                         (reconstructNormal : aval<bool>) (recomputeView : aval<bool>) (reconstructDepth : aval<bool>)
+                         (reconstructNormal : aval<bool>) (reconstructDepth : aval<bool>)
                          (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
                          (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
                          (filterBox : aval<option<Box3f>>)
@@ -421,6 +399,8 @@ module HeraSg =
         mode.DestinationFactor <- BlendFactor.InvSourceAlpha
         mode.SourceAlphaFactor <- BlendFactor.One
         mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
+
+        let viewTrafo = cameraView |> AVal.map (fun cV -> cV.ViewTrafo.Forward)
 
         //let filterNew = filter |> AVal.map (fun f -> Box3f f)
         let filterNew = filterBox |> AVal.map (fun f -> match f with 
@@ -475,8 +455,8 @@ module HeraSg =
         |> Sg.uniform "NormalizeData" normalizeData
         |> Sg.uniform "EnableShading" enableShading
         |> Sg.uniform "ReconstructNormal" reconstructNormal
-        |> Sg.uniform "RecomputeView" recomputeView
         |> Sg.uniform "ReconstructDepth" reconstructDepth
+        |> Sg.uniform "ViewMatrix" viewTrafo
         |> Sg.uniform "TransferFunction" texture
         |> Sg.uniform "RenderValue" renderValue
         |> Sg.uniform "DomainRange" domainRange
@@ -492,14 +472,14 @@ module HeraSg =
     //TODO: Create a function containing repetitive code
     let createAnimatedVrSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) 
                            (normalizeData : aval<bool>) (enableShading : aval<bool>) 
-                           (reconstructNormal : aval<bool>) (recomputeView : aval<bool>) (reconstructDepth : aval<bool>)
+                           (reconstructNormal : aval<bool>) (reconstructDepth : aval<bool>)
                            (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
                            (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
                            (contrClippingPlane : aval<Plane3d>)
                            (filterBox : aval<option<Box3f>>) (sphereProbe : aval<Sphere3d>)
                            (currFilters : aval<Filters>) 
                            (dataRange : aval<Range>) (colorValue : aval<C4b>) 
-                           (cameraView : aval<CameraView>)
+                           (cameraView : aval<CameraView>) (viewTrafoVR : aval<Trafo3d>)
                            (runtime : IRuntime)
                            (frames : Frame[])  = 
 
@@ -513,6 +493,8 @@ module HeraSg =
         let boxIsSet = filterBox |> AVal.map (fun f -> match f with 
                                                         | Some i -> true
                                                         | None -> false)
+
+        let viewTrafo = viewTrafoVR |> AVal.map (fun vT -> vT.Forward)                                                        
                                                             
        // let currFrame = frame |> AVal.map (fun i -> frames.[i])
         let currentBuffers = frame |> AVal.map (fun i -> frames.[i].preparedFrame)
@@ -562,8 +544,8 @@ module HeraSg =
         |> Sg.uniform "NormalizeData" normalizeData
         |> Sg.uniform "EnableShading" enableShading
         |> Sg.uniform "ReconstructNormal" reconstructNormal
-        |> Sg.uniform "RecomputeView" recomputeView
         |> Sg.uniform "ReconstructDepth" reconstructDepth
+        |> Sg.uniform "ViewMatrix" viewTrafo
         |> Sg.uniform "TransferFunction" texture
         |> Sg.uniform "RenderValue" renderValue
         |> Sg.uniform "DomainRange" domainRange

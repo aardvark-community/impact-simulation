@@ -28,7 +28,6 @@ type Message =
     | NormalizeData
     | EnableShading
     | ReconstructNormal
-    | RecomputeView
     | ReconstructDepth
     | SetPointSize of float
     | ChangeAnimation
@@ -115,7 +114,6 @@ module App =
             normalizeData = false
             enableShading = false
             reconstructNormal = false
-            recomputeView = false
             reconstructDepth = false
             renderValue = RenderValue.Energy
             colorValue = { c = C4b.Gray}
@@ -302,7 +300,6 @@ module App =
             | NormalizeData -> {m with normalizeData = not m.normalizeData}
             | EnableShading -> {m with enableShading = not m.enableShading}
             | ReconstructNormal -> {m with reconstructNormal = not m.reconstructNormal}
-            | RecomputeView -> {m with recomputeView = not m.recomputeView}
             | ReconstructDepth -> {m with reconstructDepth = not m.reconstructDepth}
             | ChangeAnimation -> { m with playAnimation = not m.playAnimation}
             | AnimateAllFrames -> 
@@ -607,7 +604,7 @@ module App =
         let heraSg = 
             data
             |> HeraSg.createAnimatedSg m.frame m.pointSize m.discardPoints m.normalizeData 
-                m.enableShading m.reconstructNormal m.recomputeView m.reconstructDepth
+                m.enableShading m.reconstructNormal m.reconstructDepth
                 m.renderValue m.currentMap 
                 m.domainRange m.clippingPlane m.boxFilter m.currFilters m.dataRange m.colorValue.c 
                 m.cameraState.view
@@ -820,15 +817,6 @@ module App =
                                     state m.reconstructNormal
                                     toggle ReconstructNormal
                                     content [ text "Reconstruct Normal"]  
-                                }
-                            ]
-
-                            div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
-                                simplecheckbox { 
-                                    attributes [clazz "ui inverted checkbox"]
-                                    state m.recomputeView
-                                    toggle RecomputeView
-                                    content [ text "Recompute View"]  
                                 }
                             ]
 

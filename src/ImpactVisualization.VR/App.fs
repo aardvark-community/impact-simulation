@@ -798,7 +798,20 @@ module Demo =
 
        // let sphereProbe = Sphere3d.Invalid |> AVal.constant
 
+        let combinedTrafo = 
+            viewTrafos 
+            |> AVal.map (fun trafos ->
+                            let left = trafos.[0]
+                            let right = trafos.[1]
+                            let combined = (left.Forward + right.Forward)/2.0
+                            let combinedInv = (left.Backward + right.Backward)/2.0
+                            Trafo3d(combined, combinedInv))
 
+        let leftTrafo = 
+            viewTrafos 
+            |> AVal.map (fun trafos ->
+                            let left = trafos.[0]
+                            left)
         
         let heraSg = 
             let model = m
@@ -806,10 +819,10 @@ module Demo =
             data
             |> HeraSg.HeraSg.createAnimatedVrSg 
                 m.frame m.pointSize m.discardPoints m.normalizeData 
-                m.enableShading m.reconstructNormal m.recomputeView m.reconstructDepth
+                m.enableShading m.reconstructNormal m.reconstructDepth
                 m.renderValue m.currentMap m.domainRange m.clippingPlane contrClippingPlane 
                 m.boxFilter sphereProbe m.currFilters m.dataRange m.colorValue.c 
-                m.cameraState.view
+                m.cameraState.view leftTrafo
                 runtime
             |> Sg.noEvents
             |> Sg.trafo model.heraTransformations
@@ -854,14 +867,6 @@ module Demo =
                    renderStyle       = RenderStyle.Billboard
                }
 
-        let combinedTrafo = 
-            viewTrafos 
-            |> AVal.map (fun trafos ->
-                            let left = trafos.[0]
-                            let right = trafos.[1]
-                            let combined = (left.Forward + right.Forward)/2.0
-                            let combinedInv = (left.Backward + right.Backward)/2.0
-                            Trafo3d(combined, combinedInv))
 
         let t = 
             Sg.textWithConfig ({ TextConfig.Default with renderStyle = RenderStyle.Normal })  (AVal.constant "hello world\nsuperstar")

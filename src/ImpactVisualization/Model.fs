@@ -165,7 +165,6 @@ type Model =
 
         enableShading : bool
         reconstructNormal : bool 
-        recomputeView : bool
         reconstructDepth : bool 
 
         data : VersionedArray
