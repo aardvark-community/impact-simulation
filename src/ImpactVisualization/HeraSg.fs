@@ -296,7 +296,7 @@ module Shaders =
             let f = Vec.dot c c - 1.0
             if f > 0.0 then discard() // round points magic
 
-            let ambient = V4d(0.5, 0.4, 0.3, 1.0)
+            let ambient = V4d(0.4, 0.375, 0.35, 1.0)
             let diffuse = 0.6
             let specular = 0.3
 

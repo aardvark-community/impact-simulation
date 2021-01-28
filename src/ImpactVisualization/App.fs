@@ -67,6 +67,15 @@ module App =
         let rescale = rounded / Math.Pow(10.0, x)
         rescale
 
+    let roundDecimal (number : float) = 
+        let absNumber = abs number
+        let decimalPlaces = 
+            if absNumber < 1.0 then 9.0
+            else if absNumber <= 100.0 then 2.0 
+            else if absNumber <= 10000.0 then 1.0
+            else 0.0
+        roundXdecimal number decimalPlaces
+
     let initial (frames : Frame[]) = 
         let initValues = frames.[0].energies
         let rangeEnergy = initValues.GetBoundingRange()
@@ -224,12 +233,12 @@ module App =
             | RenderValue.Density -> "Density"
             | _ -> "Energy"
         let numOfPoints = filteredPoints.Length
-        let max = roundXdecimal (filteredPoints.Max()) 2.0 //TODO: Probably directly use the data range somehow ?!?!?!
-        let min = roundXdecimal (filteredPoints.Min()) 2.0 
-        let mean = roundXdecimal (filteredPoints.Mean()) 2.0
-       // let median = roundXdecimal (filteredPoints.Median()) 2.0
-        let variance = roundXdecimal (filteredPoints.Variance()) 2.0
-        let standardDeviation = roundXdecimal (filteredPoints.StandardDeviation()) 2.0
+        let max = roundDecimal (filteredPoints.Max()) //TODO: Probably directly use the data range somehow ?!?!?!
+        let min = roundDecimal (filteredPoints.Min())
+        let mean = roundDecimal (filteredPoints.Mean())
+       // let median = roundDecimal (filteredPoints.Median())
+        let variance = roundDecimal (filteredPoints.Variance()) 
+        let standardDeviation = roundDecimal (filteredPoints.StandardDeviation())
         let statisticsText = 
             "Attribute: " + renderVal + "\n" + 
             "Number of Points: " + string numOfPoints + "\n" + 
@@ -907,23 +916,23 @@ module App =
                                 yield span [style "padding: 4px"] [text "Min: "]
                                 yield simplenumeric {
                                         attributes [style "width: 80%; padding: 2px"]
-                                        value (m.dataRange |> AVal.map (fun r -> (roundXdecimal r.min 9.0)))
-                                        update (fun v -> SetDataRange (Min, (roundXdecimal v 9.0)))
+                                        value (m.dataRange |> AVal.map (fun r -> (roundDecimal r.min)))
+                                        update (fun v -> SetDataRange (Min, (roundDecimal v)))
                                         step (fst steps)
                                         largeStep (snd steps)
-                                        min (roundXdecimal initRange.min 9.0)
-                                        max (roundXdecimal initRange.max 9.0)
+                                        min (roundDecimal initRange.min)
+                                        max (roundDecimal initRange.max)
                                         }
 
                                 yield span [style "padding: 3px"] [text "Max: "]
                                 yield simplenumeric {
                                         attributes [style "width: 80%; padding: 2px"]
-                                        value (m.dataRange |> AVal.map (fun r -> (roundXdecimal r.max 9.0)))
-                                        update (fun v -> SetDataRange (Max, (roundXdecimal v 9.0)))
+                                        value (m.dataRange |> AVal.map (fun r -> (roundDecimal r.max)))
+                                        update (fun v -> SetDataRange (Max, (roundDecimal v)))
                                         step (fst steps)
                                         largeStep (snd steps)
-                                        min (roundXdecimal initRange.min 9.0)
-                                        max (roundXdecimal initRange.max 9.0)
+                                        min (roundDecimal initRange.min)
+                                        max (roundDecimal initRange.max)
                                         }    
                                }
                             )
@@ -959,8 +968,8 @@ module App =
                                 style "width: 168px; height: 0px; background-color: #ffffff; margin-block-start: 3px; margin-block-end: 0px; margin-inline-start: 0px"
                             ]
 
-                            yield span [style "position: relative; font-size: 0.8em; right: 10px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundXdecimal r.min 9.0).ToString()))] 
-                            yield span [style "position: inherit; font-size: 0.8em; right: 10px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundXdecimal r.max 9.0).ToString()))]
+                            yield span [style "position: relative; font-size: 0.8em; right: 10px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.min).ToString()))] 
+                            yield span [style "position: inherit; font-size: 0.8em; right: 10px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.max).ToString()))]
                             }
                         )
                         
