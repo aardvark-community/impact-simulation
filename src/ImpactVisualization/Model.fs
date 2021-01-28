@@ -253,6 +253,11 @@ module DataLoader =
             }
         frame
 
-    let files = Directory.EnumerateDirectories datapath |> Seq.toArray |> Array.filter (fun file -> file.EndsWith(".store"))
+    let files = 
+        let dataFiles = Directory.EnumerateDirectories datapath
+        if dataFiles.IsEmpty() then
+            failwith "There is no data in the specified path!!"
+        else
+            Directory.EnumerateDirectories datapath |> Seq.toArray |> Array.filter (fun file -> file.EndsWith(".store"))
 
     let loadDataAllFrames (runtime : IRuntime) = files |> Array.map (fun file -> loadDataSingleFrame runtime file)
