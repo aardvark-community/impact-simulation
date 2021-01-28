@@ -819,7 +819,7 @@ module Demo =
             data
             |> HeraSg.HeraSg.createAnimatedVrSg 
                 m.frame m.pointSize m.discardPoints m.normalizeData 
-                m.enableShading m.reconstructNormal m.reconstructDepth
+                m.enableShading m.reconstructNormal m.reconstructDepth model.scalingFactorHera
                 m.renderValue m.currentMap m.domainRange m.clippingPlane contrClippingPlane 
                 m.boxFilter sphereProbe m.currFilters m.dataRange m.colorValue.c 
                 m.cameraState.view leftTrafo

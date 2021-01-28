@@ -308,6 +308,7 @@ module Shaders =
             let shading = uniform?EnableShading
             let reconstructNormal = uniform?ReconstructNormal
             let reconstructDepth : bool = uniform?ReconstructDepth
+            let pointRadius : float = uniform?PointRadius
 
             //Normal reconstruction
             let distToCenter_squared = Vec.dot c c 
@@ -319,7 +320,7 @@ module Shaders =
             //BLINN-PHONG LIGHTING MODEL FROM MY LECTURE
             let lp = V3d(0.0, 40.0, 0.0)
             let spherePos_view = viewMatrix * v.wp
-            let posOnSphere = spherePos_view + V4d(norm, 1.0) * 0.05 // TODO: not sure if the radius is always one
+            let posOnSphere = spherePos_view + V4d(norm, 1.0) * pointRadius // TODO: not sure if the radius is always one
 
             //Depth reconstruction
             let posOnSphere_screen = projectionMatrix * posOnSphere
@@ -401,6 +402,7 @@ module HeraSg =
         mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
 
         let viewTrafo = cameraView |> AVal.map (fun cV -> cV.ViewTrafo.Forward)
+        let pointRadius = AVal.constant 1.0
 
         //let filterNew = filter |> AVal.map (fun f -> Box3f f)
         let filterNew = filterBox |> AVal.map (fun f -> match f with 
@@ -456,6 +458,7 @@ module HeraSg =
         |> Sg.uniform "EnableShading" enableShading
         |> Sg.uniform "ReconstructNormal" reconstructNormal
         |> Sg.uniform "ReconstructDepth" reconstructDepth
+        |> Sg.uniform "PointRadius" pointRadius
         |> Sg.uniform "ViewMatrix" viewTrafo
         |> Sg.uniform "TransferFunction" texture
         |> Sg.uniform "RenderValue" renderValue
@@ -473,6 +476,7 @@ module HeraSg =
     let createAnimatedVrSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) 
                            (normalizeData : aval<bool>) (enableShading : aval<bool>) 
                            (reconstructNormal : aval<bool>) (reconstructDepth : aval<bool>)
+                           (pointRadius : aval<float>)
                            (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
                            (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
                            (contrClippingPlane : aval<Plane3d>)
@@ -545,6 +549,7 @@ module HeraSg =
         |> Sg.uniform "EnableShading" enableShading
         |> Sg.uniform "ReconstructNormal" reconstructNormal
         |> Sg.uniform "ReconstructDepth" reconstructDepth
+        |> Sg.uniform "PointRadius" pointRadius
         |> Sg.uniform "ViewMatrix" viewTrafo
         |> Sg.uniform "TransferFunction" texture
         |> Sg.uniform "RenderValue" renderValue
