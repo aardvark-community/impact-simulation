@@ -194,9 +194,9 @@ module DataLoader =
     let collectLeafData (extract : IPointCloudNode -> 'a[]) (root : IPointCloudNode) : 'a[] =
         root.EnumerateNodes () |> Seq.filter (fun n -> n.IsLeaf) |> Seq.map extract |> Array.concat
 
-    //let datapath  = @"C:\Users\vasileva\source\hera_data"
+    let datapath  = @"C:\Users\vasileva\source\hera_data"
 
-    let datapath  = @"D:\TU Wien\Master\4. Semester\Praktikum aus Visual Computing\Data\r80_p0_m500_v6000_mbasalt_a1.0_1M\data"
+    //let datapath  = @"D:\TU Wien\Master\4. Semester\Praktikum aus Visual Computing\Data\r80_p0_m500_v6000_mbasalt_a1.0_1M\data"
 
     let createData() =
 

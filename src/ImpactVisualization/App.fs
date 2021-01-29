@@ -221,6 +221,35 @@ module App =
             |> Seq.toArray
         chunk
 
+
+
+    let findQuartiles1And3 (listOfPoints : float[]) = 
+        let N = listOfPoints.Length
+        let listIsEven = if N % 2 = 0 then true else false
+        let halfList = if listIsEven then N / 2 else (N - 1) / 2
+        let halfListIsEven = if halfList % 2 = 0 then true else false
+        if halfListIsEven then 
+            let indexQ1_1 = halfList / 2
+            let indexQ1_2 = indexQ1_1 + 1
+            let quartile1 = (listOfPoints.NLargestIndex(indexQ1_1) + listOfPoints.NLargestIndex(indexQ1_2)) / 2
+
+            let indexQ3_1 = (halfList * 3/2) + 1
+            let indexQ3_2 = indexQ3_1 + 1
+            let quartile3 = (listOfPoints.NLargestIndex(indexQ3_1) + listOfPoints.NLargestIndex(indexQ3_2)) / 2
+
+            float quartile1, float quartile3
+        else 
+            let orderedIdxQ1 = (halfList + 1) / 2
+            let idxQ1 = listOfPoints.NSmallestIndex(orderedIdxQ1 - 1)
+            let quartile1 = listOfPoints.[idxQ1]
+
+            let orderedIdxQ3 = if listIsEven then halfList + (halfList + 1)/2 else (halfList + 1) * 3/2
+            let idxQ3 = listOfPoints.NSmallestIndex(orderedIdxQ3 - 1)
+            let quartile3 = listOfPoints.[idxQ3]
+
+            quartile1, quartile3
+
+
     let computeStatistics (filteredPoints : float[]) (renderValue : RenderValue) = 
         let renderVal = 
             match renderValue with 
@@ -565,6 +594,8 @@ module App =
 
     let view (runtime : IRuntime) (data : Frame[]) (m : AdaptiveModel) =
         let shuffleR (r : Random) xs = xs |> Seq.sortBy (fun _ -> r.Next())
+
+        let temp = findQuartiles1And3 [| 9.0; 10.0; 3.0; 6.0; 7.0; 1.0; 4.0; 5.0; 8.0; 2.0 |]    
         
         let encodeToCSVData (data : Frame[]) =
             let builder = System.Text.StringBuilder()
