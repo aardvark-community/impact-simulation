@@ -254,6 +254,8 @@ module App =
             quartile1, quartile3
 
 
+
+
     let computeStatistics (filteredPoints : float[]) (renderValue : RenderValue) = 
         let renderVal = 
             match renderValue with 
