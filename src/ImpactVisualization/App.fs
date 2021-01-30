@@ -222,7 +222,7 @@ module App =
         chunk
 
 
-
+    //TODO: Find the comutation time of NSmallestIndex -> is it O(n)? Is there a faster solution?
     let findQuartiles1And3 (listOfPoints : float[]) = 
         let N = listOfPoints.Length
         let listIsEven = if N % 2 = 0 then true else false
