@@ -229,15 +229,19 @@ module App =
         let halfList = if listIsEven then N / 2 else (N - 1) / 2
         let halfListIsEven = if halfList % 2 = 0 then true else false
         if halfListIsEven then 
-            let indexQ1_1 = halfList / 2
-            let indexQ1_2 = indexQ1_1 + 1
-            let quartile1 = (listOfPoints.NLargestIndex(indexQ1_1) + listOfPoints.NLargestIndex(indexQ1_2)) / 2
+            let orderedIdxQ1_1 = halfList / 2
+            let orderedIdxQ1_2 = orderedIdxQ1_1 + 1
+            let idxQ1_1 = listOfPoints.NSmallestIndex(orderedIdxQ1_1 - 1)
+            let idxQ1_2 = listOfPoints.NSmallestIndex(orderedIdxQ1_2 - 1)
+            let quartile1 = (listOfPoints.[idxQ1_1] + listOfPoints.[idxQ1_2]) / 2.0
 
-            let indexQ3_1 = (halfList * 3/2) + 1
-            let indexQ3_2 = indexQ3_1 + 1
-            let quartile3 = (listOfPoints.NLargestIndex(indexQ3_1) + listOfPoints.NLargestIndex(indexQ3_2)) / 2
+            let orderedIdxQ3_1 = if listIsEven then (halfList * 3/2) else (halfList * 3/2) + 1
+            let orderedIdxQ3_2 = orderedIdxQ3_1 + 1
+            let idxQ3_1 = listOfPoints.NSmallestIndex(orderedIdxQ3_1 - 1)
+            let idxQ3_2 = listOfPoints.NSmallestIndex(orderedIdxQ3_2 - 1)
+            let quartile3 = (listOfPoints.[idxQ3_1] + listOfPoints.[idxQ3_2]) / 2.0
 
-            float quartile1, float quartile3
+            quartile1, quartile3
         else 
             let orderedIdxQ1 = (halfList + 1) / 2
             let idxQ1 = listOfPoints.NSmallestIndex(orderedIdxQ1 - 1)
@@ -595,7 +599,7 @@ module App =
     let view (runtime : IRuntime) (data : Frame[]) (m : AdaptiveModel) =
         let shuffleR (r : Random) xs = xs |> Seq.sortBy (fun _ -> r.Next())
 
-        let temp = findQuartiles1And3 [| 9.0; 10.0; 3.0; 6.0; 7.0; 1.0; 4.0; 5.0; 8.0; 2.0 |]    
+        let temp = findQuartiles1And3 [| 25.0; 18.0; 30.0; 30.0; 26.0; 6.0; 7.0; 6.0; 50.0; 5.0; 40.0; 37.0; 39.0; 11.0; 10.0; 35.0|]    
         
         let encodeToCSVData (data : Frame[]) =
             let builder = System.Text.StringBuilder()
