@@ -286,18 +286,18 @@ module App =
         let max = roundDecimal (filteredPoints.Max()) //TODO: Probably directly use the data range somehow ?!?!?!
         let min = roundDecimal (filteredPoints.Min())
         let mean = roundDecimal (filteredPoints.Mean())
-       // let median = roundDecimal (filteredPoints.Median())
+        let median = if numOfPoints < 1 then nan else roundDecimal (filteredPoints.Median())
         let variance = roundDecimal (filteredPoints.Variance()) 
         let standardDeviation = roundDecimal (filteredPoints.StandardDeviation())
         let statisticsText = 
-            "Attribute: " + renderVal + "\n" + 
-            "Number of Points: " + string numOfPoints + "\n" + 
-            "Min: " + string min + "\n" + 
+            "Attr.: " + renderVal + "\n" + 
+            "No. of Points: " + string numOfPoints + "\n" + 
+            "Min: " + string min + " " +
             "Max: " + string max + "\n" + 
             "Mean: " + string mean + "\n" + 
-           // "Median: " + string median + "\n" + 
-            "Variance: " + string variance + "\n" + 
-            "Standard Deviation: " + string standardDeviation
+            "Median: " + string median + "\n" + 
+            "Var.: " + string variance + "\n" + 
+            "SD: " + string standardDeviation
         statisticsText
 
     let filterDataForOneFrame (chunk : GenericChunk[]) (renderVal : RenderValue) =
