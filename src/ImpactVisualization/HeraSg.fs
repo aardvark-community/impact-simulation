@@ -122,6 +122,7 @@ module Shaders =
             let renderValue = uniform?RenderValue
             let colorValue = uniform?Color
             let normalizeData = uniform?NormalizeData
+            let outliersRange : Range = uniform?OutliersRange 
 
             let value renderValue = 
                 match renderValue with
@@ -159,9 +160,13 @@ module Shaders =
             let maxRange = if normalizeData then 1.0 else dataRange.max
             let isInsideMinMaxRange = min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z
 
+            let minOutlier = outliersRange.min
+            let maxOutlier = outliersRange.max
+            let isInsideOutlierRange = minOutlier <= currValue && currValue <= maxOutlier
+
             let plane = uniform?ClippingPlane
 
-            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && minRange <= linearCoord && linearCoord <= maxRange
+            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && minRange <= linearCoord && linearCoord <= maxRange && isInsideOutlierRange
 
             let color = 
                 if (isInAllRanges) then
@@ -202,6 +207,8 @@ module Shaders =
             let renderValue = uniform?RenderValue
             let colorValue = uniform?Color
             let normalizeData = uniform?NormalizeData
+            let outliersRange : Range = uniform?OutliersRange 
+
            
             let value renderValue = 
                 match renderValue with
@@ -248,19 +255,11 @@ module Shaders =
             let maxRange = dataRange.max
             let isInsideMinMaxRange = min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z
 
+            let minOutlier = outliersRange.min
+            let maxOutlier = outliersRange.max
+            let isInsideOutlierRange = minOutlier <= currValue && currValue <= maxOutlier
+
             let plane = uniform?ClippingPlane
-            //let planePos = 
-            //    //let newX = if plane.x >= 16.0 then infinity else plane.x
-            //    //let newY = if plane.y >= 30.0 then infinity else plane.y
-            //    //let newZ = if plane.z >= 16.0 then infinity else plane.z
-            //    V3d(plane.x, plane.y, plane.z)
-            //let transformPlane = modelMatrix.TransformPos(planePos)
-            //let planeT = 
-            //    {
-            //        x = transformPlane.X
-            //        y = transformPlane.Y
-            //        z = transformPlane.Z
-            //    }
 
             let pSize = uniform?PointSize
 
@@ -272,7 +271,7 @@ module Shaders =
                 else 
                     Vec.Dot(controllerPlane.Normal, pPos) - controllerPlane.Distance >= 0.0
 
-            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && isNotInsideSphere //&& minRange <= linearCoord && linearCoord <= maxRange
+            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && isNotInsideSphere && isInsideOutlierRange //&& minRange <= linearCoord && linearCoord <= maxRange
 
             let color = if (isInAllRanges) then transferFunc else colorValue
             let size = if (isNotInsideSphere) then (pSize + 8.0) else pSize
@@ -282,12 +281,12 @@ module Shaders =
                 if (discardPoints) then
                     if (isInAllRanges) then
                         yield  { p.Value with 
-                                    pointColor = transferFunc
-                                    pointSize = size}
+                                    pointColor = color
+                                    pointSize = uniform?PointSize}
                 else
                     yield { p.Value with 
-                                pointColor = transferFunc
-                                pointSize = size}
+                                pointColor = color
+                                pointSize = uniform?PointSize}
         }
         
     let fs (v : Vertex) = 
@@ -380,6 +379,7 @@ module HeraSg =
     let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) 
                          (normalizeData : aval<bool>) (enableShading : aval<bool>)
                          (reconstructNormal : aval<bool>) (reconstructDepth : aval<bool>)
+                         (lowerOutliers : aval<bool>) (higherOutliers : aval<bool>) (outliersRange : aval<Range>)
                          (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
                          (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
                          (filterBox : aval<option<Box3f>>)
@@ -458,6 +458,7 @@ module HeraSg =
         |> Sg.uniform "EnableShading" enableShading
         |> Sg.uniform "ReconstructNormal" reconstructNormal
         |> Sg.uniform "ReconstructDepth" reconstructDepth
+        |> Sg.uniform "OutliersRange" outliersRange
         |> Sg.uniform "PointRadius" pointRadius
         |> Sg.uniform "ViewMatrix" viewTrafo
         |> Sg.uniform "TransferFunction" texture
@@ -476,6 +477,7 @@ module HeraSg =
     let createAnimatedVrSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) 
                            (normalizeData : aval<bool>) (enableShading : aval<bool>) 
                            (reconstructNormal : aval<bool>) (reconstructDepth : aval<bool>)
+                           (lowerOutliers : aval<bool>) (higherOutliers : aval<bool>) (outliersRange : aval<Range>)
                            (pointRadius : aval<float>)
                            (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
                            (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
@@ -549,6 +551,7 @@ module HeraSg =
         |> Sg.uniform "EnableShading" enableShading
         |> Sg.uniform "ReconstructNormal" reconstructNormal
         |> Sg.uniform "ReconstructDepth" reconstructDepth
+        |> Sg.uniform "OutliersRange" outliersRange
         |> Sg.uniform "PointRadius" pointRadius
         |> Sg.uniform "ViewMatrix" viewTrafo
         |> Sg.uniform "TransferFunction" texture

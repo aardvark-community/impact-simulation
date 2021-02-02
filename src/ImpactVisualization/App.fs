@@ -29,6 +29,8 @@ type Message =
     | EnableShading
     | ReconstructNormal
     | ReconstructDepth
+    | DisplayLowerOutliers
+    | DisplayHigherOutliers
     | SetPointSize of float
     | ChangeAnimation
     | AnimateAllFrames
@@ -124,6 +126,12 @@ module App =
             enableShading = false
             reconstructNormal = false
             reconstructDepth = false
+            lowerOutliers = false
+            higherOutliers = false
+            outliersRange = {
+                min = -infinity
+                max = infinity
+            }
             renderValue = RenderValue.Energy
             colorValue = { c = C4b.Gray}
             colorMaps = listWithValues
@@ -253,7 +261,14 @@ module App =
 
             quartile1, quartile3
 
-
+    let findOutliers (listOfPoints : float[]) = 
+        let quartieles1And3 = findQuartiles1And3 listOfPoints
+        let quartile1 = fst quartieles1And3
+        let quartile3 = snd quartieles1And3
+        let IQR = quartile3 - quartile1
+        let lowerOutliersBoundary = quartile1 - 1.5 * IQR
+        let higherOutliersBoundary = quartile3 + 1.5 * IQR
+        lowerOutliersBoundary, higherOutliersBoundary
 
 
     let computeStatistics (filteredPoints : float[]) (renderValue : RenderValue) = 
@@ -345,6 +360,24 @@ module App =
             | EnableShading -> {m with enableShading = not m.enableShading}
             | ReconstructNormal -> {m with reconstructNormal = not m.reconstructNormal}
             | ReconstructDepth -> {m with reconstructDepth = not m.reconstructDepth}
+            | DisplayLowerOutliers -> 
+                let currData = m.values.arr
+                let lowerOutlierBoundary = findOutliers currData |> fst
+                let range = m.outliersRange
+                let newMin = if m.lowerOutliers then -infinity else lowerOutlierBoundary
+                let newOutliersRange = {range with min = newMin}
+                {m with 
+                    lowerOutliers = not m.lowerOutliers
+                    outliersRange = newOutliersRange}
+            | DisplayHigherOutliers -> 
+                let currData = m.values.arr
+                let higherOutlierBoundary = findOutliers currData |> snd
+                let range = m.outliersRange
+                let newMax = if m.higherOutliers then infinity else higherOutlierBoundary
+                let newOutliersRange = {range with max = newMax}
+                {m with 
+                    higherOutliers = not m.higherOutliers
+                    outliersRange = newOutliersRange}
             | ChangeAnimation -> { m with playAnimation = not m.playAnimation}
             | AnimateAllFrames -> 
                 let filteredDataAllFrames = filterDataForAllFramesBox frames m.boxFilter m.renderValue
@@ -601,7 +634,7 @@ module App =
     let view (runtime : IRuntime) (data : Frame[]) (m : AdaptiveModel) =
         let shuffleR (r : Random) xs = xs |> Seq.sortBy (fun _ -> r.Next())
 
-        let temp = findQuartiles1And3 [| 25.0; 18.0; 30.0; 30.0; 26.0; 6.0; 7.0; 6.0; 50.0; 5.0; 40.0; 37.0; 39.0; 11.0; 10.0; 35.0|]    
+        let temp = findOutliers data.[0].energies  
         
         let encodeToCSVData (data : Frame[]) =
             let builder = System.Text.StringBuilder()
@@ -651,6 +684,7 @@ module App =
             data
             |> HeraSg.createAnimatedSg m.frame m.pointSize m.discardPoints m.normalizeData 
                 m.enableShading m.reconstructNormal m.reconstructDepth
+                m.lowerOutliers m.higherOutliers m.outliersRange
                 m.renderValue m.currentMap 
                 m.domainRange m.clippingPlane m.boxFilter m.currFilters m.dataRange m.colorValue.c 
                 m.cameraState.view
@@ -923,6 +957,21 @@ module App =
                             ]
 
                             //br []
+
+                            div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
+                                simplecheckbox { 
+                                    attributes [clazz "ui inverted checkbox"]
+                                    state m.lowerOutliers
+                                    toggle DisplayLowerOutliers
+                                    content [ text "Lower"]  
+                                }
+                                simplecheckbox { 
+                                    attributes [clazz "ui inverted checkbox"; style "padding-inline-start: 6px"]
+                                    state m.higherOutliers
+                                    toggle DisplayHigherOutliers
+                                    content [ text "Higher Outliers"]  
+                                }
+                            ]
 
                             Incremental.div (AttributeMap.ofAMap (amap {
                                 yield style "width: 95%; margin-top: 5px; margin-bottom: 8px"

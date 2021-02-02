@@ -167,6 +167,10 @@ type Model =
         reconstructNormal : bool 
         reconstructDepth : bool 
 
+        lowerOutliers : bool
+        higherOutliers : bool
+        outliersRange : Range
+
         data : VersionedArray
         values : VersionedArray
 
