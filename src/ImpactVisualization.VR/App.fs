@@ -133,6 +133,17 @@ module Demo =
             insideHera = inside
             currStatistics = statistics
         }
+
+    let convertCartesianToPolar (cartCoords : V2d) = 
+        let x = cartCoords.X
+        let y = cartCoords.Y
+
+        let r = Math.Sqrt(Math.Pow(x, 2.0) + Math.Pow(y, 2.0))
+        let t = Math.Atan2(y, x)
+        let theta = 
+            let angle = t * (180.0 / Math.PI) 
+            if y < 0.0 then angle + 360.0 else angle
+        r, theta
         
     let rec update (runtime : IRuntime) (client : Browser) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
         let planePos0 = V3d(-0.7, 0.05, -0.5)
@@ -554,7 +565,9 @@ module Demo =
                     clippingPlaneDeviceId = None 
                 }
         | ToggleControllerMenu -> 
-            if model.currTouchPadPos.X >= -0.3 && model.currTouchPadPos.X <= 0.3 then
+            let pos = convertCartesianToPolar model.currTouchPadPos
+            let r = pos |> fst
+            if r < 0.5 then
                 {model with 
                     controllerMenuOpen = not model.controllerMenuOpen
                     sphereControllerId = None
@@ -577,28 +590,39 @@ module Demo =
             match model.menuControllerId with  
             | Some i -> 
                 if i = id then 
-                    let posX = model.currTouchPadPos.X
-                    let mode = 
-                        match model.controllerMode with 
-                        | ControllerMode.Probe -> 0 
-                        | ControllerMode.Ray -> 1 
-                        | ControllerMode.Clipping -> 2
-                        | _ -> 0
-                    let nextModeInt = 
-                        if posX <= -0.5 then
-                            if mode = 0 then 2 else (mode - 1)
-                        else if posX >= 0.5 then         
-                            if mode = 2 then 0 else (mode + 1)
-                        else
-                            mode
-                    let nextMode = 
-                        match nextModeInt with 
-                        | 0 -> ControllerMode.Probe
-                        | 1 -> ControllerMode.Ray
-                        | 2 -> ControllerMode.Clipping
-                        | _ -> ControllerMode.Probe
-                    printf "nextmMode %A" nextMode
-                    {model with controllerMode = nextMode}
+                    let pos = convertCartesianToPolar model.currTouchPadPos
+                    let r = pos |> fst
+                    let theta = pos |> snd
+                    if r >= 0.5 then 
+                        if theta >= 0.0 && theta < 60.0 then {model with controllerMode = ControllerMode.Clipping}
+                        else if theta >= 60.0 && theta < 120.0 then {model with controllerMode = ControllerMode.Ray}
+                        else if theta >= 120.0 && theta < 180.0 then {model with controllerMode = ControllerMode.Probe}
+                        else model
+                    else 
+                        model
+
+                    //let posX = model.currTouchPadPos.X
+                    //let mode = 
+                    //    match model.controllerMode with 
+                    //    | ControllerMode.Probe -> 0 
+                    //    | ControllerMode.Ray -> 1 
+                    //    | ControllerMode.Clipping -> 2
+                    //    | _ -> 0
+                    //let nextModeInt = 
+                    //    if posX <= -0.5 then
+                    //        if mode = 0 then 2 else (mode - 1)
+                    //    else if posX >= 0.5 then         
+                    //        if mode = 2 then 0 else (mode + 1)
+                    //    else
+                    //        mode
+                    //let nextMode = 
+                    //    match nextModeInt with 
+                    //    | 0 -> ControllerMode.Probe
+                    //    | 1 -> ControllerMode.Ray
+                    //    | 2 -> ControllerMode.Clipping
+                    //    | _ -> ControllerMode.Probe
+                    //printf "nextmMode %A" nextMode
+                    //{model with controllerMode = nextMode}
                 else 
                     model
             | None -> model
@@ -634,7 +658,7 @@ module Demo =
         | VrMessage.Press(controllerId, buttonId) ->
             //printf "press: %A " (controllerId, buttonId)
             if buttonId = 0 then 
-                [ToggleControllerMenu; OpenControllerMenu controllerId; ChangeControllerMode controllerId]
+                [ToggleControllerMenu; OpenControllerMenu controllerId]
                 //[ActivateRay controllerId]
             else if buttonId = 1 then
                 [ActivateControllerMode controllerId]
@@ -661,9 +685,9 @@ module Demo =
             if buttonId = 0 then 
                 let x = value.X
                 if x >=  0.0 then 
-                    [ChangeTouchpadPos (controllerId, value); ScaleUpHera x]
+                    [ChangeTouchpadPos (controllerId, value); ScaleUpHera x; ChangeControllerMode controllerId]
                 else 
-                    [ChangeTouchpadPos (controllerId, value); ScaleDownHera x]
+                    [ChangeTouchpadPos (controllerId, value); ScaleDownHera x; ChangeControllerMode controllerId]
             else 
                 []
         | VrMessage.UpdatePose(controllerId, pose) ->
