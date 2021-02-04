@@ -773,8 +773,7 @@ module Demo =
             |> Sg.trafo tdf
             |> Sg.onOff touching
 
-        //let touchpadPlaneSg = 
-        //    Sg.quad 
+
 
 
 
@@ -1025,9 +1024,21 @@ module Demo =
 
         let planePositions = m.planeCorners |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
         let quadPositions = m.tvQuad |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
+        let texturePositions =  AVal.constant  [|V3f(-1.0, -1.0, 0.0); V3f(1.0, -1.0, 0.0); V3f(1.0, 1.0, 0.0); V3f(-1.0, 1.0, 0.0)|]
+
+
+        
 
         let clipPlaneSg = planeSg planePositions (C4f(0.0,0.0,1.0,0.1)) FillMode.Fill (AVal.constant mode) pass1
         let quadSg = planeSg quadPositions C4f.Gray10 FillMode.Fill (AVal.constant BlendMode.None) pass0
+        let touchpadPlaneSg = 
+            planeSg texturePositions (C4f(1.0,1.0,1.0,0.1)) FillMode.Fill (AVal.constant mode) pass1
+            |> Sg.scale 0.02
+            |> Sg.transform (Trafo3d.RotationXInDegrees(6.5))
+            |> Sg.translate 0.0 -0.049 0.0051
+            |> Sg.trafo tdf
+            |> Sg.onOff touching
+
 
         let browserSg = 
             if true then
@@ -1219,7 +1230,7 @@ module Demo =
         Sg.ofSeq [
             deviceSgs; currentSphereProbeSg; probesSgs; heraSg; clipPlaneSg; tvSg;
             billboardSg; probeContrSg; laserContrSg; clippingContrSg; ray;
-            browserSg; boxSg; touchpadSphereSg
+            browserSg; boxSg; touchpadSphereSg; touchpadPlaneSg
         ] |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
