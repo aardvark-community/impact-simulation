@@ -103,4 +103,6 @@ type Model =
 
         //Touchpad
         currTouchPadPos : V2d
+        touchpadDeviceId : Option<int>
+        touchpadDeviceTrafo : Option<Trafo3d>
 }

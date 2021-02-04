@@ -41,6 +41,7 @@ type Message =
     | CreateRay of int * Trafo3d
     | CreateClipping of int * Option<Trafo3d> * Trafo3d
     | DeactivateControllerMode of int
+    | UntouchDevice of int 
     | MouseClick
     | ResetHera 
  
@@ -116,6 +117,8 @@ module Demo =
             menuControllerId = None
             controllerMode = ControllerMode.Probe
             currTouchPadPos = V2d.OO
+            touchpadDeviceId = None
+            touchpadDeviceTrafo = None
             heraBox = Box3d.Infinite
             heraTransformations = Trafo3d.Identity
         }
@@ -335,6 +338,8 @@ module Demo =
                 else 
                     model.allProbes
 
+            let newTouchpadDeviceTrafo = newOrOldTrafo id trafo model.touchpadDeviceId model.touchpadDeviceTrafo 
+
             {model with 
                 controllerTrafo = contrTrafo
                 sphereControllerTrafo = sphereContrTrafo
@@ -353,7 +358,8 @@ module Demo =
                 probeIntersectionId = probeIntersection
                 heraBox = heraBBox
                 allProbes = allProbesUpdated
-                heraTransformations = heraTrafos}
+                heraTransformations = heraTrafos
+                touchpadDeviceTrafo = newTouchpadDeviceTrafo}
         | ActivateControllerMode id ->
             let currDevice = model.devicesTrafos.TryFind(id)
             let currDeviceTrafo = trafoOrIdentity currDevice
@@ -627,12 +633,24 @@ module Demo =
                     model
             | None -> model
         | ChangeTouchpadPos (id, pos) -> 
+            let currTouchDevice = model.devicesTrafos.TryFind(id)
             match model.rayDeviceId with 
             | Some i -> 
                 if i = id && model.screenIntersection then 
                     client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
             | None -> ()
-            {model with currTouchPadPos = pos}
+            {model with 
+                currTouchPadPos = pos
+                touchpadDeviceId = Some id
+                touchpadDeviceTrafo = currTouchDevice}
+        | UntouchDevice id ->
+            match model.touchpadDeviceId with 
+            | Some i ->
+                if i = id then 
+                    {model with touchpadDeviceId = None}
+                else
+                    model
+            | None -> model
         | ResetHera -> initial runtime frames
             
 
@@ -679,7 +697,7 @@ module Demo =
                 []
         | VrMessage.Untouch(controllerId, buttonId) ->
             //printf "untouch: %A " (controllerId, buttonId)
-            []
+            [UntouchDevice controllerId]
         | VrMessage.ValueChange(controllerId, buttonId, value) ->
             //printf "value change: %A " (controllerId, buttonId, value)
             if buttonId = 0 then 
@@ -728,6 +746,7 @@ module Demo =
             |> Sg.pass pass0
 
 
+
         let world = 
             Sg.textWithConfig TextConfig.Default m.text
             |> Sg.noEvents
@@ -738,6 +757,25 @@ module Demo =
             match trafo with 
             | Some t -> t
             | None -> Trafo3d.Identity
+
+        let touching = m.touchpadDeviceId |> AVal.map (fun id -> id.IsSome)
+
+        let tdf = m.touchpadDeviceTrafo |> AVal.map (fun t -> trafoOrIdentity t)
+
+        let touchpadPos = m.currTouchPadPos |> AVal.map (fun pos -> let z = if pos.Y >= 0.6 then 0.0025 else if pos.Y >= 0.0 then 0.001 else 0.0 
+                                                                    V3d(pos * 0.019, z))
+
+        let touchpadSphereSg = 
+            Sg.sphere' 9 C4b.LightGreen 0.002
+            |> Sg.noEvents
+            |> Sg.translate 0.0 -0.05 0.0035 // translation so that it is in the middle of the touchpad
+            |> Sg.translate' touchpadPos
+            |> Sg.trafo tdf
+            |> Sg.onOff touching
+
+        //let touchpadPlaneSg = 
+        //    Sg.quad 
+
 
 
         //TODO: Why not directly use hera trafo?!?!?!
@@ -1181,7 +1219,7 @@ module Demo =
         Sg.ofSeq [
             deviceSgs; currentSphereProbeSg; probesSgs; heraSg; clipPlaneSg; tvSg;
             billboardSg; probeContrSg; laserContrSg; clippingContrSg; ray;
-            browserSg; boxSg
+            browserSg; boxSg; touchpadSphereSg
         ] |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
