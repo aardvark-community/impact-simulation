@@ -65,6 +65,8 @@ module Demo =
 
     let screenResolution = V2i(1008,729)
 
+    let texturesPath = @"..\..\..\src\ImpactVisualization\resources\textures\"
+
     let initial runtime frames = 
         {   
             twoDModel = AardVolume.App.initial frames
@@ -1027,35 +1029,44 @@ module Demo =
         let texturePositions =  AVal.constant  [|V3f(-1.0, -1.0, 0.0); V3f(1.0, -1.0, 0.0); V3f(1.0, 1.0, 0.0); V3f(-1.0, 1.0, 0.0)|]
 
 
-        
+        let touchpadTexture = texturesPath + "initial.png"
 
         let clipPlaneSg = planeSg planePositions (C4f(0.0,0.0,1.0,0.1)) FillMode.Fill (AVal.constant mode) pass1
         let quadSg = planeSg quadPositions C4f.Gray10 FillMode.Fill (AVal.constant BlendMode.None) pass0
+
         let touchpadPlaneSg = 
-            planeSg texturePositions (C4f(1.0,1.0,1.0,0.1)) FillMode.Fill (AVal.constant mode) pass1
-            |> Sg.scale 0.02
+            Sg.draw IndexedGeometryMode.TriangleList
+            |> Sg.vertexAttribute DefaultSemantic.Positions texturePositions
+            |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
+            |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
+            |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
+            |> Sg.scale 0.0205
             |> Sg.transform (Trafo3d.RotationXInDegrees(6.5))
-            |> Sg.translate 0.0 -0.049 0.0051
+            |> Sg.translate 0.0 -0.049 0.004
             |> Sg.trafo tdf
             |> Sg.onOff touching
+            //|> Sg.diffuseFileTexture' touchpadTexture true
+            |> Sg.shader {
+                do! DefaultSurfaces.trafo
+                do! DefaultSurfaces.constantColor C4f.White
+            }
+         
 
 
         let browserSg = 
-            if true then
-                Sg.draw IndexedGeometryMode.TriangleList
-                    |> Sg.vertexAttribute DefaultSemantic.Positions quadPositions
-                    |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
-                    |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.OI; V2f.II; V2f.IO |])
-                    |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
-                    |> Sg.diffuseTexture client.Texture 
-                    |> Sg.shader {
-                        do! DefaultSurfaces.trafo
-                        do! DefaultSurfaces.diffuseTexture
-                    }
-                    //|> Sg.fillMode (fillmode |> AVal.constant)
-                    //|> Sg.blendMode blendmode
-                    //|> Sg.pass renderPass                
-            else Sg.empty
+            Sg.draw IndexedGeometryMode.TriangleList
+                |> Sg.vertexAttribute DefaultSemantic.Positions quadPositions
+                |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
+                |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.OI; V2f.II; V2f.IO |])
+                |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
+                |> Sg.diffuseTexture client.Texture 
+                |> Sg.shader {
+                    do! DefaultSurfaces.trafo
+                    do! DefaultSurfaces.diffuseTexture
+                }
+                //|> Sg.fillMode (fillmode |> AVal.constant)
+                //|> Sg.blendMode blendmode
+                //|> Sg.pass renderPass                
 
 
         let mutable temp = true
