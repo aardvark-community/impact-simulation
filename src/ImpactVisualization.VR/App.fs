@@ -121,6 +121,7 @@ module Demo =
             currTouchPadPos = V2d.OO
             touchpadDeviceId = None
             touchpadDeviceTrafo = None
+            touchpadTexture = "initial.png"
             heraBox = Box3d.Infinite
             heraTransformations = Trafo3d.Identity
         }
@@ -602,9 +603,18 @@ module Demo =
                     let r = pos |> fst
                     let theta = pos |> snd
                     if r >= 0.5 then 
-                        if theta >= 0.0 && theta < 60.0 then {model with controllerMode = ControllerMode.Clipping}
-                        else if theta >= 60.0 && theta < 120.0 then {model with controllerMode = ControllerMode.Ray}
-                        else if theta >= 120.0 && theta < 180.0 then {model with controllerMode = ControllerMode.Probe}
+                        if theta >= 0.0 && theta < 60.0 then 
+                            {model with 
+                                controllerMode = ControllerMode.Clipping
+                                touchpadTexture = "right.png"}
+                        else if theta >= 60.0 && theta < 120.0 then 
+                            {model with 
+                                controllerMode = ControllerMode.Ray
+                                touchpadTexture = "middle.png"}
+                        else if theta >= 120.0 && theta < 180.0 then 
+                            {model with 
+                                controllerMode = ControllerMode.Probe
+                                touchpadTexture = "left.png"}
                         else model
                     else 
                         model
@@ -641,9 +651,10 @@ module Demo =
                 if i = id && model.screenIntersection then 
                     client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
             | None -> ()
+            let newId = if pos.X = 0.0 && pos.Y = 0.0 then None else Some id //when both X and Y are equal to 0.0 it means we are currently not touching the touchpad
             {model with 
                 currTouchPadPos = pos
-                touchpadDeviceId = Some id
+                touchpadDeviceId = newId
                 touchpadDeviceTrafo = currTouchDevice}
         | UntouchDevice id ->
             match model.touchpadDeviceId with 
@@ -774,10 +785,6 @@ module Demo =
             |> Sg.translate' touchpadPos
             |> Sg.trafo tdf
             |> Sg.onOff touching
-
-
-
-
 
         //TODO: Why not directly use hera trafo?!?!?!
         let trafo = m.heraTrafo |> AVal.map (fun t -> trafoOrIdentity t)
@@ -1028,8 +1035,10 @@ module Demo =
         let quadPositions = m.tvQuad |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
         let texturePositions =  AVal.constant  [|V3f(-1.0, -1.0, 0.0); V3f(1.0, -1.0, 0.0); V3f(1.0, 1.0, 0.0); V3f(-1.0, 1.0, 0.0)|]
 
-
-        let touchpadTexture = texturesPath + "initial.png"
+        let touchpadTex = 
+            m.touchpadTexture |> AVal.map (fun tex -> 
+                let path = texturesPath + tex
+                FileTexture(path, true) :> ITexture) 
 
         let clipPlaneSg = planeSg planePositions (C4f(0.0,0.0,1.0,0.1)) FillMode.Fill (AVal.constant mode) pass1
         let quadSg = planeSg quadPositions C4f.Gray10 FillMode.Fill (AVal.constant BlendMode.None) pass0
@@ -1042,13 +1051,13 @@ module Demo =
             |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
             |> Sg.scale 0.0205
             |> Sg.transform (Trafo3d.RotationXInDegrees(6.5))
-            |> Sg.translate 0.0 -0.049 0.004
+            |> Sg.translate 0.0 -0.05 0.0051
             |> Sg.trafo tdf
             |> Sg.onOff touching
-            //|> Sg.diffuseFileTexture' touchpadTexture true
+            |> Sg.diffuseTexture touchpadTex
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
-                do! DefaultSurfaces.constantColor C4f.White
+                do! DefaultSurfaces.diffuseTexture
             }
          
 
