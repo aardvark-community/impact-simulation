@@ -105,5 +105,5 @@ type Model =
         currTouchPadPos : V2d
         touchpadDeviceId : Option<int>
         touchpadDeviceTrafo : Option<Trafo3d>
-        touchpadTexture : string 
+        touchpadTexture : ITexture 
 }

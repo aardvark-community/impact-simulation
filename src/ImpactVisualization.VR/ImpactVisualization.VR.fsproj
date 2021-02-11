@@ -13,6 +13,7 @@
   <ItemGroup>
     <Compile Include="Cef.fs" />
     <None Include="paket.references" />
+    <Compile Include="Touchpad.fs" />
     <Compile Include="Model.fs" />
     <Compile Include="Billboard.fs" />
     <Compile Include="App.fs" />

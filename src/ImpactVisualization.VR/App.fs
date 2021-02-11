@@ -1,6 +1,9 @@
 ﻿namespace ImpactVisualization
 
 open System
+open System.IO
+open System.IO.Compression
+open System.IO.MemoryMappedFiles
 open Aardvark.Base
 open Aardvark.Rendering.Text
 open Aardvark.Vr
@@ -19,6 +22,7 @@ open AardVolume.Model
 open AardVolume.App
 open ImpactVisualization
 open Aardvark.Cef
+open Touchpad
 
 type ThreeDMessage = Nop
 
@@ -66,6 +70,18 @@ module Demo =
     let screenResolution = V2i(1008,729)
 
     let texturesPath = @"..\..\..\src\ImpactVisualization\resources\textures\"
+
+    let fromStreamToTexture textureName = 
+        let s = File.Open((texturesPath + textureName), FileMode.Open, FileAccess.Read, FileShare.Read)
+        let p = PixImage.Create s
+        let t = PixTexture2d(PixImageMipMap [| p |], true) :> ITexture
+        t 
+
+    let allTextures = 
+        HashMap.ofList ["initial", fromStreamToTexture "initial.png"; 
+                        "left", fromStreamToTexture "left.png"; 
+                        "middle", fromStreamToTexture "middle.png"; 
+                        "right", fromStreamToTexture "right.png"; ]
 
     let initial runtime frames = 
         {   
@@ -121,7 +137,7 @@ module Demo =
             currTouchPadPos = V2d.OO
             touchpadDeviceId = None
             touchpadDeviceTrafo = None
-            touchpadTexture = "initial.png"
+            touchpadTexture = FileTexture(texturesPath + "initial.png", true) :> ITexture
             heraBox = Box3d.Infinite
             heraTransformations = Trafo3d.Identity
         }
@@ -160,7 +176,6 @@ module Demo =
 
         //let res = model.client.LoadUrl "http://localhost:4321"
         let mTwoD = model.twoDModel
-
 
         let trafoOrIdentity trafo = 
             match trafo with 
@@ -602,22 +617,33 @@ module Demo =
                     let pos = convertCartesianToPolar model.currTouchPadPos
                     let r = pos |> fst
                     let theta = pos |> snd
-                    if r >= 0.5 then 
-                        if theta >= 0.0 && theta < 60.0 then 
-                            {model with 
-                                controllerMode = ControllerMode.Clipping
-                                touchpadTexture = "right.png"}
-                        else if theta >= 60.0 && theta < 120.0 then 
-                            {model with 
-                                controllerMode = ControllerMode.Ray
-                                touchpadTexture = "middle.png"}
-                        else if theta >= 120.0 && theta < 180.0 then 
-                            {model with 
-                                controllerMode = ControllerMode.Probe
-                                touchpadTexture = "left.png"}
-                        else model
-                    else 
-                        model
+                    let newContrlMode = 
+                        if r >= 0.5 then 
+                            if theta >= 0.0 && theta < 60.0 then ControllerMode.Clipping
+                            else if theta >= 60.0 && theta < 120.0 then ControllerMode.Ray
+                            else if theta >= 120.0 && theta < 180.0 then ControllerMode.Probe
+                            else model.controllerMode
+                        else 
+                            model.controllerMode
+
+                    let texture = 
+                        if model.controllerMode = newContrlMode then // if the controller mode is the same then texture should not be loaded again   
+                            model.touchpadTexture
+                        else 
+                            let texName = 
+                                match newContrlMode with
+                                | ControllerMode.Probe -> "left" 
+                                | ControllerMode.Ray -> "middle" 
+                                | ControllerMode.Clipping -> "right"
+                                | _ -> ""
+                            let tex = allTextures.TryFind(texName)
+                            match tex with
+                            | Some t -> t
+                            | None -> model.touchpadTexture
+
+                    {model with 
+                        controllerMode = newContrlMode
+                        touchpadTexture = texture}
 
                     //let posX = model.currTouchPadPos.X
                     //let mode = 
@@ -775,8 +801,10 @@ module Demo =
 
         let tdf = m.touchpadDeviceTrafo |> AVal.map (fun t -> trafoOrIdentity t)
 
-        let touchpadPos = m.currTouchPadPos |> AVal.map (fun pos -> let z = if pos.Y >= 0.6 then 0.0025 else if pos.Y >= 0.0 then 0.001 else 0.0 
-                                                                    V3d(pos * 0.019, z))
+        let temp = tan 6.5
+
+        let touchpadPos = m.currTouchPadPos |> AVal.map (fun pos -> let z = tan (6.5 * (Math.PI / 180.0))
+                                                                    V3d(pos, z * (pos.Y + 1.0)) * 0.019)
 
         let touchpadSphereSg = 
             Sg.sphere' 9 C4b.LightGreen 0.002
@@ -1035,10 +1063,10 @@ module Demo =
         let quadPositions = m.tvQuad |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
         let texturePositions =  AVal.constant  [|V3f(-1.0, -1.0, 0.0); V3f(1.0, -1.0, 0.0); V3f(1.0, 1.0, 0.0); V3f(-1.0, 1.0, 0.0)|]
 
-        let touchpadTex = 
-            m.touchpadTexture |> AVal.map (fun tex -> 
-                let path = texturesPath + tex
-                FileTexture(path, true) :> ITexture) 
+        //let touchpadTex = 
+        //    m.touchpadTexture |> AVal.map (fun tex -> 
+        //        let path = texturesPath + tex
+        //        FileTexture(path, true) :> ITexture) 
 
         let clipPlaneSg = planeSg planePositions (C4f(0.0,0.0,1.0,0.1)) FillMode.Fill (AVal.constant mode) pass1
         let quadSg = planeSg quadPositions C4f.Gray10 FillMode.Fill (AVal.constant BlendMode.None) pass0
@@ -1054,10 +1082,11 @@ module Demo =
             |> Sg.translate 0.0 -0.05 0.0051
             |> Sg.trafo tdf
             |> Sg.onOff touching
-            |> Sg.diffuseTexture touchpadTex
+            |> Sg.diffuseTexture m.touchpadTexture
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.diffuseTexture
+                do! TouchpadShaders.fragmentSh
             }
          
 
