@@ -18,6 +18,19 @@ type ControllerMode =
     | Ray = 1
     | Clipping = 2
 
+type ProbeType = 
+    | Sphere = 0 
+    | Box = 1
+    | Line = 2
+
+type Attribute = 
+    | Energy = 0
+    | CubicRoot = 1
+    | Strain = 2
+    | AlphaJutzi = 3
+    | Pressure = 4
+    | Density = 6
+
 [<ModelType>]
 type Probe = {
     
@@ -100,6 +113,8 @@ type Model =
         menuControllerTrafo : Option<Trafo3d>
         menuControllerId : Option<int>
         controllerMode : ControllerMode
+        menuLevel : int 
+        attribute : RenderValue
 
         //Touchpad
         currTouchPadPos : V2d

@@ -33,13 +33,13 @@ type Message =
     | StartVr
     | GrabHera of int
     | UngrabHera of int
-    | ScaleUpHera of float 
-    | ScaleDownHera of float 
+    | ScaleHera of float
     | MoveController of int * Trafo3d
     | ToggleControllerMenu
     | OpenControllerMenu of int
     | ChangeTouchpadPos of int * V2d
     | ChangeControllerMode of int
+    | SelectAttribute of int
     | ActivateControllerMode of int
     | CreateProbe of int * Option<Trafo3d>
     | CreateRay of int * Trafo3d
@@ -133,7 +133,9 @@ module Demo =
             controllerMenuOpen = false
             menuControllerTrafo = None
             menuControllerId = None
+            menuLevel = 0
             controllerMode = ControllerMode.Probe
+            attribute = RenderValue.Energy
             currTouchPadPos = V2d.OO
             touchpadDeviceId = None
             touchpadDeviceTrafo = None
@@ -144,6 +146,21 @@ module Demo =
 
     //let updateController (m : Model) : Model = 
     //    failwith ""
+
+    let trafoOrIdentity trafo = 
+        match trafo with 
+        | Some t -> t
+        | None -> Trafo3d.Identity
+
+    let newOrOldTrafo (id : int) (trafo : Trafo3d) (contrId : Option<int>) (contrTrafo : Option<Trafo3d>) =
+        match contrId with 
+        | Some i -> if i = id then Some(trafo) else contrTrafo
+        | None -> contrTrafo
+
+    let idIsSet (contrId : Option<int>) = 
+        match contrId with
+        | Some id -> true
+        | None -> false
 
     let createProbe (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) (inside : bool) (statistics : string )  : Probe = 
         {
@@ -171,27 +188,10 @@ module Demo =
         let planePos0 = V3d(-0.7, 0.05, -0.5)
         let planePos1 = V3d(-0.7, 0.05, 0.5)
         let planePos2 = V3d(0.7, 0.05, 0.5)
-
         let planePos3 = V3d(0.7, 0.05, -0.5)
 
-        //let res = model.client.LoadUrl "http://localhost:4321"
         let mTwoD = model.twoDModel
 
-        let trafoOrIdentity trafo = 
-            match trafo with 
-            | Some t -> t
-            | None -> Trafo3d.Identity
-
-        let newOrOldTrafo (id : int) (trafo : Trafo3d) (contrId : Option<int>) (contrTrafo : Option<Trafo3d>) =
-            match contrId with 
-            | Some i -> if i = id then Some(trafo) else contrTrafo
-            | None -> contrTrafo
-
-        let idIsSet (contrId : Option<int>) = 
-            match contrId with
-            | Some id -> true
-            | None -> false
-            
         match msg with
         | ThreeD _ -> model
         | Nop -> model
@@ -225,15 +225,16 @@ module Demo =
                             allowHeraScaling = false}
                     else model
                 | None -> model
-        | ScaleUpHera f -> 
-            let maxScale = 1.0
-            let currScale = if model.allowHeraScaling then model.scalingFactorHera * (f*f/5.0 + 1.0) else model.scalingFactorHera
-            let newScale = if currScale >= maxScale then maxScale else currScale
-            {model with scalingFactorHera = newScale}
-        | ScaleDownHera f -> 
-            let minScale = 0.001
-            let currScale = if model.allowHeraScaling then model.scalingFactorHera * (1.0 - f*f/5.0) else model.scalingFactorHera
-            let newScale = if currScale <= minScale then minScale else currScale
+        | ScaleHera f ->
+            let newScale = 
+                if f >= 0.0 then 
+                    let maxScale = 1.0
+                    let currScale = if model.allowHeraScaling then model.scalingFactorHera * (f*f/5.0 + 1.0) else model.scalingFactorHera
+                    if currScale >= maxScale then maxScale else currScale
+                else
+                    let minScale = 0.001
+                    let currScale = if model.allowHeraScaling then model.scalingFactorHera * (1.0 - f*f/5.0) else model.scalingFactorHera
+                    if currScale <= minScale then minScale else currScale
             {model with scalingFactorHera = newScale}
         | MoveController (id, (trafo : Trafo3d)) -> 
             let newInput = model.devicesTrafos.Add(id, trafo)
@@ -524,7 +525,7 @@ module Demo =
                                     //TODO: use only the relative Pos and Radius to spare code and storage
                                     let intersection = model.heraBox.Intersects(sphere)
                                     
-                                    let result = filterDataForOneFrameSphere frames.[mTwoD.frame] (Some sphereTransformed) mTwoD.renderValue
+                                    let result = filterDataForOneFrameSphere frames.[mTwoD.frame] (Some sphereTransformed) model.attribute
                                     let stats = snd result
 
                                     let probe = createProbe spherePos sphereRadius spherePosTransformed radiusTransformed intersection stats
@@ -589,11 +590,22 @@ module Demo =
                     clippingPlaneDeviceId = None 
                 }
         | ToggleControllerMenu -> 
+            let maxLevel = 2
             let pos = convertCartesianToPolar model.currTouchPadPos
             let r = pos |> fst
             if r < 0.5 then
+                let menuProps = 
+                    let closeMenu = 0, false
+                    let goToNextMenu = (model.menuLevel + 1), true
+                    match model.menuLevel with
+                    | 0 -> goToNextMenu
+                    | 1 -> if model.controllerMode = ControllerMode.Probe then goToNextMenu else closeMenu
+                    | 2 -> closeMenu
+                    | _ -> closeMenu
+
                 {model with 
-                    controllerMenuOpen = not model.controllerMenuOpen
+                    menuLevel = fst menuProps
+                    controllerMenuOpen = snd menuProps
                     sphereControllerId = None
                     sphereScalerId = None
                     rayDeviceId = None
@@ -613,7 +625,7 @@ module Demo =
         | ChangeControllerMode id -> 
             match model.menuControllerId with  
             | Some i -> 
-                if i = id then 
+                if i = id && model.menuLevel = 1 then 
                     let pos = convertCartesianToPolar model.currTouchPadPos
                     let r = pos |> fst
                     let theta = pos |> snd
@@ -670,6 +682,41 @@ module Demo =
                 else 
                     model
             | None -> model
+        | SelectAttribute id ->
+            match model.menuControllerId with  
+            | Some i -> 
+                if i = id && model.menuLevel = 2 then 
+                    let pos = convertCartesianToPolar model.currTouchPadPos
+                    let r = pos |> fst
+                    let theta = pos |> snd
+                    let newAttribute = 
+                        if r >= 0.5 then 
+                            if theta >= 0.0 && theta < 60.0 then RenderValue.Energy
+                            else if theta >= 60.0 && theta < 120.0 then RenderValue.CubicRoot
+                            else if theta >= 120.0 && theta < 180.0 then RenderValue.Strain
+                            else if theta >= 180.0 && theta < 240.0 then RenderValue.AlphaJutzi
+                            else if theta >= 240.0 && theta < 300.0 then RenderValue.Pressure
+                            else if theta >= 300.0 && theta < 360.0 then RenderValue.Density
+                            else model.attribute
+                        else 
+                            model.attribute
+
+                    let texture = 
+                        if model.attribute = newAttribute then // if the controller mode is the same then texture should not be loaded again   
+                            model.touchpadTexture
+                        else 
+                            let texName = "initial"
+                            let tex = allTextures.TryFind(texName)
+                            match tex with
+                            | Some t -> t
+                            | None -> model.touchpadTexture
+
+                    {model with 
+                        attribute = newAttribute
+                        touchpadTexture = texture}
+                else 
+                    model
+                | None -> model
         | ChangeTouchpadPos (id, pos) -> 
             let currTouchDevice = model.devicesTrafos.TryFind(id)
             match model.rayDeviceId with 
@@ -740,11 +787,7 @@ module Demo =
         | VrMessage.ValueChange(controllerId, buttonId, value) ->
             //printf "value change: %A " (controllerId, buttonId, value)
             if buttonId = 0 then 
-                let x = value.X
-                if x >=  0.0 then 
-                    [ChangeTouchpadPos (controllerId, value); ScaleUpHera x; ChangeControllerMode controllerId]
-                else 
-                    [ChangeTouchpadPos (controllerId, value); ScaleDownHera x; ChangeControllerMode controllerId]
+                [ChangeTouchpadPos (controllerId, value); ScaleHera value.X; ChangeControllerMode controllerId; SelectAttribute controllerId]
             else 
                 []
         | VrMessage.UpdatePose(controllerId, pose) ->
@@ -757,7 +800,6 @@ module Demo =
         ]
 
     let vr (runtime : IRuntime) (client : Browser) (viewTrafos : aval<Trafo3d []>) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
-
         let pass0 = RenderPass.main
         let pass1 = RenderPass.after "pass1" RenderPassOrder.Arbitrary pass0 
         let pass2 = RenderPass.after "pass2" RenderPassOrder.Arbitrary pass1            
@@ -784,24 +826,15 @@ module Demo =
             }
             |> Sg.pass pass0
 
-
-
         let world = 
             Sg.textWithConfig TextConfig.Default m.text
             |> Sg.noEvents
             |> Sg.andAlso deviceSgs
             |> Sg.pass pass0
 
-        let trafoOrIdentity trafo = 
-            match trafo with 
-            | Some t -> t
-            | None -> Trafo3d.Identity
-
         let touching = m.touchpadDeviceId |> AVal.map (fun id -> id.IsSome)
 
         let tdf = m.touchpadDeviceTrafo |> AVal.map (fun t -> trafoOrIdentity t)
-
-        let temp = tan 6.5
 
         let touchpadPos = m.currTouchPadPos |> AVal.map (fun pos -> let z = tan (6.5 * (Math.PI / 180.0))
                                                                     V3d(pos, z * (pos.Y + 1.0)) * 0.019)
@@ -1071,6 +1104,8 @@ module Demo =
         let clipPlaneSg = planeSg planePositions (C4f(0.0,0.0,1.0,0.1)) FillMode.Fill (AVal.constant mode) pass1
         let quadSg = planeSg quadPositions C4f.Gray10 FillMode.Fill (AVal.constant BlendMode.None) pass0
 
+        let menuTrafo = m.menuControllerTrafo |> AVal.map (fun t -> trafoOrIdentity t)
+
         let touchpadPlaneSg = 
             Sg.draw IndexedGeometryMode.TriangleList
             |> Sg.vertexAttribute DefaultSemantic.Positions texturePositions
@@ -1080,8 +1115,8 @@ module Demo =
             |> Sg.scale 0.0205
             |> Sg.transform (Trafo3d.RotationXInDegrees(6.5))
             |> Sg.translate 0.0 -0.05 0.0051
-            |> Sg.trafo tdf
-            |> Sg.onOff touching
+            |> Sg.trafo menuTrafo
+            |> Sg.onOff m.controllerMenuOpen
             |> Sg.diffuseTexture m.touchpadTexture
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
@@ -1213,6 +1248,11 @@ module Demo =
         let probeScaleTrafo = scaleTrafo ControllerMode.Probe
         let rayScaleTrafo = scaleTrafo ControllerMode.Ray
         let clippingScaleTrafo = scaleTrafo ControllerMode.Clipping
+
+        let controllerTypeMenuOpen = 
+            AVal.map2 (fun menuOpen level -> 
+                menuOpen && level = 1
+                ) m.controllerMenuOpen m.menuLevel
               
         let controllerSg path rotX rotY rotZ scTrafo contrPos = 
             Loader.Assimp.load (Path.combine path)
@@ -1222,7 +1262,7 @@ module Demo =
             |> Sg.trafo scTrafo 
             |> Sg.trafo contrOrientation
             |> Sg.translate' contrPos
-            |> Sg.onOff m.controllerMenuOpen
+            |> Sg.onOff controllerTypeMenuOpen
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.diffuseTexture
