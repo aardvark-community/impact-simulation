@@ -615,7 +615,7 @@ module Demo =
         | OpenControllerMenu id ->
             let currDevice = model.devicesTrafos.TryFind(id)
             let currDeviceTrafo = trafoOrIdentity currDevice
-            if model.controllerMenuOpen then 
+            if model.controllerMenuOpen && model.menuControllerId.Value = id then 
                 {model with 
                     menuControllerTrafo = Some currDeviceTrafo
                     menuControllerId = Some id}
