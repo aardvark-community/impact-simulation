@@ -55,18 +55,18 @@ type Model =
         devicesTrafos : HashMap<int, Trafo3d>
 
         //Hera
-        controllerTrafo : Option<Trafo3d>
-        heraTrafo : Option<Trafo3d>
-        heraToControllerTrafo : Option<Trafo3d>
+        controllerTrafo : Trafo3d
+        heraTrafo : Trafo3d
+        heraToControllerTrafo : Trafo3d
         grabberId : Option<int>
         allowHeraScaling : bool
         heraBox : Box3d
         heraTransformations : Trafo3d
 
         //Sphere translation and scaling
-        sphereControllerTrafo: Option<Trafo3d>
+        sphereControllerTrafo: Trafo3d
         sphereControllerId: Option<int>
-        sphereScalerTrafo : Option<Trafo3d>
+        sphereScalerTrafo : Trafo3d
         sphereScalerId : Option<int>
 
         //Scaling factors
@@ -104,13 +104,13 @@ type Model =
         statistics : string
         
         //Controller clipping plane
-        clippingPlaneDeviceTrafo : Option<Trafo3d>
+        clippingPlaneDeviceTrafo : Trafo3d
         clippingPlaneDeviceId : Option<int>
         planeCorners : Quad3d
 
         //Controller menu
         controllerMenuOpen : bool
-        menuControllerTrafo : Option<Trafo3d>
+        menuControllerTrafo : Trafo3d
         menuControllerId : Option<int>
         controllerMode : ControllerMode
         menuLevel : int 
@@ -119,8 +119,8 @@ type Model =
         //Touchpad
         currTouchPadPos : V2d
         touchpadDeviceId : Option<int>
-        touchpadDeviceTrafo : Option<Trafo3d>
+        touchpadDeviceTrafo : Trafo3d
         touchpadTexture : ITexture 
-        textureDeviceTrafo : Option<Trafo3d>
+        textureDeviceTrafo : Trafo3d
         showTexture : bool
 }

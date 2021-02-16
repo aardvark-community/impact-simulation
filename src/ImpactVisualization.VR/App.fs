@@ -41,9 +41,9 @@ type Message =
     | ChangeControllerMode of int
     | SelectAttribute of int
     | ActivateControllerMode of int
-    | CreateProbe of int * Option<Trafo3d>
+    | CreateProbe of int * Trafo3d
     | CreateRay of int * Trafo3d
-    | CreateClipping of int * Option<Trafo3d> * Trafo3d
+    | CreateClipping of int * Trafo3d
     | DeactivateControllerMode of int
     | UntouchDevice of int 
     | MouseClick
@@ -98,14 +98,14 @@ module Demo =
             twoDModel = AardVolume.App.initial frames
             text = "hello" 
             devicesTrafos = HashMap.Empty
-            controllerTrafo = None
-            heraTrafo = None
-            heraToControllerTrafo = None
+            controllerTrafo = Trafo3d.Identity
+            heraTrafo = Trafo3d.Identity
+            heraToControllerTrafo = Trafo3d.Identity
             grabberId = None
             allowHeraScaling = false
-            sphereControllerTrafo = None
+            sphereControllerTrafo = Trafo3d.Identity
             sphereControllerId = None
-            sphereScalerTrafo = None
+            sphereScalerTrafo = Trafo3d.Identity
             sphereScalerId = None
             scalingFactorHera = 0.05
             sphereScale = 1.0
@@ -137,20 +137,20 @@ module Demo =
             hitPoint = V3d.OOO
             screenHitPoint = V2d.OO
             screenCoordsHitPos = PixelPosition()
-            clippingPlaneDeviceTrafo = None
+            clippingPlaneDeviceTrafo = Trafo3d.Identity
             clippingPlaneDeviceId = None
             planeCorners = Quad3d(V3d(), V3d(), V3d(), V3d())
             controllerMenuOpen = false
-            menuControllerTrafo = None
+            menuControllerTrafo = Trafo3d.Identity
             menuControllerId = None
             menuLevel = 0
             controllerMode = ControllerMode.Probe
             attribute = RenderValue.Energy
             currTouchPadPos = V2d.OO
             touchpadDeviceId = None
-            touchpadDeviceTrafo = None
+            touchpadDeviceTrafo = Trafo3d.Identity
             touchpadTexture = FileTexture(texturesPath + "initial.png", true) :> ITexture
-            textureDeviceTrafo = None
+            textureDeviceTrafo = Trafo3d.Identity
             showTexture = false
             heraBox = Box3d.Infinite
             heraTransformations = Trafo3d.Identity
@@ -164,9 +164,9 @@ module Demo =
         | Some t -> t
         | None -> Trafo3d.Identity
 
-    let newOrOldTrafo (id : int) (trafo : Trafo3d) (contrId : Option<int>) (contrTrafo : Option<Trafo3d>) =
+    let newOrOldTrafo (id : int) (trafo : Trafo3d) (contrId : Option<int>) (contrTrafo : Trafo3d) =
         match contrId with 
-        | Some i -> if i = id then Some(trafo) else contrTrafo
+        | Some i -> if i = id then trafo else contrTrafo
         | None -> contrTrafo
 
     let idIsSet (contrId : Option<int>) = 
@@ -222,26 +222,26 @@ module Demo =
                 | None -> 
                     let currentContrTr = model.devicesTrafos.TryFind(id)
                     let controlT = trafoOrIdentity currentContrTr
-                    let heraT = trafoOrIdentity model.heraTrafo
+                    let heraT = model.heraTrafo
                     let controlHeraT = heraT * controlT.Inverse
                     {model with 
                                 grabberId = Some id
-                                controllerTrafo = currentContrTr
-                                heraToControllerTrafo = Some(controlHeraT)
+                                controllerTrafo = controlT
+                                heraToControllerTrafo = controlHeraT
                                 allowHeraScaling = true
-                                textureDeviceTrafo = currentContrTr
+                                textureDeviceTrafo = controlT
                                 touchpadTexture = allTextures.TryFind("initial-scaling") |> getTexture
                                 showTexture = true}
         | UngrabHera id -> 
             match model.grabberId with 
                 | Some i -> 
-                    let controlT = trafoOrIdentity model.controllerTrafo
-                    let heraToControlT = trafoOrIdentity model.heraToControllerTrafo
+                    let controlT = model.controllerTrafo
+                    let heraToControlT = model.heraToControllerTrafo
                     let heraT = heraToControlT * controlT
                     if i = id then 
                         {model with 
                             grabberId = None
-                            heraTrafo = Some(heraT)
+                            heraTrafo = heraT
                             allowHeraScaling = false
                             showTexture = false}
                     else model
@@ -281,8 +281,8 @@ module Demo =
                 if not (idIsSet model.sphereControllerId && idIsSet model.sphereScalerId) then
                     model.sphereScale
                 else 
-                    let mainContrTrafo = trafoOrIdentity model.sphereControllerTrafo 
-                    let scaleContrTrafo = trafoOrIdentity model.sphereScalerTrafo
+                    let mainContrTrafo = model.sphereControllerTrafo 
+                    let scaleContrTrafo = model.sphereScalerTrafo
                     let contrPos = mainContrTrafo.Forward.TransformPos(V3d.OOO)
                     let scalerPos = scaleContrTrafo.Forward.TransformPos(V3d.OOO)
                     let distance = contrPos.Distance(scalerPos)
@@ -311,8 +311,8 @@ module Demo =
            // if hitPoint then printf "Hit Point %A \n" hit.Point
 
             let heraTrafo = 
-                let cT = trafoOrIdentity contrTrafo 
-                let heraCT = trafoOrIdentity model.heraToControllerTrafo
+                let cT = contrTrafo 
+                let heraCT = model.heraToControllerTrafo
                 heraCT * cT
             let heraScaleTrafo = Trafo3d(Scale3d(model.scalingFactorHera))
             let heraTranslation = Trafo3d.Translation(0.0, 0.0, 0.7)
@@ -358,7 +358,7 @@ module Demo =
             let currCorners = 
                 match model.clippingPlaneDeviceId with
                 | Some id ->
-                    let currDeviceTrafo = trafoOrIdentity clippingContrTrafo
+                    let currDeviceTrafo = clippingContrTrafo
                     let p0 = currDeviceTrafo.Forward.TransformPos(planePos0)
                     let p1 = currDeviceTrafo.Forward.TransformPos(planePos1)
                     let p2 = currDeviceTrafo.Forward.TransformPos(planePos2)
@@ -422,9 +422,9 @@ module Demo =
             let currDeviceTrafo = trafoOrIdentity currDevice
             if not model.controllerMenuOpen then 
                 match model.controllerMode with
-                | ControllerMode.Probe -> update runtime client frames state vr model (CreateProbe (id, currDevice))
+                | ControllerMode.Probe -> update runtime client frames state vr model (CreateProbe (id, currDeviceTrafo))
                 | ControllerMode.Ray -> update runtime client frames state vr model (CreateRay (id, currDeviceTrafo))
-                | ControllerMode.Clipping -> update runtime client frames state vr model (CreateClipping (id, currDevice, currDeviceTrafo))
+                | ControllerMode.Clipping -> update runtime client frames state vr model (CreateClipping (id, currDeviceTrafo))
                 | _ -> model
             else 
                 { model with 
@@ -508,7 +508,7 @@ module Demo =
                 {model with 
                         rayDeviceId = Some id
                         ray = Ray3d(origin, direction)}
-        | CreateClipping (id, trafoO, trafo) ->
+        | CreateClipping (id, trafo) ->
             let p0 = trafo.Forward.TransformPos(planePos0)
             let p1 = trafo.Forward.TransformPos(planePos1)
             let p2 = trafo.Forward.TransformPos(planePos2)
@@ -516,14 +516,14 @@ module Demo =
             match model.clippingPlaneDeviceId with 
             | Some i -> if i = id then 
                             {model with 
-                                clippingPlaneDeviceTrafo = trafoO
+                                clippingPlaneDeviceTrafo = trafo
                                 clippingPlaneDeviceId = Some id}
                         else 
                             model
             | None -> 
                     {model with 
                             planeCorners = Quad3d(p0, p1, p2, p3)
-                            clippingPlaneDeviceTrafo = trafoO
+                            clippingPlaneDeviceTrafo = trafo
                             clippingPlaneDeviceId = Some id 
                             }
         | DeactivateControllerMode id ->
@@ -536,7 +536,7 @@ module Demo =
                         | None -> None
                     match model.sphereControllerId with
                     | Some i -> if i = id then 
-                                    let t = trafoOrIdentity model.sphereControllerTrafo
+                                    let t = model.sphereControllerTrafo
                                   //  let sphereTrafo = Trafo3d(Scale3d(model.sphereScale)) * t
                                     let heraInvMatrix = model.heraTransformations.Backward
 
@@ -671,9 +671,9 @@ module Demo =
                     model.touchpadTexture
             if model.controllerMenuOpen then //TODO: Handle the case when opening the menu with the first controller and clicking on the second controller
                 {model with 
-                    menuControllerTrafo = Some currDeviceTrafo
+                    menuControllerTrafo = currDeviceTrafo
                     menuControllerId = Some id
-                    textureDeviceTrafo = Some currDeviceTrafo
+                    textureDeviceTrafo = currDeviceTrafo
                     touchpadTexture = texture}
             else    
                 {model with 
@@ -786,7 +786,7 @@ module Demo =
             {model with 
                 currTouchPadPos = pos
                 touchpadDeviceId = newId
-                touchpadDeviceTrafo = currTouchDevice}
+                touchpadDeviceTrafo = trafoOrIdentity currTouchDevice}
         | UntouchDevice id ->
             let tex = if model.allowHeraScaling then allTextures.TryFind("initial-scaling") |> getTexture else model.touchpadTexture
             match model.touchpadDeviceId with 
@@ -895,8 +895,6 @@ module Demo =
 
         let touching = m.touchpadDeviceId |> AVal.map (fun id -> id.IsSome)
 
-        let tdf = m.touchpadDeviceTrafo |> AVal.map (fun t -> trafoOrIdentity t)
-
         let touchpadPos = m.currTouchPadPos |> AVal.map (fun pos -> let z = tan (6.5 * (Math.PI / 180.0))
                                                                     V3d(pos, z * (pos.Y + 1.0)) * 0.019)
 
@@ -905,11 +903,11 @@ module Demo =
             |> Sg.noEvents
             |> Sg.translate 0.0 -0.05 0.0035 // translation so that it is in the middle of the touchpad
             |> Sg.translate' touchpadPos
-            |> Sg.trafo tdf
+            |> Sg.trafo m.touchpadDeviceTrafo
             |> Sg.onOff touching
 
         //TODO: Why not directly use hera trafo?!?!?!
-        let trafo = m.heraTrafo |> AVal.map (fun t -> trafoOrIdentity t)
+        //let trafo = m.heraTrafo |> AVal.map (fun t -> trafoOrIdentity t)
             //AVal.map2 (fun contr heraContr -> 
             //    let contrTrafo = trafoOrIdentity contr 
             //    let heraContrTrafo = trafoOrIdentity heraContr
@@ -921,9 +919,7 @@ module Demo =
 
         let sphereTrafo = 
             AVal.map2 (fun sphereContrTrafo (sphereScale : float) -> 
-                let spContrT = trafoOrIdentity sphereContrTrafo
-                let scale = Trafo3d(Scale3d(sphereScale))
-                scale * spContrT
+                Trafo3d(Scale3d(sphereScale)) * sphereContrTrafo
                 ) m.sphereControllerTrafo m.sphereScale
 
        // let sphereScaleTrafo = m.sphereScale |> AVal.map(fun s -> Trafo3d (Scale3d(s)))
@@ -945,7 +941,7 @@ module Demo =
         let heraTransformations = 
             AVal.map2 (fun heraScale heraMove -> 
                 heraScale * Trafo3d.Translation(0.0, 0.0, 0.7) * heraMove
-                ) heraScaleTrafo trafo 
+                ) heraScaleTrafo m.heraTrafo 
 
         let probeScale = 
             AVal.map3 (fun currProbMan currScale lastScale ->
@@ -957,16 +953,13 @@ module Demo =
 
 
         let sphereProbe = 
-            AVal.map3 (fun trafo scale initRadius -> 
-                match trafo with 
-                | Some (t : Trafo3d) -> 
-                    if t.Forward.IsIdentity() then 
-                        Sphere3d.Invalid
-                    else 
-                        let spherePos = t.Forward.TransformPos(V3d.OOO)
-                        let sphereRadius : float = initRadius * scale 
-                        Sphere3d(spherePos, sphereRadius)
-                | None -> Sphere3d.Invalid
+            AVal.map3 (fun (trafo : Trafo3d) scale initRadius -> 
+                if trafo.Forward.IsIdentity() then 
+                    Sphere3d.Invalid
+                else 
+                    let spherePos = trafo.Forward.TransformPos(V3d.OOO)
+                    let sphereRadius : float = initRadius * scale 
+                    Sphere3d(spherePos, sphereRadius)
                 ) m.sphereControllerTrafo probeScale m.sphereRadius
 
         //let probe = 
@@ -1165,7 +1158,7 @@ module Demo =
         let clipPlaneSg = planeSg planePositions (C4f(0.0,0.0,1.0,0.1)) FillMode.Fill (AVal.constant mode) pass1
         let quadSg = planeSg quadPositions C4f.Gray10 FillMode.Fill (AVal.constant BlendMode.None) pass0
 
-        let textureTrafo = m.textureDeviceTrafo |> AVal.map (fun t -> trafoOrIdentity t)
+        //let textureTrafo = m.textureDeviceTrafo |> AVal.map (fun t -> trafoOrIdentity t)
 
         let touchpadPlaneSg = 
             Sg.draw IndexedGeometryMode.TriangleList
@@ -1176,7 +1169,7 @@ module Demo =
             |> Sg.scale 0.0205
             |> Sg.transform (Trafo3d.RotationXInDegrees(6.5))
             |> Sg.translate 0.0 -0.05 0.0051
-            |> Sg.trafo textureTrafo
+            |> Sg.trafo m.textureDeviceTrafo
             |> Sg.onOff m.showTexture
             |> Sg.diffuseTexture m.touchpadTexture
             |> Sg.shader {
@@ -1281,19 +1274,9 @@ module Demo =
         //        |> Sg.transform (Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0))
         //        |> Sg.translate 2.5 1.0 1.5
 
-        let contrOrientation = 
-            m.menuControllerTrafo  
-            |> AVal.map (fun t -> 
-                let trafo = trafoOrIdentity t
-                trafo.GetOrthoNormalOrientation()
-                ) 
+        let contrOrientation = m.menuControllerTrafo |> AVal.map (fun t -> t.GetOrthoNormalOrientation()) 
 
-        let controllerPos position = 
-            m.menuControllerTrafo  
-            |> AVal.map (fun t -> 
-                let trafo = trafoOrIdentity t
-                trafo.Forward.TransformPos(position)
-                ) 
+        let controllerPos position = m.menuControllerTrafo |> AVal.map (fun t -> t.Forward.TransformPos(position)) 
 
         let probeContrPos = controllerPos (V3d(-0.12, 0.11, 0.0))
         let rayContrPos = controllerPos (V3d(0.0, 0.15, 0.0))
@@ -1370,7 +1353,7 @@ module Demo =
                 |> Sg.noEvents
                 |> Sg.scale 0.1
                 |> Sg.transform (Trafo3d.FromOrthoNormalBasis(-V3d.IOO,V3d.OOI,V3d.OIO))
-                |> Sg.trafo (m.controllerTrafo |> AVal.map (fun mtw -> (trafoOrIdentity mtw).Forward.TransformPos(V3d.OOO) |> Trafo3d.Translation))
+                |> Sg.trafo (m.controllerTrafo |> AVal.map (fun mtw -> mtw.Forward.TransformPos(V3d.OOO) |> Trafo3d.Translation))
                 |> Sg.billboard
                 |> Sg.noEvents
                 |> Sg.translate 0.0 5.0 0.0
