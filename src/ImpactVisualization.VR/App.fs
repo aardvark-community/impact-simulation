@@ -90,7 +90,8 @@ module Demo =
                         "top-right", fromStreamToTexture "top-right.png"; 
                         "initial-attributes", fromStreamToTexture "initial-attributes.png"; 
                         "scale-down", fromStreamToTexture "scale-down.png"; 
-                        "scale-up", fromStreamToTexture "scale-up.png"; ]
+                        "scale-up", fromStreamToTexture "scale-up.png"; 
+                        "initial-scaling", fromStreamToTexture "initial-scaling.png"]
 
     let initial runtime frames = 
         {   
@@ -229,6 +230,7 @@ module Demo =
                                 heraToControllerTrafo = Some(controlHeraT)
                                 allowHeraScaling = true
                                 textureDeviceTrafo = currentContrTr
+                                touchpadTexture = allTextures.TryFind("initial-scaling") |> getTexture
                                 showTexture = true}
         | UngrabHera id -> 
             match model.grabberId with 
@@ -247,18 +249,21 @@ module Demo =
         | ScaleHera f ->
             let values = 
                 if model.allowHeraScaling then 
-                    if f >= 0.0 then 
-                        let maxScale = 1.0
-                        let currScale = model.scalingFactorHera * (f*f/5.0 + 1.0)
-                        let newScale = if currScale >= maxScale then maxScale else currScale
-                        let tex = allTextures.TryFind("scale-up") |> getTexture
-                        newScale, tex
-                    else
-                        let minScale = 0.001
-                        let currScale = model.scalingFactorHera * (1.0 - f*f/5.0)
-                        let newScale =  if currScale <= minScale then minScale else currScale
-                        let tex = allTextures.TryFind("scale-down") |> getTexture
-                        newScale, tex
+                    if model.touchpadDeviceId.IsSome then
+                        if f >= 0.0 then 
+                            let maxScale = 1.0
+                            let currScale = model.scalingFactorHera * (f*f/5.0 + 1.0)
+                            let newScale = if currScale >= maxScale then maxScale else currScale
+                            let tex = allTextures.TryFind("scale-up") |> getTexture
+                            newScale, tex
+                        else
+                            let minScale = 0.001
+                            let currScale = model.scalingFactorHera * (1.0 - f*f/5.0)
+                            let newScale =  if currScale <= minScale then minScale else currScale
+                            let tex = allTextures.TryFind("scale-down") |> getTexture
+                            newScale, tex
+                    else 
+                        model.scalingFactorHera, (allTextures.TryFind("initial-scaling") |> getTexture)
                 else 
                     model.scalingFactorHera, model.touchpadTexture
             {model with 
@@ -666,7 +671,7 @@ module Demo =
         | ChangeControllerMode id -> 
             match model.menuControllerId with  
             | Some i -> 
-                if i = id && model.menuLevel = 1 then 
+                if i = id && model.menuLevel = 1 && not model.allowHeraScaling then 
                     let pos = convertCartesianToPolar model.currTouchPadPos
                     let r = pos |> fst
                     let theta = pos |> snd
@@ -723,7 +728,7 @@ module Demo =
         | SelectAttribute id ->
             match model.menuControllerId with  
             | Some i -> 
-                if i = id && model.menuLevel = 2 then 
+                if i = id && model.menuLevel = 2 && not model.allowHeraScaling then 
                     let pos = convertCartesianToPolar model.currTouchPadPos
                     let r = pos |> fst
                     let theta = pos |> snd
@@ -773,10 +778,13 @@ module Demo =
                 touchpadDeviceId = newId
                 touchpadDeviceTrafo = currTouchDevice}
         | UntouchDevice id ->
+            let tex = if model.allowHeraScaling then allTextures.TryFind("initial-scaling") |> getTexture else model.touchpadTexture
             match model.touchpadDeviceId with 
             | Some i ->
                 if i = id then 
-                    {model with touchpadDeviceId = None}
+                    {model with 
+                        touchpadDeviceId = None
+                        touchpadTexture = tex}
                 else
                     model
             | None -> model
