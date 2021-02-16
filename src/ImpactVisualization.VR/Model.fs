@@ -121,4 +121,6 @@ type Model =
         touchpadDeviceId : Option<int>
         touchpadDeviceTrafo : Option<Trafo3d>
         touchpadTexture : ITexture 
+        textureDeviceTrafo : Option<Trafo3d>
+        showTexture : bool
 }
