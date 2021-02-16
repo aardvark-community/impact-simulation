@@ -640,7 +640,6 @@ module Demo =
                     | 1 -> if model.controllerMode = ControllerMode.Probe then goToNextMenu else closeMenu
                     | 2 -> closeMenu
                     | _ -> closeMenu
-
                 {model with 
                     menuLevel = fst menuProps
                     controllerMenuOpen = snd menuProps
@@ -654,11 +653,16 @@ module Demo =
         | OpenControllerMenu id ->
             let currDevice = model.devicesTrafos.TryFind(id)
             let currDeviceTrafo = trafoOrIdentity currDevice
-            let texture = 
-                match model.menuLevel with
-                | 1 -> allTextures.TryFind("initial") |> getTexture
-                | 2 -> allTextures.TryFind("initial-attributes") |> getTexture
-                | _ -> model.touchpadTexture
+            let pos = convertCartesianToPolar model.currTouchPadPos
+            let r = pos |> fst
+            let texture =
+                if r < 0.5 then 
+                    match model.menuLevel with
+                    | 1 -> allTextures.TryFind("initial") |> getTexture
+                    | 2 -> allTextures.TryFind("initial-attributes") |> getTexture
+                    | _ -> model.touchpadTexture
+                else 
+                    model.touchpadTexture
             if model.controllerMenuOpen then //TODO: Handle the case when opening the menu with the first controller and clicking on the second controller
                 {model with 
                     menuControllerTrafo = Some currDeviceTrafo
