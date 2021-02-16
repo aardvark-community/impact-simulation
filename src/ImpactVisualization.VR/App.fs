@@ -124,8 +124,6 @@ module Demo =
             ray = Ray3d.Invalid
             rayTriggerClicked = false
             clickPosition = None
-            //tvQuad = Quad3d(V3d(-25,-20,-8), V3d(-25,10,-8), V3d(-25,10,12), V3d(-25,-20,12))
-            //tvQuad = Quad3d(V3d(0.732, 0.432, 0.013), V3d(-0.732, 0.432, 0.013), V3d(-0.732, -0.41483, 0.013), V3d(0.732, -0.41483, 0.013))
             tvQuad = 
                 let quadRightUpTransf = tvQuadTrafo.Forward.TransformPos(quadRightUp)
                 let quadLeftUpTransf = tvQuadTrafo.Forward.TransformPos(quadLeftUp)
@@ -156,23 +154,14 @@ module Demo =
             heraTransformations = Trafo3d.Identity
         }
 
-    //let updateController (m : Model) : Model = 
-    //    failwith ""
-
-    let trafoOrIdentity trafo = 
-        match trafo with 
-        | Some t -> t
-        | None -> Trafo3d.Identity
+    let trafoOrIdentity trafo = Option.defaultValue Trafo3d.Identity trafo
 
     let newOrOldTrafo (id : int) (trafo : Trafo3d) (contrId : Option<int>) (contrTrafo : Trafo3d) =
         match contrId with 
         | Some i -> if i = id then trafo else contrTrafo
         | None -> contrTrafo
 
-    let idIsSet (contrId : Option<int>) = 
-        match contrId with
-        | Some id -> true
-        | None -> false
+    let idIsSet (contrId : Option<int>) = contrId.IsSome
 
     let createProbe (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) (inside : bool) (statistics : string )  : Probe = 
         {
@@ -205,9 +194,6 @@ module Demo =
         let mTwoD = model.twoDModel
 
         let getTexture tex = Option.defaultValue model.touchpadTexture tex
-            //match tex with
-            //| Some t -> t
-            //| None -> model.touchpadTexture
 
         match msg with
         | ThreeD _ -> model
@@ -288,7 +274,6 @@ module Demo =
                     let distance = contrPos.Distance(scalerPos)
                     let newScale = (4.0/3.0)*Math.PI*Math.Pow((distance + model.sphereRadius), 3.0)
                     newScale + model.sphereRadius/2.0
-            //printf "scale %f \n" scalingFactor
             let initRay = 
                 match model.rayDeviceId with    
                 | Some id ->
@@ -308,8 +293,6 @@ module Demo =
                 else
                     client.SetFocus false
                     initRay
-           // if hitPoint then printf "Hit Point %A \n" hit.Point
-
             let heraTrafo = 
                 let cT = contrTrafo 
                 let heraCT = model.heraToControllerTrafo
@@ -331,8 +314,6 @@ module Demo =
                         let probeId =  
                             model.allProbes
                             |> HashMap.filter (fun key probe ->
-                                //let newCenter = heraTrafos.Forward.TransformPos(probe.centerRelToHera)
-                                //let newRadius = probe.radiusRelToHera * heraTrafos.Forward.GetScaleVector3().X
                                 let sphere = Sphere3d(probe.center, probe.radius)
                                 sphereIntersection controllerSphere sphere)
                             |> HashMap.toSeq
@@ -537,28 +518,17 @@ module Demo =
                     match model.sphereControllerId with
                     | Some i -> if i = id then 
                                     let t = model.sphereControllerTrafo
-                                  //  let sphereTrafo = Trafo3d(Scale3d(model.sphereScale)) * t
                                     let heraInvMatrix = model.heraTransformations.Backward
 
                                     let spherePos = t.Forward.TransformPos(V3d.OOO)
                                     let spherePosTransformed = heraInvMatrix.TransformPos(spherePos)
-
                                     let sphereRadius = model.sphereRadius * model.sphereScale
-                                    //let posToRadius = spherePos + V3d(sphereRadius, 0.0, 0.0)
-                                    //let posToRadiusTransformed = heraInvMatrix.TransformPos(posToRadius)
-                                    //let radiusTransformed = posToRadiusTransformed - spherePosTransformed
+
                                     let heraScale = heraInvMatrix.GetScaleVector3()
                                     let radiusTransformed = sphereRadius * heraScale.X
 
                                     let sphere = Sphere3d(spherePos, sphereRadius)
                                     let sphereTransformed = Sphere3d(spherePosTransformed, radiusTransformed)
-
-                                    //printf "hera Scale %A \n" heraScale
-                                    //printf "sphere Scale %A \n" model.sphereScale
-                                    //printf "sphere Pos %A \n" spherePos
-                                    //printf "sphere Pos Transformed %A \n" spherePosTransformed
-                                    //printf "sphere Radius %A \n" sphereRadius
-                                    //printf "sphere Radius Transformed %A \n" radiusTransformed
 
                                     //TODO: use only the relative Pos and Radius to spare code and storage
                                     let intersection = model.heraBox.Intersects(sphere)
@@ -568,7 +538,7 @@ module Demo =
 
                                     let probe = createProbe spherePos sphereRadius spherePosTransformed radiusTransformed intersection stats
 
-                                    printf "Statistics: \n %A" stats
+                                   // printf "Statistics: \n %A" stats
 
                                     let filteredData = 
                                         if intersection then
@@ -705,33 +675,9 @@ module Demo =
                                 | ControllerMode.Clipping -> "right"
                                 | _ -> ""
                             allTextures.TryFind(texName) |> getTexture
-
                     {model with 
                         controllerMode = newContrlMode
                         touchpadTexture = texture}
-
-                    //let posX = model.currTouchPadPos.X
-                    //let mode = 
-                    //    match model.controllerMode with 
-                    //    | ControllerMode.Probe -> 0 
-                    //    | ControllerMode.Ray -> 1 
-                    //    | ControllerMode.Clipping -> 2
-                    //    | _ -> 0
-                    //let nextModeInt = 
-                    //    if posX <= -0.5 then
-                    //        if mode = 0 then 2 else (mode - 1)
-                    //    else if posX >= 0.5 then         
-                    //        if mode = 2 then 0 else (mode + 1)
-                    //    else
-                    //        mode
-                    //let nextMode = 
-                    //    match nextModeInt with 
-                    //    | 0 -> ControllerMode.Probe
-                    //    | 1 -> ControllerMode.Ray
-                    //    | 2 -> ControllerMode.Clipping
-                    //    | _ -> ControllerMode.Probe
-                    //printf "nextmMode %A" nextMode
-                    //{model with controllerMode = nextMode}
                 else 
                     model
             | None -> model
@@ -800,7 +746,6 @@ module Demo =
             | None -> model
         | ResetHera -> initial runtime frames
             
-
     let threads (model : Model) =
         AardVolume.App.threads model.twoDModel |> ThreadPool.map TwoD
         
