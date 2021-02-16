@@ -35,7 +35,7 @@ type Message =
     | UngrabHera of int
     | ScaleHera of float
     | MoveController of int * Trafo3d
-    | ToggleControllerMenu
+    | ToggleControllerMenu of int
     | OpenControllerMenu of int
     | ChangeTouchpadPos of int * V2d
     | ChangeControllerMode of int
@@ -627,7 +627,7 @@ module Demo =
                     rayDeviceId = None
                     clippingPlaneDeviceId = None 
                 }
-        | ToggleControllerMenu -> 
+        | ToggleControllerMenu id -> 
             let maxLevel = 2
             let pos = convertCartesianToPolar model.currTouchPadPos
             let r = pos |> fst
@@ -635,11 +635,17 @@ module Demo =
                 let menuProps = 
                     let closeMenu = 0, false
                     let goToNextMenu = (model.menuLevel + 1), true
-                    match model.menuLevel with
-                    | 0 -> goToNextMenu
-                    | 1 -> if model.controllerMode = ControllerMode.Probe then goToNextMenu else closeMenu
-                    | 2 -> closeMenu
-                    | _ -> closeMenu
+                    match model.menuControllerId with 
+                    | Some i ->
+                        if i = id then
+                            match model.menuLevel with
+                            | 0 -> goToNextMenu
+                            | 1 -> if model.controllerMode = ControllerMode.Probe then goToNextMenu else closeMenu
+                            | 2 -> closeMenu
+                            | _ -> closeMenu
+                        else 
+                            1, true
+                    | None -> 1, true
                 {model with 
                     menuLevel = fst menuProps
                     controllerMenuOpen = snd menuProps
@@ -817,7 +823,7 @@ module Demo =
         | VrMessage.Press(controllerId, buttonId) ->
             //printf "press: %A " (controllerId, buttonId)
             if buttonId = 0 then 
-                [ToggleControllerMenu; OpenControllerMenu controllerId]
+                [ToggleControllerMenu controllerId; OpenControllerMenu controllerId]
                 //[ActivateRay controllerId]
             else if buttonId = 1 then
                 [ActivateControllerMode controllerId]
