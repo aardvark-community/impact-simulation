@@ -42,10 +42,15 @@ module AppUpdate =
     open Aardvark.UI.Primitives
     open Aardvark.Base.Rendering
 
-    let quadRightUp =   V3d(0.732, 0.432, -0.013)
-    let quadLeftUp =    V3d(-0.732, 0.432, -0.013)
-    let quadLeftDown =  V3d(-0.732, -0.41483, -0.013)
+    let quadRightUp   = V3d(0.732, 0.432, -0.013)
+    let quadLeftUp    = V3d(-0.732, 0.432, -0.013)
+    let quadLeftDown  = V3d(-0.732, -0.41483, -0.013)
     let quadRightDown = V3d(0.732, -0.41483, -0.013)
+
+    let planePos0 = V3d(-0.7, 0.05, -0.5)
+    let planePos1 = V3d(-0.7, 0.05, 0.5)
+    let planePos2 = V3d(0.7, 0.05, 0.5)
+    let planePos3 = V3d(0.7, 0.05, -0.5)
 
     let flatScreenTrafo rotY rotZ upZ = 
         let scale = Trafo3d(Scale3d(2.0))
@@ -90,6 +95,8 @@ module AppUpdate =
         | _ -> contrTrafo
     
     let idIsSet (contrId : Option<int>) = contrId.IsSome
+
+    let sphereIntersection (controllerSphere : Sphere3d) (probe : Sphere3d) = controllerSphere.Intersects(probe)
     
     let createProbe (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) (inside : bool) (statistics : string )  : Probe = 
         {
@@ -175,11 +182,6 @@ module AppUpdate =
         }
 
     let rec update (runtime : IRuntime) (client : Browser) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
-        let planePos0 = V3d(-0.7, 0.05, -0.5)
-        let planePos1 = V3d(-0.7, 0.05, 0.5)
-        let planePos2 = V3d(0.7, 0.05, 0.5)
-        let planePos3 = V3d(0.7, 0.05, -0.5)
-
         let mTwoD = model.twoDModel
 
         let getTexture tex = Option.defaultValue model.touchpadTexture tex
@@ -212,13 +214,13 @@ module AppUpdate =
             let heraToControlT = model.heraToControllerTrafo
             let heraT = heraToControlT * controlT
             match model.grabberId with 
-                | Some i when i = id -> 
-                        {model with 
-                            grabberId = None
-                            heraTrafo = heraT
-                            allowHeraScaling = false
-                            showTexture = false}
-                | _ -> model
+            | Some i when i = id -> 
+                {model with 
+                    grabberId = None
+                    heraTrafo = heraT
+                    allowHeraScaling = false
+                    showTexture = false}
+            | _ -> model
         | ScaleHera (id, f) ->
             match model.grabberId with 
             | Some i when i = id && model.allowHeraScaling ->
@@ -242,12 +244,13 @@ module AppUpdate =
             | _ -> model
         | MoveController (id, (trafo : Trafo3d)) -> 
             let newInput = model.devicesTrafos.Add(id, trafo)
-            let contrTrafo = newOrOldTrafo id trafo model.grabberId model.controllerTrafo
+
+            //CURRENT SPHERE UPDATE
             let sphereContrTrafo = newOrOldTrafo id trafo model.sphereControllerId model.sphereControllerTrafo
             let sphereScTrafo = 
-                if model.sphereControllerId.IsSome then 
-                    newOrOldTrafo id trafo model.sphereScalerId model.sphereScalerTrafo
-                else model.sphereScalerTrafo
+                match model.sphereScalerId with 
+                | Some i when i = id && model.sphereControllerId.IsSome -> trafo 
+                | _ -> model.sphereScalerTrafo
             let scalingFactor = 
                 if not (idIsSet model.sphereControllerId && idIsSet model.sphereScalerId) then
                     model.sphereScale
@@ -259,11 +262,12 @@ module AppUpdate =
                     let distance = contrPos.Distance(scalerPos)
                     let newScale = (4.0/3.0)*Math.PI*Math.Pow((distance + model.sphereRadius), 3.0)
                     newScale + model.sphereRadius/2.0
+            
+            //RAY UPDATE
             let initRay = 
                 match model.rayDeviceId with    
                 | Some id ->
-                    let currDevice = model.devicesTrafos.TryFind(id)
-                    let currDeviceTrafo = trafoOrIdentity currDevice
+                    let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
                     let origin = currDeviceTrafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
                     let direction = currDeviceTrafo.Forward.TransformPos(V3d.OIO * 1000.0)
                     Ray3d(origin, direction)
@@ -271,21 +275,27 @@ module AppUpdate =
             let intersect = initRay.Intersects(model.tvQuad)
             let mutable hit = RayHit3d.MaxRange
             let hitPoint = initRay.Hits(model.tvQuad, &hit)
-            let currRay =
+            let currRay, rColor, screenCoordsHitPos =
                 if intersect then
+                    let screenCoords = (V2d(hit.Coord.Y * screenResolution.ToV2d().X, hit.Coord.X * screenResolution.ToV2d().Y)).ToV2i()
+                    let screenPos = PixelPosition(screenCoords, screenResolution.X, screenResolution.Y)
+                    if model.rayTriggerClicked then client.Mouse.Move(screenPos)
                     client.SetFocus true
-                    Ray3d(initRay.Origin, hit.Point)
+                    Ray3d(initRay.Origin, hit.Point), C4b.Green, screenPos
                 else
                     client.SetFocus false
-                    initRay
-            let heraTrafo = model.heraToControllerTrafo * contrTrafo
-            let heraScaleTrafo = Trafo3d(Scale3d(model.scalingFactorHera))
-            let heraTranslation = Trafo3d.Translation(0.0, 0.0, 0.7)
-            let heraTrafos = heraScaleTrafo * heraTranslation * heraTrafo
+                    initRay, C4b.Red, PixelPosition()
 
+            //HERA TRANSFORMATIONS UPDATE
+            let heraContrTrafo = newOrOldTrafo id trafo model.grabberId model.controllerTrafo
+            let heraTrafos = 
+                let heraTrafo = model.heraToControllerTrafo * heraContrTrafo
+                let heraScaleTrafo = Trafo3d(Scale3d(model.scalingFactorHera))
+                let heraTranslation = Trafo3d.Translation(0.0, 0.0, 0.7)
+                heraScaleTrafo * heraTranslation * heraTrafo
             let heraBBox = model.twoDModel.currHeraBBox.Transformed(heraTrafos)
 
-            let sphereIntersection (controllerSphere : Sphere3d) (probe : Sphere3d) = controllerSphere.Intersects(probe)
+            //INTERSECTION OF CONTROLLER WITH A PROBE
             let probeIntersection = 
                 match model.intersectionControllerId with 
                 | Some i when i = id && not model.currentProbeManipulated -> 
@@ -302,29 +312,19 @@ module AppUpdate =
                 | None -> None
                 | _ -> model.probeIntersectionId
 
-            let rColor = if intersect then C4b.Green else C4b.Red
-            let screenCoordsHitPos = 
-                if intersect then
-                    let screenCoords = (V2d(hit.Coord.Y * screenResolution.ToV2d().X, hit.Coord.X * screenResolution.ToV2d().Y)).ToV2i()
-                    let screenPos = PixelPosition(screenCoords, screenResolution.X, screenResolution.Y)
-                    if model.rayTriggerClicked then client.Mouse.Move(screenPos)
-                    screenPos
-                else 
-                    PixelPosition()
+            //CLIPPING PLANE UPDATE
             let clippingContrTrafo = newOrOldTrafo id trafo model.clippingPlaneDeviceId model.clippingPlaneDeviceTrafo
             let currCorners = 
                 match model.clippingPlaneDeviceId with
                 | Some id ->
-                    let currDeviceTrafo = clippingContrTrafo
-                    let p0 = currDeviceTrafo.Forward.TransformPos(planePos0)
-                    let p1 = currDeviceTrafo.Forward.TransformPos(planePos1)
-                    let p2 = currDeviceTrafo.Forward.TransformPos(planePos2)
-                    let p3 = currDeviceTrafo.Forward.TransformPos(planePos3)
+                    let p0 = clippingContrTrafo.Forward.TransformPos(planePos0)
+                    let p1 = clippingContrTrafo.Forward.TransformPos(planePos1)
+                    let p2 = clippingContrTrafo.Forward.TransformPos(planePos2)
+                    let p3 = clippingContrTrafo.Forward.TransformPos(planePos3)
                     Quad3d(p0, p1, p2, p3)
                 | None -> model.planeCorners
 
-            let currMenuTrafo = newOrOldTrafo id trafo model.menuControllerId model.menuControllerTrafo
-
+            //PROBES UPDATE
             let allProbesUpdated =
                 if model.grabberId.IsSome && not model.allProbes.IsEmpty then 
                     model.allProbes
@@ -333,29 +333,28 @@ module AppUpdate =
                         let newRadius = probe.radiusRelToHera * heraTrafos.Forward.GetScaleVector3().X
                         let sphere = Sphere3d(newCenter, newRadius)
                         let intersection = heraBBox.Intersects(sphere)
-                        let updatedProbe = 
-                            {
-                                center = newCenter
-                                radius = newRadius
-                                centerRelToHera = probe.centerRelToHera
-                                radiusRelToHera = probe.radiusRelToHera
-                                insideHera = intersection
-                                id = probe.id
-                                currStatistics = probe.currStatistics
-                            }
-                        updatedProbe
-                        )
+                        {
+                            center = newCenter
+                            radius = newRadius
+                            centerRelToHera = probe.centerRelToHera
+                            radiusRelToHera = probe.radiusRelToHera
+                            insideHera = intersection
+                            id = probe.id
+                            currStatistics = probe.currStatistics
+                        })
                 else 
                     model.allProbes
 
+            //MENU, TOUCHPAD AND TEXTURES TRAFOS
+            let currMenuTrafo = newOrOldTrafo id trafo model.menuControllerId model.menuControllerTrafo
             let newTouchpadDeviceTrafo = newOrOldTrafo id trafo model.touchpadDeviceId model.touchpadDeviceTrafo 
             let newTextureDeviceTrafo = 
                 if model.controllerMenuOpen then currMenuTrafo
-                else if model.allowHeraScaling then contrTrafo
+                else if model.allowHeraScaling then heraContrTrafo
                 else model.textureDeviceTrafo
 
             {model with 
-                controllerTrafo = contrTrafo
+                controllerTrafo = heraContrTrafo
                 sphereControllerTrafo = sphereContrTrafo
                 sphereScalerTrafo = sphereScTrafo
                 sphereScale = scalingFactor
@@ -395,65 +394,65 @@ module AppUpdate =
             | Some probe -> 
                 match model.intersectionControllerId with // id of the controller intersecting with sphere
                 | Some i when i = id -> 
-                                if model.deletionControllerId.IsSome then // if deletion controller is set then DELETE current probe with main controller 
-                                    //TODO: Check if the deleted probbe is the last one used for filtering
-                                    let filterProbe = 
-                                        match model.lastFilterProbe with 
-                                            | Some pr when pr.id <> probe -> model.lastFilterProbe
-                                            | _ -> None
-                                    let updatedTwoDmodel = 
-                                        { mTwoD with
-                                            sphereFilter = None
-                                            data = VersionedArray.ofArray [||] 
-                                            dataRange = mTwoD.initDataRange
-                                        }
-                                    {model with 
-                                        allProbes = model.allProbes.Remove(probe)
-                                        lastFilterProbe = filterProbe
-                                        twoDModel = updatedTwoDmodel
-                                        } 
-                                else // if deletion controller is not set -> MANIPULATE probe
-                                    let currProbe = model.allProbes.TryFind(probe)
-                                    let currScale = 
-                                        match currProbe with
-                                        | Some pr -> (pr.radius / model.sphereRadius)
-                                        | None -> model.sphereScale
-                                    {model with 
-                                        allProbes = model.allProbes.Remove(probe)
-                                        lastFilterProbe = currProbe
-                                        currentProbeManipulated = true
-                                        sphereControllerTrafo = trafo
-                                        sphereControllerId = Some id
-                                        sphereScale = currScale
-                                        probeIntersectionId = None}
+                    if model.deletionControllerId.IsSome then // if deletion controller is set then DELETE current probe with main controller 
+                        //TODO: Check if the deleted probe is the last one used for filtering
+                        let filterProbe = 
+                            match model.lastFilterProbe with 
+                                | Some pr when pr.id <> probe -> model.lastFilterProbe
+                                | _ -> None
+                        let updatedTwoDmodel = 
+                            { mTwoD with
+                                sphereFilter = None
+                                data = VersionedArray.ofArray [||] 
+                                dataRange = mTwoD.initDataRange
+                            }
+                        {model with 
+                            allProbes = model.allProbes.Remove(probe)
+                            lastFilterProbe = filterProbe
+                            twoDModel = updatedTwoDmodel
+                            } 
+                    else // if deletion controller is not set -> MANIPULATE probe
+                        let currProbe = model.allProbes.TryFind(probe)
+                        let currScale = 
+                            match currProbe with
+                            | Some pr -> (pr.radius / model.sphereRadius)
+                            | None -> model.sphereScale
+                        {model with 
+                            allProbes = model.allProbes.Remove(probe)
+                            lastFilterProbe = currProbe
+                            currentProbeManipulated = true
+                            sphereControllerTrafo = trafo
+                            sphereControllerId = Some id
+                            sphereScale = currScale
+                            probeIntersectionId = None}
                 | None -> {model with deletionControllerId = None} // if no controller is intersectiong, then the probe cannot be deleted
                 | _ -> {model with deletionControllerId = Some id} // if probe is interseecting but current controller is not the same as intersection controller -> set deletion controller
             | None -> // controller is not intersecting with a probe
                 match model.sphereControllerId with // is the id of the controller creating spheres set 
                 | Some i when i <> id -> 
-                                {model with // if not the same id -> sphere shold be scaled 
-                                    currentProbeManipulated = true
-                                    sphereScalerId = Some id
-                                    sphereScalerTrafo = trafo} 
+                    {model with // if not the same id -> sphere shold be scaled 
+                        currentProbeManipulated = true
+                        sphereScalerId = Some id
+                        sphereScalerTrafo = trafo} 
                 | _ -> // if the current id is the same as the previous -> set new trafos for the sphere
-                        {model with 
-                            currentProbeManipulated = true
-                            sphereControllerTrafo = trafo
-                            sphereControllerId = Some id
-                            intersectionControllerId = Some id}
+                    {model with 
+                        currentProbeManipulated = true
+                        sphereControllerTrafo = trafo
+                        sphereControllerId = Some id
+                        intersectionControllerId = Some id}
         | CreateRay (id, trafo) ->
             match model.rayDeviceId with 
             | Some i when i = id -> 
-                            client.Mouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
-                            {model with 
-                                rayTriggerClicked = true
-                                clickPosition = Some model.screenHitPoint}
+                client.Mouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
+                {model with 
+                    rayTriggerClicked = true
+                    clickPosition = Some model.screenHitPoint}
             | None ->
                 let origin = trafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
                 let direction = trafo.Forward.TransformPos(V3d.OIO * 1000.0) 
                 {model with 
-                        rayDeviceId = Some id
-                        ray = Ray3d(origin, direction)}
+                    rayDeviceId = Some id
+                    ray = Ray3d(origin, direction)}
             | _ -> model
         | CreateClipping (id, trafo) ->
             let p0 = trafo.Forward.TransformPos(planePos0)
@@ -462,14 +461,14 @@ module AppUpdate =
             let p3 = trafo.Forward.TransformPos(planePos3)
             match model.clippingPlaneDeviceId with 
             | Some i when i = id -> 
-                            {model with 
-                                clippingPlaneDeviceTrafo = trafo
-                                clippingPlaneDeviceId = Some id}
+                {model with 
+                    clippingPlaneDeviceTrafo = trafo
+                    clippingPlaneDeviceId = Some id}
             | None -> 
-                    {model with 
-                            planeCorners = Quad3d(p0, p1, p2, p3)
-                            clippingPlaneDeviceTrafo = trafo
-                            clippingPlaneDeviceId = Some id}
+                {model with 
+                    planeCorners = Quad3d(p0, p1, p2, p3)
+                    clippingPlaneDeviceTrafo = trafo
+                    clippingPlaneDeviceId = Some id}
             | _ -> model
         | DeactivateControllerMode id ->
             if not model.controllerMenuOpen then 
@@ -525,11 +524,11 @@ module AppUpdate =
                 | ControllerMode.Ray ->     
                     match model.rayDeviceId with
                     | Some i when i = id ->
-                                    client.Mouse.Up(model.screenCoordsHitPos, MouseButtons.Left)
-                                    client.Mouse.Click(model.screenCoordsHitPos, MouseButtons.Left)
-                                    {model with 
-                                        rayTriggerClicked = false
-                                        clickPosition = None}
+                        client.Mouse.Up(model.screenCoordsHitPos, MouseButtons.Left)
+                        client.Mouse.Click(model.screenCoordsHitPos, MouseButtons.Left)
+                        {model with 
+                            rayTriggerClicked = false
+                            clickPosition = None}
                     | _ -> model
                 | ControllerMode.Clipping -> 
                     match model.clippingPlaneDeviceId with 
@@ -551,10 +550,10 @@ module AppUpdate =
                     let goToNextMenu = (model.menuLevel + 1), true
                     match model.menuControllerId with 
                     | Some i when i = id ->
-                            match model.menuLevel with
-                            | 0 -> goToNextMenu
-                            | 1 -> if model.controllerMode = ControllerMode.Probe then goToNextMenu else closeMenu
-                            | _ -> closeMenu
+                        match model.menuLevel with
+                        | 0 -> goToNextMenu
+                        | 1 -> if model.controllerMode = ControllerMode.Probe then goToNextMenu else closeMenu
+                        | _ -> closeMenu
                     | _ -> 1, true
                 {model with 
                     menuLevel = level
@@ -570,10 +569,10 @@ module AppUpdate =
             let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
             let r, theta = convertCartesianToPolar model.currTouchPadPos
             let texture =
-                    match model.menuLevel with
-                    | l when l = 1 && r < 0.5 -> allTextures.TryFind("initial") |> getTexture
-                    | l when l = 2 && r < 0.5 -> allTextures.TryFind("initial-attributes") |> getTexture
-                    | _ -> model.touchpadTexture
+                match model.menuLevel with
+                | l when l = 1 && r < 0.5 -> allTextures.TryFind("initial") |> getTexture
+                | l when l = 2 && r < 0.5 -> allTextures.TryFind("initial-attributes") |> getTexture
+                | _ -> model.touchpadTexture
             if model.controllerMenuOpen then //TODO: Handle the case when opening the menu with the first controller and clicking on the second controller
                 {model with 
                     menuControllerTrafo = currDeviceTrafo
@@ -585,65 +584,65 @@ module AppUpdate =
         | ChangeControllerMode id -> 
             match model.menuControllerId with  
             | Some i when i = id && model.menuLevel = 1 && not model.allowHeraScaling -> 
-                    let r, theta = convertCartesianToPolar model.currTouchPadPos
-                    let newContrlMode = 
-                        if r >= 0.5 then 
-                            match theta with 
-                            | t when t >= 0.0   && t < 60.0  -> ControllerMode.Clipping
-                            | t when t >= 60.0  && t < 120.0 -> ControllerMode.Ray
-                            | t when t >= 120.0 && t < 180.0 -> ControllerMode.Probe
-                            | _ -> model.controllerMode
-                        else 
-                            model.controllerMode
-                    let texture = 
-                        match model.controllerMode with 
-                        | m when m = newContrlMode -> model.touchpadTexture // if the  controller mode is the same then texture should not be loaded again   
-                        | _ ->
-                            let texName = 
-                                match newContrlMode with
-                                | ControllerMode.Probe -> "left" 
-                                | ControllerMode.Ray -> "middle" 
-                                | ControllerMode.Clipping -> "right"
-                                | _ -> "initial"
-                            allTextures.TryFind(texName) |> getTexture
-                    {model with 
-                        controllerMode = newContrlMode
-                        touchpadTexture = texture}
+                let r, theta = convertCartesianToPolar model.currTouchPadPos
+                let newContrlMode = 
+                    if r >= 0.5 then 
+                        match theta with 
+                        | t when t >= 0.0   && t < 60.0  -> ControllerMode.Clipping
+                        | t when t >= 60.0  && t < 120.0 -> ControllerMode.Ray
+                        | t when t >= 120.0 && t < 180.0 -> ControllerMode.Probe
+                        | _ -> model.controllerMode
+                    else 
+                        model.controllerMode
+                let texture = 
+                    match model.controllerMode with 
+                    | m when m = newContrlMode -> model.touchpadTexture // if the  controller mode is the same then texture should not be loaded again   
+                    | _ ->
+                        let texName = 
+                            match newContrlMode with
+                            | ControllerMode.Probe -> "left" 
+                            | ControllerMode.Ray -> "middle" 
+                            | ControllerMode.Clipping -> "right"
+                            | _ -> "initial"
+                        allTextures.TryFind(texName) |> getTexture
+                {model with 
+                    controllerMode = newContrlMode
+                    touchpadTexture = texture}
             | _ -> model
         | SelectAttribute id ->
             match model.menuControllerId with  
             | Some i when i = id && model.menuLevel = 2 && not model.allowHeraScaling -> 
-                    let r, theta = convertCartesianToPolar model.currTouchPadPos
-                    let newAttribute = 
-                        if r >= 0.5 then 
-                            match theta with 
-                            | t when t >= 0.0   && t < 60.0  -> RenderValue.Energy
-                            | t when t >= 60.0  && t < 120.0 -> RenderValue.CubicRoot
-                            | t when t >= 120.0 && t < 180.0 -> RenderValue.Strain
-                            | t when t >= 180.0 && t < 240.0 -> RenderValue.AlphaJutzi
-                            | t when t >= 240.0 && t < 300.0 -> RenderValue.Pressure
-                            | t when t >= 300.0 && t < 360.0 -> RenderValue.Density
-                            | _ -> model.attribute
-                        else 
-                            model.attribute
+                let r, theta = convertCartesianToPolar model.currTouchPadPos
+                let newAttribute = 
+                    if r >= 0.5 then 
+                        match theta with 
+                        | t when t >= 0.0   && t < 60.0  -> RenderValue.Energy
+                        | t when t >= 60.0  && t < 120.0 -> RenderValue.CubicRoot
+                        | t when t >= 120.0 && t < 180.0 -> RenderValue.Strain
+                        | t when t >= 180.0 && t < 240.0 -> RenderValue.AlphaJutzi
+                        | t when t >= 240.0 && t < 300.0 -> RenderValue.Pressure
+                        | t when t >= 300.0 && t < 360.0 -> RenderValue.Density
+                        | _ -> model.attribute
+                    else 
+                        model.attribute
 
-                    let texture = 
-                        match model.attribute with 
-                        | a when a = newAttribute -> model.touchpadTexture // if the attribute is the same then texture should not be loaded again   
-                        | _ ->
-                            let texName = 
-                                match newAttribute with 
-                                | RenderValue.Energy -> "top-right"
-                                | RenderValue.CubicRoot -> "top-middle"
-                                | RenderValue.Strain -> "top-left"
-                                | RenderValue.AlphaJutzi -> "bottom-left"
-                                | RenderValue.Pressure -> "bottom-middle"
-                                | RenderValue.Density -> "bottom-right"
-                                | _ -> "initial-attributes"
-                            allTextures.TryFind(texName) |> getTexture
-                    {model with 
-                        attribute = newAttribute
-                        touchpadTexture = texture}
+                let texture = 
+                    match model.attribute with 
+                    | a when a = newAttribute -> model.touchpadTexture // if the attribute is the same then texture should not be loaded again   
+                    | _ ->
+                        let texName = 
+                            match newAttribute with 
+                            | RenderValue.Energy -> "top-right"
+                            | RenderValue.CubicRoot -> "top-middle"
+                            | RenderValue.Strain -> "top-left"
+                            | RenderValue.AlphaJutzi -> "bottom-left"
+                            | RenderValue.Pressure -> "bottom-middle"
+                            | RenderValue.Density -> "bottom-right"
+                            | _ -> "initial-attributes"
+                        allTextures.TryFind(texName) |> getTexture
+                {model with 
+                    attribute = newAttribute
+                    touchpadTexture = texture}
                 | _ -> model
         | ChangeTouchpadPos (id, pos) -> 
             let currTouchDevice = model.devicesTrafos.TryFind(id)
