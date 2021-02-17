@@ -88,6 +88,11 @@ module AppUpdate =
         match contrId with 
         | Some i -> if i = id then trafo else contrTrafo
         | None -> contrTrafo
+
+    let newOrOldTrafo2 (id : int) (trafo : Trafo3d) (contrId : Option<int>) (contrTrafo : Trafo3d) =
+        match contrId with 
+        | Some i when i = id -> trafo 
+        | _ -> contrTrafo
     
     let idIsSet (contrId : Option<int>) = contrId.IsSome
     
@@ -222,7 +227,7 @@ module AppUpdate =
                     else model
                 | None -> model
         | ScaleHera f ->
-            let values = 
+            let scale, tex = 
                 if model.allowHeraScaling then 
                     if model.touchpadDeviceId.IsSome then
                         if f >= 0.0 then 
@@ -242,8 +247,8 @@ module AppUpdate =
                 else 
                     model.scalingFactorHera, model.touchpadTexture
             {model with 
-                scalingFactorHera = fst values
-                touchpadTexture = snd values}
+                scalingFactorHera = scale
+                touchpadTexture = tex}
         | MoveController (id, (trafo : Trafo3d)) -> 
             let newInput = model.devicesTrafos.Add(id, trafo)
             let contrTrafo = newOrOldTrafo id trafo model.grabberId model.controllerTrafo
@@ -293,6 +298,21 @@ module AppUpdate =
             let heraBBox = model.twoDModel.currHeraBBox.Transformed(heraTrafos)
 
             let sphereIntersection (controllerSphere : Sphere3d) (probe : Sphere3d) = controllerSphere.Intersects(probe)
+            let probeIntersection2 = 
+                model.intersectionControllerId 
+                |> Option.filter (fun i -> i = id && not model.currentProbeManipulated)
+                |> Option.map (fun i -> 
+                    let intersectionContrTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(i))
+                    let intersectionContrTrafoPos = intersectionContrTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
+                    let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
+                    model.allProbes
+                    |> HashMap.filter (fun key probe ->
+                        let sphere = Sphere3d(probe.center, probe.radius)
+                        sphereIntersection controllerSphere sphere)
+                    |> HashMap.toSeq
+                    |> Seq.map (fun (key, probe) -> key)
+                    |> Seq.tryLast 
+                    ) 
             let probeIntersection = 
                 match model.intersectionControllerId with 
                 | Some i ->
@@ -314,8 +334,7 @@ module AppUpdate =
                     else
                         model.probeIntersectionId
                 | None -> None
-            let rColor = 
-                if intersect then C4b.Green else C4b.Red
+            let rColor = if intersect then C4b.Green else C4b.Red
             let screenCoordsHitPos = 
                 if intersect then
                     let screenCoords = (V2d(hit.Coord.Y * screenResolution.ToV2d().X, hit.Coord.X * screenResolution.ToV2d().Y)).ToV2i()
@@ -335,6 +354,18 @@ module AppUpdate =
                     let p3 = currDeviceTrafo.Forward.TransformPos(planePos3)
                     Quad3d(p0, p1, p2, p3)
                 | None -> model.planeCorners
+
+            let currCorners2 = 
+                model.clippingPlaneDeviceId
+                |> Option.map (fun i -> 
+                    let currDeviceTrafo = clippingContrTrafo
+                    let p0 = currDeviceTrafo.Forward.TransformPos(planePos0)
+                    let p1 = currDeviceTrafo.Forward.TransformPos(planePos1)
+                    let p2 = currDeviceTrafo.Forward.TransformPos(planePos2)
+                    let p3 = currDeviceTrafo.Forward.TransformPos(planePos3)
+                    Quad3d(p0, p1, p2, p3))
+                |> Option.defaultValue model.planeCorners
+ 
             let currMenuTrafo = newOrOldTrafo id trafo model.menuControllerId model.menuControllerTrafo
 
             let allProbesUpdated =

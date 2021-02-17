@@ -29,7 +29,6 @@ module Demo =
     open Aardvark.UI.Primitives
     open Aardvark.Base.Rendering
 
-              
     let threads (model : Model) =
         AardVolume.App.threads model.twoDModel |> ThreadPool.map TwoD
         
@@ -37,57 +36,37 @@ module Demo =
         match msg with
         | VrMessage.PressButton(controllerId, buttonId) ->
            // printf "press button: %A " (controllerId, buttonId)
-            if buttonId = 1 then 
-                [ResetHera]
-            else if buttonId = 2 then
-                [GrabHera controllerId]
-            else 
-                []
+            match buttonId with 
+            | 1 -> [ResetHera]
+            | 2 -> [GrabHera controllerId]
+            | _ -> []
         | VrMessage.UnpressButton(controllerId, buttonId) ->
-            //printf "unpress button: %A " (controllerId, buttonId)
-            if buttonId = 2 then
-                [UngrabHera controllerId]
-            else 
-                []
+            match buttonId with 
+            | 2 -> [UngrabHera controllerId]
+            | _ -> []
         | VrMessage.Press(controllerId, buttonId) ->
-            //printf "press: %A " (controllerId, buttonId)
-            if buttonId = 0 then 
-                [ToggleControllerMenu controllerId; OpenControllerMenu controllerId]
-                //[ActivateRay controllerId]
-            else if buttonId = 1 then
-                [ActivateControllerMode controllerId]
-            else
-                []
+            match buttonId with 
+            | 0 -> [ToggleControllerMenu controllerId; OpenControllerMenu controllerId]
+            | 1 -> [ActivateControllerMode controllerId]
+            | _ -> []
         | VrMessage.Unpress(controllerId, buttonId) ->
-          //  printf "unpress: %A " (controllerId, buttonId)
-            if buttonId = 1 then
-                [DeactivateControllerMode controllerId]
-            else
-                []
+            match buttonId with 
+            | 1 ->  [DeactivateControllerMode controllerId]
+            | _ -> []
         | VrMessage.Touch(controllerId, buttonId) ->
-           // printf "touch: %A " (controllerId, buttonId)
-            if buttonId = 0 then 
-                []
-                //[ActivatePlane controllerId]
-            else 
-                []
+            []
         | VrMessage.Untouch(controllerId, buttonId) ->
-            //printf "untouch: %A " (controllerId, buttonId)
             [UntouchDevice controllerId]
         | VrMessage.ValueChange(controllerId, buttonId, value) ->
-            //printf "value change: %A " (controllerId, buttonId, value)
-            if buttonId = 0 then 
-                [ChangeTouchpadPos (controllerId, value); ScaleHera value.X; ChangeControllerMode controllerId; SelectAttribute controllerId]
-            else 
-                []
+            match buttonId with 
+            | 0 ->  [ChangeTouchpadPos (controllerId, value); ScaleHera value.X; ChangeControllerMode controllerId; SelectAttribute controllerId]
+            | _ -> []
         | VrMessage.UpdatePose(controllerId, pose) ->
             if pose.isValid then [MoveController (controllerId, pose.deviceToWorld)] else []
         | _ -> []
 
     let ui (runtime : IRuntime) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : DomNode<Message> = // 2D UI
-        div [] [
-            AardVolume.App.view runtime data m.twoDModel |> UI.map TwoD
-        ]
+        div [] [AardVolume.App.view runtime data m.twoDModel |> UI.map TwoD]
 
     let vr (runtime : IRuntime) (client : Browser) (viewTrafos : aval<Trafo3d []>) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
         let pass0 = RenderPass.main
