@@ -59,7 +59,7 @@ module Demo =
             [UntouchDevice controllerId]
         | VrMessage.ValueChange(controllerId, buttonId, value) ->
             match buttonId with 
-            | 0 ->  [ChangeTouchpadPos (controllerId, value); ScaleHera value.X; ChangeControllerMode controllerId; SelectAttribute controllerId]
+            | 0 ->  [ChangeTouchpadPos (controllerId, value); ScaleHera (controllerId, value.X); ChangeControllerMode controllerId; SelectAttribute controllerId]
             | _ -> []
         | VrMessage.UpdatePose(controllerId, pose) ->
             if pose.isValid then [MoveController (controllerId, pose.deviceToWorld)] else []

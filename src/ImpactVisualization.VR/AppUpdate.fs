@@ -22,7 +22,7 @@ type Message =
     | StartVr
     | GrabHera of int
     | UngrabHera of int
-    | ScaleHera of float
+    | ScaleHera of int * float
     | MoveController of int * Trafo3d
     | ToggleControllerMenu of int
     | OpenControllerMenu of int
@@ -83,13 +83,8 @@ module AppUpdate =
                         "initial-scaling", fromStreamToTexture "initial-scaling.png"]
     
     let trafoOrIdentity trafo = Option.defaultValue Trafo3d.Identity trafo
-    
-    let newOrOldTrafo (id : int) (trafo : Trafo3d) (contrId : Option<int>) (contrTrafo : Trafo3d) =
-        match contrId with 
-        | Some i -> if i = id then trafo else contrTrafo
-        | None -> contrTrafo
 
-    let newOrOldTrafo2 (id : int) (trafo : Trafo3d) (contrId : Option<int>) (contrTrafo : Trafo3d) =
+    let newOrOldTrafo (id : int) (trafo : Trafo3d) (contrId : Option<int>) (contrTrafo : Trafo3d) =
         match contrId with 
         | Some i when i = id -> trafo 
         | _ -> contrTrafo
@@ -224,8 +219,9 @@ module AppUpdate =
                             allowHeraScaling = false
                             showTexture = false}
                 | _ -> model
-        | ScaleHera f ->
-            if model.allowHeraScaling then 
+        | ScaleHera (id, f) ->
+            match model.grabberId with 
+            | Some i when i = id && model.allowHeraScaling ->
                 if model.touchpadDeviceId.IsSome then
                     if f >= 0.0 then
                         let maxScale = 1.0
@@ -242,9 +238,8 @@ module AppUpdate =
                             scalingFactorHera = newScale
                             touchpadTexture = allTextures.TryFind("scale-down") |> getTexture}
                 else 
-                {model with touchpadTexture = (allTextures.TryFind("initial-scaling") |> getTexture)}
-            else 
-                model
+                    {model with touchpadTexture = (allTextures.TryFind("initial-scaling") |> getTexture)}
+            | _ -> model
         | MoveController (id, (trafo : Trafo3d)) -> 
             let newInput = model.devicesTrafos.Add(id, trafo)
             let contrTrafo = newOrOldTrafo id trafo model.grabberId model.controllerTrafo
