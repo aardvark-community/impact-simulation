@@ -663,5 +663,3 @@ module AppUpdate =
                     touchpadTexture = tex} 
             | _ -> model
         | ResetHera -> initial runtime frames
-
-
