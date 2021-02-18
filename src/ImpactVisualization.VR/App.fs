@@ -82,6 +82,19 @@ module Demo =
         mode.DestinationFactor <- BlendFactor.InvSourceAlpha
         mode.SourceAlphaFactor <- BlendFactor.One
         mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
+
+        let textScreenSg = 
+            Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"controllerText";"text.obj"])
+            |> Sg.adapter
+            |> Sg.transform (Trafo3d.Scale(1.0, 1.0, -1.0))
+            |> Sg.transform (Trafo3d.RotationXInDegrees(90.0))
+            |> Sg.shader {
+                do! DefaultSurfaces.trafo
+                do! DefaultSurfaces.diffuseTexture
+                do! DefaultSurfaces.normalMap
+                do! DefaultSurfaces.simpleLighting
+            }
+            |> Sg.pass pass0
          
         let deviceSgs = 
             info.state.devices |> AMap.toASet |> ASet.chooseA (fun (_,d) ->
@@ -90,6 +103,7 @@ module Demo =
                     | Some sg -> 
                         sg 
                         |> Sg.noEvents 
+                        |> Sg.andAlso textScreenSg
                         |> Sg.trafo d.pose.deviceToWorld
                         |> Sg.onOff d.pose.isValid
                         |> Some
