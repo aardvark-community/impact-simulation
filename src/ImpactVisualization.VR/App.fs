@@ -104,7 +104,6 @@ module Demo =
             |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
             |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
             |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
-            |> Sg.transform (Trafo3d.Scale(1.0, 1.0, -1.0))
             |> Sg.scale 0.022
             |> Sg.diffuseTexture m.contrScreenTexture
             |> Sg.shader {
