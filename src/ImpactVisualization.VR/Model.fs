@@ -123,4 +123,6 @@ type Model =
         touchpadTexture : ITexture 
         textureDeviceTrafo : Trafo3d
         showTexture : bool
+
+        contrScreenTexture : ITexture
 }

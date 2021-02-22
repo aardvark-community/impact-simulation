@@ -85,7 +85,8 @@ module AppUpdate =
                         "initial-attributes", fromStreamToTexture "initial-attributes.png"; 
                         "scale-down", fromStreamToTexture "scale-down.png"; 
                         "scale-up", fromStreamToTexture "scale-up.png"; 
-                        "initial-scaling", fromStreamToTexture "initial-scaling.png"]
+                        "initial-scaling", fromStreamToTexture "initial-scaling.png";
+                        "energy", fromStreamToTexture "energy.png"]
     
     let trafoOrIdentity trafo = Option.defaultValue Trafo3d.Identity trafo
 
@@ -175,6 +176,7 @@ module AppUpdate =
             touchpadDeviceId = None
             touchpadDeviceTrafo = Trafo3d.Identity
             touchpadTexture = FileTexture(texturesPath + "initial.png", true) :> ITexture
+            contrScreenTexture = FileTexture(texturesPath + "energy.png", true) :> ITexture
             textureDeviceTrafo = Trafo3d.Identity
             showTexture = false
             heraBox = Box3d.Infinite

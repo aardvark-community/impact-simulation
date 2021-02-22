@@ -96,7 +96,7 @@ module Demo =
             }
             |> Sg.pass pass0
 
-        let pPositions =  AVal.constant  [|V3f(-1.588, -0.5, 0.3); V3f(1.588, -0.5, 0.3); V3f(1.588, 0.5, 0.3); V3f(-1.588, 0.5, 0.3)|]
+        let pPositions =  AVal.constant  [|V3f(-1.588, -0.5, 0.5); V3f(1.588, -0.5, 0.5); V3f(1.588, 0.5, 0.5); V3f(-1.588, 0.5, 0.5)|]
 
         let textPlaneSg = 
             Sg.draw IndexedGeometryMode.TriangleList
@@ -104,8 +104,9 @@ module Demo =
             |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
             |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
             |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
+            |> Sg.transform (Trafo3d.Scale(1.0, 1.0, -1.0))
             |> Sg.scale 0.022
-           // |> Sg.diffuseTexture DefaultTextures.checkerboard
+            |> Sg.diffuseTexture m.contrScreenTexture
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.diffuseTexture
