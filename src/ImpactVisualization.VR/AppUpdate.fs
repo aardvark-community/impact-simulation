@@ -86,7 +86,18 @@ module AppUpdate =
                         "scale-down", fromStreamToTexture "scale-down.png"; 
                         "scale-up", fromStreamToTexture "scale-up.png"; 
                         "initial-scaling", fromStreamToTexture "initial-scaling.png";
-                        "energy", fromStreamToTexture "energy.png"]
+                        "energy", fromStreamToTexture "energy.png";
+                        "cubicroot", fromStreamToTexture "cubicroot.png";
+                        "strain", fromStreamToTexture "strain.png";
+                        "alphajutzi", fromStreamToTexture "alphajutzi.png";
+                        "pressure", fromStreamToTexture "pressure.png";
+                        "density", fromStreamToTexture "density.png";
+                        "probe", fromStreamToTexture "probe.png";
+                        "ray", fromStreamToTexture "ray.png";
+                        "clipping", fromStreamToTexture "clipping.png";
+                        "select-attribute", fromStreamToTexture "select-attribute.png";
+                        "select-tool", fromStreamToTexture "select-tool.png";
+                        "empty", fromStreamToTexture "empty.png"]
     
     let trafoOrIdentity trafo = Option.defaultValue Trafo3d.Identity trafo
 
@@ -176,7 +187,7 @@ module AppUpdate =
             touchpadDeviceId = None
             touchpadDeviceTrafo = Trafo3d.Identity
             touchpadTexture = FileTexture(texturesPath + "initial.png", true) :> ITexture
-            contrScreenTexture = FileTexture(texturesPath + "energy.png", true) :> ITexture
+            contrScreenTexture = FileTexture(texturesPath + "empty.png", true) :> ITexture
             textureDeviceTrafo = Trafo3d.Identity
             showTexture = false
             heraBox = Box3d.Infinite
@@ -557,10 +568,12 @@ module AppUpdate =
                         | 1 -> if model.controllerMode = ControllerMode.Probe then goToNextMenu else closeMenu
                         | _ -> closeMenu
                     | _ -> 1, true
+                let screenTex = if not isOpen then allTextures.TryFind("empty") |> getTexture else model.contrScreenTexture
                 {model with 
                     menuLevel = level
                     controllerMenuOpen = isOpen
                     showTexture = isOpen
+                    contrScreenTexture = screenTex
                     sphereControllerId = None
                     sphereScalerId = None
                     rayDeviceId = None
@@ -570,17 +583,18 @@ module AppUpdate =
         | OpenControllerMenu id ->
             let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
             let r, theta = convertCartesianToPolar model.currTouchPadPos
-            let texture =
+            let texture, screenTexture =
                 match model.menuLevel with
-                | l when l = 1 && r < 0.5 -> allTextures.TryFind("initial") |> getTexture
-                | l when l = 2 && r < 0.5 -> allTextures.TryFind("initial-attributes") |> getTexture
-                | _ -> model.touchpadTexture
+                | l when l = 1 && r < 0.5 -> (allTextures.TryFind("initial") |> getTexture), (allTextures.TryFind("select-tool") |> getTexture)
+                | l when l = 2 && r < 0.5 -> (allTextures.TryFind("initial-attributes") |> getTexture), (allTextures.TryFind("select-attribute") |> getTexture)
+                | _ -> model.touchpadTexture, model.contrScreenTexture
             if model.controllerMenuOpen then //TODO: Handle the case when opening the menu with the first controller and clicking on the second controller
                 {model with 
                     menuControllerTrafo = currDeviceTrafo
                     menuControllerId = Some id
                     textureDeviceTrafo = currDeviceTrafo
-                    touchpadTexture = texture}
+                    touchpadTexture = texture
+                    contrScreenTexture = screenTexture}
             else    
                 {model with menuControllerId = None}
         | ChangeControllerMode id -> 
@@ -596,20 +610,21 @@ module AppUpdate =
                         | _ -> model.controllerMode
                     else 
                         model.controllerMode
-                let texture = 
+                let texture, screenTexture = 
                     match model.controllerMode with 
-                    | m when m = newContrlMode -> model.touchpadTexture // if the  controller mode is the same then texture should not be loaded again   
+                    | m when m = newContrlMode -> model.touchpadTexture, model.contrScreenTexture // if the  controller mode is the same then texture should not be loaded again   
                     | _ ->
-                        let texName = 
+                        let texName, screenTexName = 
                             match newContrlMode with
-                            | ControllerMode.Probe -> "left" 
-                            | ControllerMode.Ray -> "middle" 
-                            | ControllerMode.Clipping -> "right"
-                            | _ -> "initial"
-                        allTextures.TryFind(texName) |> getTexture
+                            | ControllerMode.Probe -> "left", "probe" 
+                            | ControllerMode.Ray -> "middle", "ray" 
+                            | ControllerMode.Clipping -> "right", "clipping"
+                            | _ -> "initial", "select-tool"
+                        (allTextures.TryFind(texName) |> getTexture), (allTextures.TryFind(screenTexName) |> getTexture)
                 {model with 
                     controllerMode = newContrlMode
-                    touchpadTexture = texture}
+                    touchpadTexture = texture
+                    contrScreenTexture = screenTexture}
             | _ -> model
         | SelectAttribute id ->
             match model.menuControllerId with  
@@ -628,23 +643,24 @@ module AppUpdate =
                     else 
                         model.attribute
 
-                let texture = 
+                let texture, screenTexture = 
                     match model.attribute with 
-                    | a when a = newAttribute -> model.touchpadTexture // if the attribute is the same then texture should not be loaded again   
+                    | a when a = newAttribute -> model.touchpadTexture, model.contrScreenTexture // if the attribute is the same then texture should not be loaded again   
                     | _ ->
-                        let texName = 
+                        let texName, screenTexName = 
                             match newAttribute with 
-                            | RenderValue.Energy -> "top-right"
-                            | RenderValue.CubicRoot -> "top-middle"
-                            | RenderValue.Strain -> "top-left"
-                            | RenderValue.AlphaJutzi -> "bottom-left"
-                            | RenderValue.Pressure -> "bottom-middle"
-                            | RenderValue.Density -> "bottom-right"
-                            | _ -> "initial-attributes"
-                        allTextures.TryFind(texName) |> getTexture
+                            | RenderValue.Energy -> "top-right", "energy"
+                            | RenderValue.CubicRoot -> "top-middle", "cubicroot"
+                            | RenderValue.Strain -> "top-left", "strain"
+                            | RenderValue.AlphaJutzi -> "bottom-left", "alphajutzi"
+                            | RenderValue.Pressure -> "bottom-middle", "pressure"
+                            | RenderValue.Density -> "bottom-right", "density"
+                            | _ -> "initial-attributes", "select-attribute"
+                        (allTextures.TryFind(texName) |> getTexture), (allTextures.TryFind(screenTexName) |> getTexture)
                 {model with 
                     attribute = newAttribute
-                    touchpadTexture = texture}
+                    touchpadTexture = texture
+                    contrScreenTexture = screenTexture}
                 | _ -> model
         | ChangeTouchpadPos (id, pos) -> 
             let currTouchDevice = model.devicesTrafos.TryFind(id)
