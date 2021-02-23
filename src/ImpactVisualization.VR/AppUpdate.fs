@@ -225,7 +225,10 @@ module AppUpdate =
                     allowHeraScaling = true
                     textureDeviceTrafo = controlT
                     touchpadTexture = texture "initial-scaling"
-                    showTexture = true}
+                    contrScreenTexture = texture "empty"
+                    showTexture = true
+                    menuLevel = 0
+                    controllerMenuOpen = false}
         | UngrabHera id -> 
             let controlT = model.controllerTrafo
             let heraToControlT = model.heraToControllerTrafo
