@@ -97,7 +97,10 @@ module AppUpdate =
                         "clipping", fromStreamToTexture "clipping.png";
                         "select-attribute", fromStreamToTexture "select-attribute.png";
                         "select-tool", fromStreamToTexture "select-tool.png";
-                        "empty", fromStreamToTexture "empty.png"]
+                        "empty", fromStreamToTexture "empty.png";
+                        "grab-sphere", fromStreamToTexture "grab-sphere.png";
+                        "scaling-up", fromStreamToTexture "scaling-up.png";
+                        "scaling-down", fromStreamToTexture "scaling-down.png"]
     
     let trafoOrIdentity trafo = Option.defaultValue Trafo3d.Identity trafo
 
@@ -198,6 +201,7 @@ module AppUpdate =
         let mTwoD = model.twoDModel
 
         let getTexture tex = Option.defaultValue model.touchpadTexture tex
+        let texture tex = allTextures.TryFind(tex) |> getTexture
 
         match msg with
         | ThreeD _ -> model
@@ -220,7 +224,7 @@ module AppUpdate =
                     heraToControllerTrafo = controlHeraT
                     allowHeraScaling = true
                     textureDeviceTrafo = controlT
-                    touchpadTexture = allTextures.TryFind("initial-scaling") |> getTexture
+                    touchpadTexture = texture "initial-scaling"
                     showTexture = true}
         | UngrabHera id -> 
             let controlT = model.controllerTrafo
@@ -232,7 +236,8 @@ module AppUpdate =
                     grabberId = None
                     heraTrafo = heraT
                     allowHeraScaling = false
-                    showTexture = false}
+                    showTexture = false
+                    contrScreenTexture = texture "empty"}
             | _ -> model
         | ScaleHera (id, f) ->
             match model.grabberId with 
@@ -244,16 +249,20 @@ module AppUpdate =
                         let newScale = if currScale >= maxScale then maxScale else currScale
                         {model with 
                             scalingFactorHera = newScale
-                            touchpadTexture = allTextures.TryFind("scale-up") |> getTexture}
+                            touchpadTexture = texture "scale-up"
+                            contrScreenTexture = texture "scaling-up"}
                     else
                         let minScale = 0.001
                         let currScale = model.scalingFactorHera * (1.0 - f*f/5.0)
                         let newScale =  if currScale <= minScale then minScale else currScale
                         {model with 
                             scalingFactorHera = newScale
-                            touchpadTexture = allTextures.TryFind("scale-down") |> getTexture}
+                            touchpadTexture = texture "scale-down"
+                            contrScreenTexture = texture "scaling-down"}
                 else 
-                    {model with touchpadTexture = (allTextures.TryFind("initial-scaling") |> getTexture)}
+                    {model with 
+                        touchpadTexture = texture "initial-scaling"
+                        contrScreenTexture = texture "empty"}
             | _ -> model
         | MoveController (id, (trafo : Trafo3d)) -> 
             let newInput = model.devicesTrafos.Add(id, trafo)
@@ -321,9 +330,11 @@ module AppUpdate =
                             sphereIntersection controllerSphere sphere)
                         |> HashMap.toSeq
                         |> Seq.map (fun (key, probe) -> key)
-                        |> Seq.tryLast                        
+                        |> Seq.tryLast    
                 | None -> None
                 | _ -> model.probeIntersectionId
+
+            //let screenTex = if probeIntersection.IsSome then texture "grab-sphere" else model.contrScreenTexture
 
             //CLIPPING PLANE UPDATE
             let clippingContrTrafo = newOrOldTrafo id trafo model.clippingPlaneDeviceId model.clippingPlaneDeviceTrafo
@@ -382,6 +393,7 @@ module AppUpdate =
                 screenHitPoint = hit.Coord
                 screenCoordsHitPos = screenCoordsHitPos
                 probeIntersectionId = probeIntersection
+                //contrScreenTexture = screenTex
                 heraBox = heraBBox
                 allProbes = allProbesUpdated
                 heraTransformations = heraTrafos
@@ -568,7 +580,7 @@ module AppUpdate =
                         | 1 -> if model.controllerMode = ControllerMode.Probe then goToNextMenu else closeMenu
                         | _ -> closeMenu
                     | _ -> 1, true
-                let screenTex = if not isOpen then allTextures.TryFind("empty") |> getTexture else model.contrScreenTexture
+                let screenTex = if not isOpen then (texture "empty") else model.contrScreenTexture
                 {model with 
                     menuLevel = level
                     controllerMenuOpen = isOpen
@@ -585,8 +597,8 @@ module AppUpdate =
             let r, theta = convertCartesianToPolar model.currTouchPadPos
             let texture, screenTexture =
                 match model.menuLevel with
-                | l when l = 1 && r < 0.5 -> (allTextures.TryFind("initial") |> getTexture), (allTextures.TryFind("select-tool") |> getTexture)
-                | l when l = 2 && r < 0.5 -> (allTextures.TryFind("initial-attributes") |> getTexture), (allTextures.TryFind("select-attribute") |> getTexture)
+                | l when l = 1 && r < 0.5 -> (texture "initial"), (texture "select-tool")
+                | l when l = 2 && r < 0.5 -> (texture "initial-attributes"), (texture "select-attribute")
                 | _ -> model.touchpadTexture, model.contrScreenTexture
             if model.controllerMenuOpen then //TODO: Handle the case when opening the menu with the first controller and clicking on the second controller
                 {model with 
@@ -620,7 +632,7 @@ module AppUpdate =
                             | ControllerMode.Ray -> "middle", "ray" 
                             | ControllerMode.Clipping -> "right", "clipping"
                             | _ -> "initial", "select-tool"
-                        (allTextures.TryFind(texName) |> getTexture), (allTextures.TryFind(screenTexName) |> getTexture)
+                        (texture texName), (texture screenTexName)
                 {model with 
                     controllerMode = newContrlMode
                     touchpadTexture = texture
@@ -656,7 +668,7 @@ module AppUpdate =
                             | RenderValue.Pressure -> "bottom-middle", "pressure"
                             | RenderValue.Density -> "bottom-right", "density"
                             | _ -> "initial-attributes", "select-attribute"
-                        (allTextures.TryFind(texName) |> getTexture), (allTextures.TryFind(screenTexName) |> getTexture)
+                        (texture texName), (texture screenTexName)
                 {model with 
                     attribute = newAttribute
                     touchpadTexture = texture
@@ -673,7 +685,7 @@ module AppUpdate =
                 touchpadDeviceId = newId
                 touchpadDeviceTrafo = trafoOrIdentity currTouchDevice}
         | UntouchDevice id ->
-            let tex = if model.allowHeraScaling then allTextures.TryFind("initial-scaling") |> getTexture else model.touchpadTexture
+            let tex = if model.allowHeraScaling then (texture "initial-scaling") else model.touchpadTexture
             match model.touchpadDeviceId with 
             | Some i when i = id -> 
                 {model with 
