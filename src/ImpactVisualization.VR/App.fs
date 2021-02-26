@@ -488,7 +488,7 @@ module Demo =
 
         Sg.ofSeq [
             deviceSgs; currentSphereProbeSg; probesSgs; heraSg; clipPlaneSg; tvSg;
-            billboardSg; probeContrSg; laserContrSg; clippingContrSg; raySg;
+             probeContrSg; laserContrSg; clippingContrSg; raySg;
             browserSg; boxSg; touchpadSphereSg; touchpadPlaneSg
         ] |> Sg.shader {
                 do! DefaultSurfaces.trafo

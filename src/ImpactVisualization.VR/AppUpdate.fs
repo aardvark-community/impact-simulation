@@ -194,7 +194,7 @@ module AppUpdate =
             textureDeviceTrafo = Trafo3d.Identity
             showTexture = false
             heraBox = Box3d.Infinite
-            heraTransformations = Trafo3d.Identity
+            heraTransformations = Trafo3d(Scale3d(0.05)) * Trafo3d.Translation(0.0, 0.0, 0.7)
         }
 
     let rec update (runtime : IRuntime) (client : Browser) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
@@ -695,4 +695,6 @@ module AppUpdate =
                     touchpadDeviceId = None
                     touchpadTexture = tex} 
             | _ -> model
-        | ResetHera -> initial runtime frames
+        | ResetHera -> 
+            printf "Hera Trafo: %A \n" model.heraTransformations
+            initial runtime frames

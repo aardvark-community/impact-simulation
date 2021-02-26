@@ -118,7 +118,7 @@ module App =
             frame = 0;
             currHeraBBox = Box3d.Infinite
             pointSize = 8.0
-            playAnimation = true
+            playAnimation = false
             animateAllFrames = false
             discardPoints = false
             transition = true
@@ -863,7 +863,7 @@ module App =
                       //  br []
                         div [style "margin-top: 3px; margin-bottom: 3px"] [
                             span [style "padding: 4px; color: white"] [text "Point Size: "]
-                            numeric { min = 1.0; max = 30.0; smallStep = 1.0; largeStep = 5.0 } [style "width: 55%; padding: 2px"] m.pointSize SetPointSize
+                            numeric { min = 1.0; max = 20.0; smallStep = 1.0; largeStep = 5.0 } [style "width: 55%; padding: 2px"] m.pointSize SetPointSize
                         ]
                        // Incremental.div AttributeMap.empty dynamicUI
                        // br []
