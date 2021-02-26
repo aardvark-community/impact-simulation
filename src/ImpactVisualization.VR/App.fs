@@ -56,7 +56,8 @@ module Demo =
         | VrMessage.Touch(controllerId, buttonId) ->
             []
         | VrMessage.Untouch(controllerId, buttonId) ->
-            [UntouchDevice controllerId]
+            //[UntouchDevice controllerId]
+            []
         | VrMessage.ValueChange(controllerId, buttonId, value) ->
             match buttonId with 
             | 0 ->  [ChangeTouchpadPos (controllerId, value); ScaleHera (controllerId, value.X); ChangeControllerMode controllerId; SelectAttribute controllerId]

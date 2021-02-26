@@ -243,6 +243,7 @@ module AppUpdate =
                     contrScreenTexture = texture "empty"}
             | _ -> model
         | ScaleHera (id, f) ->
+            printf "SCALE HERA \n"
             match model.grabberId with 
             | Some i when i = id && model.allowHeraScaling ->
                 if model.touchpadDeviceId.IsSome then
@@ -268,6 +269,8 @@ module AppUpdate =
                         contrScreenTexture = texture "empty"}
             | _ -> model
         | MoveController (id, (trafo : Trafo3d)) -> 
+            printf "MOVE \n"
+
             let newInput = model.devicesTrafos.Add(id, trafo)
 
             //CURRENT SPHERE UPDATE
@@ -310,14 +313,17 @@ module AppUpdate =
                 else
                     client.SetFocus false
                     initRay, C4b.Red, PixelPosition()
-
+    
             //HERA TRANSFORMATIONS UPDATE
             let heraContrTrafo = newOrOldTrafo id trafo model.grabberId model.controllerTrafo
             let heraTrafos = 
-                let heraTrafo = model.heraToControllerTrafo * heraContrTrafo
-                let heraScaleTrafo = Trafo3d(Scale3d(model.scalingFactorHera))
-                let heraTranslation = Trafo3d.Translation(0.0, 0.0, 0.7)
-                heraScaleTrafo * heraTranslation * heraTrafo
+                if model.grabberId.IsSome then
+                    let heraTrafo = model.heraToControllerTrafo * heraContrTrafo
+                    let heraScaleTrafo = Trafo3d(Scale3d(model.scalingFactorHera))
+                    let heraTranslation = Trafo3d.Translation(0.0, 0.0, 0.7)
+                    heraScaleTrafo * heraTranslation * heraTrafo
+                else 
+                    model.heraTransformations
             let heraBBox = model.twoDModel.currHeraBBox.Transformed(heraTrafos)
 
             //INTERSECTION OF CONTROLLER WITH A PROBE
@@ -695,6 +701,4 @@ module AppUpdate =
                     touchpadDeviceId = None
                     touchpadTexture = tex} 
             | _ -> model
-        | ResetHera -> 
-            printf "Hera Trafo: %A \n" model.heraTransformations
-            initial runtime frames
+        | ResetHera -> initial runtime frames
