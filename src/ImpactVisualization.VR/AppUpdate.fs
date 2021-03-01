@@ -307,10 +307,14 @@ module AppUpdate =
                 if intersect then
                     let screenCoords = (V2d(hit.Coord.Y * screenResolution.ToV2d().X, hit.Coord.X * screenResolution.ToV2d().Y)).ToV2i()
                     let screenPos = PixelPosition(screenCoords, screenResolution.X, screenResolution.Y)
-                    if model.rayTriggerClicked then client.Mouse.Move(screenPos)
+                    if model.rayTriggerClicked then
+                        printf "client MOVE" 
+                        client.Mouse.Move(screenPos)
+                    printf "client Focus TRUE" 
                     client.SetFocus true
                     Ray3d(initRay.Origin, hit.Point), C4b.Green, screenPos
                 else
+                   // printf "client Focus FALSE" 
                     client.SetFocus false
                     initRay, C4b.Red, PixelPosition()
     
@@ -477,6 +481,7 @@ module AppUpdate =
         | CreateRay (id, trafo) ->
             match model.rayDeviceId with 
             | Some i when i = id -> 
+                printf "client Mouse DOWN" 
                 client.Mouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
                 {model with 
                     rayTriggerClicked = true
@@ -558,6 +563,7 @@ module AppUpdate =
                 | ControllerMode.Ray ->     
                     match model.rayDeviceId with
                     | Some i when i = id ->
+                        printf "client Mouse UP + CLICK" 
                         client.Mouse.Up(model.screenCoordsHitPos, MouseButtons.Left)
                         client.Mouse.Click(model.screenCoordsHitPos, MouseButtons.Left)
                         {model with 
@@ -687,7 +693,9 @@ module AppUpdate =
             //printf "CHANGE TOUCHPAD POS %A \n" pos
             let currTouchDevice = model.devicesTrafos.TryFind(id)
             match model.rayDeviceId with 
-            | Some i when i = id && model.screenIntersection ->  client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
+            | Some i when i = id && model.screenIntersection -> 
+                printf "client SCROLL" 
+                client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
             | _ -> ()
             let newId = if pos.X = 0.0 && pos.Y = 0.0 then None else Some id //when both X and Y are equal to 0.0 it means we are currently not touching the touchpad
             {model with 
