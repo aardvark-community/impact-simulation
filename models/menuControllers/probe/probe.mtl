@@ -1,8 +1,8 @@
-# Blender MTL File: 'probe.blend'
+# Blender MTL File: 'None'
 # Material Count: 2
 
 newmtl Material.001
-Ns 96.078431
+Ns 96.078443
 Ka 1.000000 1.000000 1.000000
 Kd 0.640000 0.640000 0.640000
 Ks 0.500000 0.500000 0.500000
@@ -14,7 +14,7 @@ map_Kd onepointfive_texture.png
 map_Ks onepointfive_spec.png
 
 newmtl Material.002
-Ns 96.078431
+Ns 96.078443
 Ka 1.000000 1.000000 1.000000
 Kd 0.741511 0.741511 0.741511
 Ks 0.500000 0.500000 0.500000

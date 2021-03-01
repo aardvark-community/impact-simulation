@@ -1,8 +1,8 @@
-# Blender MTL File: 'laser.blend'
+# Blender MTL File: 'tool.blend'
 # Material Count: 2
 
 newmtl Material.001
-Ns 96.078431
+Ns 96.078443
 Ka 1.000000 1.000000 1.000000
 Kd 0.640000 0.640000 0.640000
 Ks 0.500000 0.500000 0.500000
@@ -13,14 +13,13 @@ illum 2
 map_Kd onepointfive_texture.png
 map_Ks onepointfive_spec.png
 
-newmtl Material.003
-Ns 96.078431
+newmtl Material.002
+Ns 225.000000
 Ka 1.000000 1.000000 1.000000
-Kd 0.698006 0.698006 0.698006
-Ks 0.518127 0.518127 0.518127
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
-Ni 1.000000
+Ni 1.450000
 d 1.000000
 illum 2
 map_Kd laser.png
-map_Ke laser.png

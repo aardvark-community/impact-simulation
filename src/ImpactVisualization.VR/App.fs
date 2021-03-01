@@ -317,7 +317,6 @@ module Demo =
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.diffuseTexture
-                do! DefaultSurfaces.normalMap
                 do! DefaultSurfaces.simpleLighting
             }
             |> Sg.pass pass0

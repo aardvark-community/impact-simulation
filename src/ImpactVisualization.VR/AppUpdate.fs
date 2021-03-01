@@ -243,7 +243,7 @@ module AppUpdate =
                     contrScreenTexture = texture "empty"}
             | _ -> model
         | ScaleHera (id, f) ->
-            printf "SCALE HERA \n"
+           // printf "SCALE HERA \n"
             match model.grabberId with 
             | Some i when i = id && model.allowHeraScaling ->
                 if model.touchpadDeviceId.IsSome then
@@ -269,7 +269,7 @@ module AppUpdate =
                         contrScreenTexture = texture "empty"}
             | _ -> model
         | MoveController (id, (trafo : Trafo3d)) -> 
-            printf "MOVE \n"
+            //printf "MOVE \n"
 
             let newInput = model.devicesTrafos.Add(id, trafo)
 
@@ -684,6 +684,7 @@ module AppUpdate =
                     contrScreenTexture = screenTexture}
                 | _ -> model
         | ChangeTouchpadPos (id, pos) -> 
+            //printf "CHANGE TOUCHPAD POS %A \n" pos
             let currTouchDevice = model.devicesTrafos.TryFind(id)
             match model.rayDeviceId with 
             | Some i when i = id && model.screenIntersection ->  client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)

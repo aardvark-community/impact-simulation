@@ -34,4 +34,3 @@ module TouchpadShaders =
             if f > 1.0 then discard() // round points magic
             return v.color
         }
-
