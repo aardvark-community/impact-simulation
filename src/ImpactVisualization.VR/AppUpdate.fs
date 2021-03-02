@@ -586,36 +586,36 @@ module AppUpdate =
                 }
         | ToggleControllerMenu id -> 
             let r, theta = convertCartesianToPolar model.currTouchPadPos
-            if r < 0.5 then
-                let level, isOpen = 
-                    let closeMenu = 0, false
-                    let goToNextMenu = (model.menuLevel + 1), true
-                    match model.menuControllerId with 
-                    | Some i when i = id ->
-                        match model.menuLevel with
-                        | 0 -> goToNextMenu
-                        | 1 -> if model.controllerMode = ControllerMode.Probe then goToNextMenu else closeMenu
-                        | _ -> closeMenu
-                    | _ -> 1, true
-                let screenTex = if not isOpen then (texture "empty") else model.contrScreenTexture
-                {model with 
-                    menuLevel = level
-                    controllerMenuOpen = isOpen
-                    showTexture = isOpen
-                    contrScreenTexture = screenTex
-                    sphereControllerId = None
-                    sphereScalerId = None
-                    rayDeviceId = None
-                    clippingPlaneDeviceId = None }
-            else  
-                model
+           // if r < 0.5 then
+            let level, isOpen = 
+                let closeMenu = 0, false
+                let goToNextMenu = (model.menuLevel + 1), true
+                match model.menuControllerId with 
+                | Some i when i = id ->
+                    match model.menuLevel with
+                    | 0 -> goToNextMenu
+                    | 1 -> if model.controllerMode = ControllerMode.Probe then goToNextMenu else closeMenu
+                    | _ -> closeMenu
+                | _ -> 1, true
+            let screenTex = if not isOpen then (texture "empty") else model.contrScreenTexture
+            {model with 
+                menuLevel = level
+                controllerMenuOpen = isOpen
+                showTexture = isOpen
+                contrScreenTexture = screenTex
+                sphereControllerId = None
+                sphereScalerId = None
+                rayDeviceId = None
+                clippingPlaneDeviceId = None }
+            //else  
+              //  model
         | OpenControllerMenu id ->
             let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
             let r, theta = convertCartesianToPolar model.currTouchPadPos
             let texture, screenTexture =
                 match model.menuLevel with
-                | l when l = 1 && r < 0.5 -> if model.controllerMode = ControllerMode.NoneMode then (texture "initial"), (texture "select-tool") else model.lastTouchpadModeTexture, model.lastContrScreenModeTexture
-                | l when l = 2 && r < 0.5 -> (texture "initial-attributes"), (texture "select-attribute")
+                | l when l = 1 -> if model.controllerMode = ControllerMode.NoneMode then (texture "initial"), (texture "select-tool") else model.lastTouchpadModeTexture, model.lastContrScreenModeTexture
+                | l when l = 2 -> (texture "initial-attributes"), (texture "select-attribute")
                 | _ -> model.touchpadTexture, model.contrScreenTexture
             if model.controllerMenuOpen then //TODO: Handle the case when opening the menu with the first controller and clicking on the second controller
                 {model with 
