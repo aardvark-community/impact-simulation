@@ -504,6 +504,7 @@ module Demo =
 
     let app (client : Browser) (viewTrafos : aval<Trafo3d []>) (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
         let frames = DataLoader.loadDataAllFrames runtime
+        client.SetFocus true
         {
             unpersist = Unpersist.instance
             initial = initial runtime frames

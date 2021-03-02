@@ -310,14 +310,14 @@ module AppUpdate =
                     let screenCoords = (V2d(hit.Coord.Y * screenResolution.ToV2d().X, hit.Coord.X * screenResolution.ToV2d().Y)).ToV2i()
                     let screenPos = PixelPosition(screenCoords, screenResolution.X, screenResolution.Y)
                     if model.rayTriggerClicked then
-                        //printf "client MOVE" 
+                        printf "client MOVE \n" 
                         client.Mouse.Move(screenPos)
-                    //printf "client Focus TRUE" 
-                    client.SetFocus true
+                    //printf "client Focus TRUE \n" 
+                    //client.SetFocus true
                     Ray3d(initRay.Origin, hit.Point), C4b.Green, screenPos
                 else
                    // printf "client Focus FALSE" 
-                    client.SetFocus false
+                    //client.SetFocus false
                     initRay, C4b.Red, PixelPosition()
     
             //HERA TRANSFORMATIONS UPDATE
@@ -483,8 +483,9 @@ module AppUpdate =
         | CreateRay (id, trafo) ->
             match model.rayDeviceId with 
             | Some i when i = id -> 
-                //printf "client Mouse DOWN" 
+                printf "client Mouse DOWN" 
                 client.Mouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
+               // if model.screenIntersection then client.SetFocus true
                 {model with 
                     rayTriggerClicked = true
                     clickPosition = Some model.screenHitPoint}
@@ -565,9 +566,11 @@ module AppUpdate =
                 | ControllerMode.Ray ->     
                     match model.rayDeviceId with
                     | Some i when i = id ->
-                       // printf "client Mouse UP + CLICK" 
+                        printf "client Mouse UP + CLICK \n" 
                         client.Mouse.Up(model.screenCoordsHitPos, MouseButtons.Left)
                         client.Mouse.Click(model.screenCoordsHitPos, MouseButtons.Left)
+                       // client.SetFocus false
+                      //  let temp = client.Execute "document.activeElement.blur();"
                         {model with 
                             rayTriggerClicked = false
                             clickPosition = None}
@@ -586,7 +589,6 @@ module AppUpdate =
                 }
         | ToggleControllerMenu id -> 
             let r, theta = convertCartesianToPolar model.currTouchPadPos
-           // if r < 0.5 then
             let level, isOpen = 
                 let closeMenu = 0, false
                 let goToNextMenu = (model.menuLevel + 1), true
@@ -607,8 +609,6 @@ module AppUpdate =
                 sphereScalerId = None
                 rayDeviceId = None
                 clippingPlaneDeviceId = None }
-            //else  
-              //  model
         | OpenControllerMenu id ->
             let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
             let r, theta = convertCartesianToPolar model.currTouchPadPos
@@ -694,11 +694,11 @@ module AppUpdate =
                     contrScreenTexture = screenTexture}
                 | _ -> model
         | ChangeTouchpadPos (id, pos) -> 
-            //printf "CHANGE TOUCHPAD POS %A \n" pos
+           // printf "CHANGE TOUCHPAD POS %A \n" pos
             let currTouchDevice = model.devicesTrafos.TryFind(id)
             match model.rayDeviceId with 
             | Some i when i = id && model.screenIntersection -> 
-                //printf "client SCROLL" 
+                printf "client SCROLL \n" 
                 client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
             | _ -> ()
             let newId = if pos.X = 0.0 && pos.Y = 0.0 then None else Some id //when both X and Y are equal to 0.0 it means we are currently not touching the touchpad
