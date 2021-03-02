@@ -184,13 +184,15 @@ module AppUpdate =
             menuControllerTrafo = Trafo3d.Identity
             menuControllerId = None
             menuLevel = 0
-            controllerMode = ControllerMode.Probe
-            attribute = RenderValue.Energy
+            controllerMode = ControllerMode.NoneMode
+            attribute = RenderValue.NoValue
             currTouchPadPos = V2d.OO
             touchpadDeviceId = None
             touchpadDeviceTrafo = Trafo3d.Identity
             touchpadTexture = FileTexture(texturesPath + "initial.png", true) :> ITexture
+            lastTouchpadModeTexture = FileTexture(texturesPath + "initial.png", true) :> ITexture
             contrScreenTexture = FileTexture(texturesPath + "empty.png", true) :> ITexture
+            lastContrScreenModeTexture = FileTexture(texturesPath + "empty.png", true) :> ITexture
             textureDeviceTrafo = Trafo3d.Identity
             showTexture = false
             heraBox = Box3d.Infinite
@@ -308,9 +310,9 @@ module AppUpdate =
                     let screenCoords = (V2d(hit.Coord.Y * screenResolution.ToV2d().X, hit.Coord.X * screenResolution.ToV2d().Y)).ToV2i()
                     let screenPos = PixelPosition(screenCoords, screenResolution.X, screenResolution.Y)
                     if model.rayTriggerClicked then
-                        printf "client MOVE" 
+                        //printf "client MOVE" 
                         client.Mouse.Move(screenPos)
-                    printf "client Focus TRUE" 
+                    //printf "client Focus TRUE" 
                     client.SetFocus true
                     Ray3d(initRay.Origin, hit.Point), C4b.Green, screenPos
                 else
@@ -481,7 +483,7 @@ module AppUpdate =
         | CreateRay (id, trafo) ->
             match model.rayDeviceId with 
             | Some i when i = id -> 
-                printf "client Mouse DOWN" 
+                //printf "client Mouse DOWN" 
                 client.Mouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
                 {model with 
                     rayTriggerClicked = true
@@ -563,7 +565,7 @@ module AppUpdate =
                 | ControllerMode.Ray ->     
                     match model.rayDeviceId with
                     | Some i when i = id ->
-                        printf "client Mouse UP + CLICK" 
+                       // printf "client Mouse UP + CLICK" 
                         client.Mouse.Up(model.screenCoordsHitPos, MouseButtons.Left)
                         client.Mouse.Click(model.screenCoordsHitPos, MouseButtons.Left)
                         {model with 
@@ -612,7 +614,7 @@ module AppUpdate =
             let r, theta = convertCartesianToPolar model.currTouchPadPos
             let texture, screenTexture =
                 match model.menuLevel with
-                | l when l = 1 && r < 0.5 -> (texture "initial"), (texture "select-tool")
+                | l when l = 1 && r < 0.5 -> if model.controllerMode = ControllerMode.NoneMode then (texture "initial"), (texture "select-tool") else model.lastTouchpadModeTexture, model.lastContrScreenModeTexture
                 | l when l = 2 && r < 0.5 -> (texture "initial-attributes"), (texture "select-attribute")
                 | _ -> model.touchpadTexture, model.contrScreenTexture
             if model.controllerMenuOpen then //TODO: Handle the case when opening the menu with the first controller and clicking on the second controller
@@ -651,7 +653,9 @@ module AppUpdate =
                 {model with 
                     controllerMode = newContrlMode
                     touchpadTexture = texture
-                    contrScreenTexture = screenTexture}
+                    lastTouchpadModeTexture = texture
+                    contrScreenTexture = screenTexture
+                    lastContrScreenModeTexture = screenTexture}
             | _ -> model
         | SelectAttribute id ->
             match model.menuControllerId with  
@@ -694,7 +698,7 @@ module AppUpdate =
             let currTouchDevice = model.devicesTrafos.TryFind(id)
             match model.rayDeviceId with 
             | Some i when i = id && model.screenIntersection -> 
-                printf "client SCROLL" 
+                //printf "client SCROLL" 
                 client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
             | _ -> ()
             let newId = if pos.X = 0.0 && pos.Y = 0.0 then None else Some id //when both X and Y are equal to 0.0 it means we are currently not touching the touchpad

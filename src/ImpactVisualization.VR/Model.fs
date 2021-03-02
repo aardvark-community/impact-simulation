@@ -17,6 +17,7 @@ type ControllerMode =
     | Probe = 0
     | Ray = 1
     | Clipping = 2
+    | NoneMode = 3
 
 type ProbeType = 
     | Sphere = 0 
@@ -30,6 +31,7 @@ type Attribute =
     | AlphaJutzi = 3
     | Pressure = 4
     | Density = 6
+    | NoAttribute = 7
 
 [<ModelType>]
 type Probe = {
@@ -121,8 +123,10 @@ type Model =
         touchpadDeviceId : Option<int>
         touchpadDeviceTrafo : Trafo3d
         touchpadTexture : ITexture 
+        lastTouchpadModeTexture : ITexture
         textureDeviceTrafo : Trafo3d
         showTexture : bool
 
         contrScreenTexture : ITexture
+        lastContrScreenModeTexture : ITexture
 }

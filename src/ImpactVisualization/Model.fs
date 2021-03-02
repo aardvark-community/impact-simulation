@@ -60,6 +60,7 @@ type RenderValue =
     | Pressure = 4
     | Mass = 5
     | Density = 6
+    | NoValue = 7
 
 //type FilterQuery<'a> = 'a -> Frame -> GenericChunk[]
 //type AppliedFilterQuery = Frame -> GenericChunk[]
