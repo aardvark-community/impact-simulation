@@ -127,7 +127,7 @@ module Demo =
         //        do! DefaultSurfaces.diffuseTexture
         //    }
         //    |> Sg.pass pass0
-         
+
         let deviceSgs = 
             info.state.devices |> AMap.toASet |> ASet.chooseA (fun (_,d) ->
                 d.model |> AVal.map (fun m ->
@@ -287,6 +287,14 @@ module Demo =
                 do! DefaultSurfaces.simpleLighting
             }
             |> Sg.pass pass0
+
+        
+        let tvPosSphereSg = 
+            Sg.sphere' 9 C4b.LightGreen 0.02
+            |> Sg.noEvents
+            |> Sg.translate' m.hitPoint
+            |> Sg.onOff m.screenIntersection
+            
 
         // TODO: X and Y must be swapped for some reason !! Find why??!!
         let message = 
@@ -486,7 +494,7 @@ module Demo =
 
         Sg.ofSeq [
             deviceSgs; currentSphereProbeSg; probesSgs; heraSg; clipPlaneSg; tvSg;
-             probeContrSg; laserContrSg; clippingContrSg; raySg;
+            tvPosSphereSg; probeContrSg; laserContrSg; clippingContrSg; raySg;
             browserSg; boxSg; touchpadSphereSg; touchpadPlaneSg
         ] |> Sg.shader {
                 do! DefaultSurfaces.trafo
