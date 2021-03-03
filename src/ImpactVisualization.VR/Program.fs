@@ -64,8 +64,8 @@ let main argv =
         Reflection.assemblyWebPart typeof<AardVolume.EmbeddedRessource>.Assembly
     ] |> ignore
     
-    let res = client.LoadUrl "http://localhost:4321/"
-
+    client.LoadUrl "http://localhost:4321/" |> ignore
+    
     Aardium.run {
         url "http://localhost:4321"
     }

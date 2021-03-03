@@ -317,7 +317,8 @@ module AppUpdate =
                     Ray3d(initRay.Origin, hit.Point), C4b.Green, screenPos
                 else
                    // printf "client Focus FALSE" 
-                    //client.SetFocus false
+                    //
+                   // client.SetFocus false
                     initRay, C4b.Red, PixelPosition()
     
             //HERA TRANSFORMATIONS UPDATE
@@ -568,7 +569,7 @@ module AppUpdate =
                     | Some i when i = id ->
                         printf "client Mouse UP + CLICK \n" 
                         client.Mouse.Up(model.screenCoordsHitPos, MouseButtons.Left)
-                        client.Mouse.Click(model.screenCoordsHitPos, MouseButtons.Left)
+                        //client.Mouse.Click(model.screenCoordsHitPos, MouseButtons.Left)
                        // client.SetFocus false
                       //  let temp = client.Execute "document.activeElement.blur();"
                         {model with 

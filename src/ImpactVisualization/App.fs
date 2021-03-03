@@ -937,6 +937,7 @@ module App =
                                 slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.z)) (fun v -> SetClippingPlane (Z, v))
 
                             ]
+                            
 
                             //br []
 
