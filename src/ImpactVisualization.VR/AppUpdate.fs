@@ -203,7 +203,9 @@ module AppUpdate =
         let mTwoD = model.twoDModel
 
         let getTexture tex = Option.defaultValue model.touchpadTexture tex
-        let texture tex = allTextures.TryFind(tex) |> getTexture
+        let texture tex = allTextures.TryFind(tex) |> getTexture    
+
+        //printf "VR STATE: %A \n" state
 
         match msg with
         | ThreeD _ -> model
@@ -416,6 +418,12 @@ module AppUpdate =
                 touchpadDeviceTrafo = newTouchpadDeviceTrafo
                 textureDeviceTrafo = newTextureDeviceTrafo}
         | ActivateControllerMode id ->
+            //let temp = 
+            //    state.devices 
+            //    |> HashMap.find id
+
+            //temp.startVibrate (MicroTime(TimeSpan(20L)))
+            printf "VR STATE: %A \n" state.devices
             let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
             if not model.controllerMenuOpen then 
                 match model.controllerMode with

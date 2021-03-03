@@ -130,6 +130,8 @@ module Demo =
 
         let deviceSgs = 
             info.state.devices |> AMap.toASet |> ASet.chooseA (fun (_,d) ->
+                //printf "Device Type: %A, %A \n" d.kind d.id
+                //printf "Device Vibrate: %A \n" d.startVibrate
                 d.model |> AVal.map (fun m ->
                     match m.Value with
                     | Some sg -> 
@@ -287,14 +289,12 @@ module Demo =
                 do! DefaultSurfaces.simpleLighting
             }
             |> Sg.pass pass0
-
         
         let tvPosSphereSg = 
             Sg.sphere' 9 C4b.LightGreen 0.02
             |> Sg.noEvents
             |> Sg.translate' m.hitPoint
             |> Sg.onOff m.screenIntersection
-            
 
         // TODO: X and Y must be swapped for some reason !! Find why??!!
         let message = 
