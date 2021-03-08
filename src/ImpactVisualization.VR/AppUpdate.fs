@@ -420,14 +420,14 @@ module AppUpdate =
         | ActivateControllerMode id ->
             //printf "VR STATE: %A \n" state.devices
             
-            let device = 
-                state.devices 
-                |> HashMap.tryFind id
-            match device with
-            | Some d ->
-                printfn "vibrate: %A" id
-                d.startVibrate (MicroTime.FromSeconds 0.5)
-            | _ -> ()
+            //let device = 
+            //    state.devices 
+            //    |> HashMap.tryFind id
+            //match device with
+            //| Some d ->
+            //    printfn "vibrate: %A" id
+            //    d.startVibrate (MicroTime.FromSeconds 0.1)
+            //| _ -> ()
             
             let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
             if not model.controllerMenuOpen then 

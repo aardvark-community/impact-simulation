@@ -74,6 +74,8 @@ module Demo =
         let pass0 = RenderPass.main
         let pass1 = RenderPass.after "pass1" RenderPassOrder.Arbitrary pass0 
         let pass2 = RenderPass.after "pass2" RenderPassOrder.Arbitrary pass1   
+        let pass3 = RenderPass.after "pass3" RenderPassOrder.Arbitrary pass2   
+
         
         let mutable mode = BlendMode(true)
         mode.Enabled <- true
@@ -160,13 +162,14 @@ module Demo =
                 ) m.sphereControllerTrafo m.sphereScale
 
         let currentSphereProbeSg = 
-            Sg.sphere 9 m.sphereColor m.sphereRadius
+            Sg.sphere 6 m.sphereColor m.sphereRadius
             |> Sg.noEvents
             |> Sg.trafo sphereTrafo
             |> Sg.onOff m.currentProbeManipulated
-            |> Sg.cullMode (CullMode.Front |> AVal.constant)
-            |> Sg.blendMode (AVal.constant mode)
-            |> Sg.pass pass1
+            |> Sg.fillMode (FillMode.Line |> AVal.constant)
+           // |> Sg.cullMode (CullMode.Front |> AVal.constant)
+           // |> Sg.blendMode (AVal.constant mode)
+            |> Sg.pass pass3
 
         let combinedTrafo = 
             viewTrafos |> AVal.map (fun trafos ->
@@ -176,6 +179,15 @@ module Demo =
             let combinedInv = (left.Backward + right.Backward)/2.0
             Trafo3d(combined, combinedInv))
 
+        let cfg : Aardvark.Rendering.Text.TextConfig = 
+            {
+                font              = Font "Calibri"
+                color             = C4b.White
+                align             = TextAlignment.Center
+                flipViewDependent = true
+                renderStyle       = RenderStyle.Normal
+        }
+
         let probesSgs = 
             m.allProbes |> AMap.toASet |> ASet.chooseA (fun (key, probe) ->
                 probe.Current |> AVal.map (fun p -> 
@@ -184,9 +196,9 @@ module Demo =
                             match probeIntId with 
                             | Some i when i = key -> 
                                 match delId with 
-                                | Some dId -> C4b(1.0,0.0,0.0,0.4) 
-                                | None -> C4b(0.0,1.0,0.0,0.4) 
-                            | _ -> if p.insideHera then C4b(0.0,0.0,1.0,0.4)  else C4b(1.0,1.0,1.0,0.4)
+                                | Some dId -> C4b(1.0,0.0,0.0,1.0) 
+                                | None -> C4b(0.0,1.0,0.0,1.0) 
+                            | _ -> if p.insideHera then C4b(0.0,0.0,1.0,1.0)  else C4b(1.0,1.0,1.0,1.0)
                         ) m.probeIntersectionId m.deletionControllerId
                     let statisticsScaleTrafo = 
                         m.sphereRadius |> AVal.map (fun r -> 
@@ -195,20 +207,37 @@ module Demo =
                             Trafo3d(Scale3d(statScale)))
                     let text = AVal.constant p.currStatistics
                     let statisticsSg = 
-                       Sg.textWithConfig ({ TextConfig.Default with renderStyle = RenderStyle.Normal })  text
-                       |> Sg.noEvents
-                       |> Sg.trafo statisticsScaleTrafo
-                       |> Sg.translate 0.0 (p.radius * 0.75) 0.0
-                       |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
-                       |> Sg.myBillboard combinedTrafo
-                       |> Sg.applyRuntime runtime
-                       |> Sg.noEvents
-                       |> Sg.transform (Trafo3d.Translation(p.center))
-                       |> Sg.translate 0.0 0.0 (p.radius * 1.8)
-                    Sg.sphere 9 color (AVal.constant p.radiusRelToHera)
+                        text
+                        |> AVal.map cfg.Layout
+                        |> Sg.shapeWithBackground C4b.Black Border2d.None
+                        |> Sg.noEvents
+                        |> Sg.trafo statisticsScaleTrafo
+                        |> Sg.translate 0.0 (p.radius * 0.75) 0.0
+                        |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+                        |> Sg.myBillboard combinedTrafo
+                        |> Sg.applyRuntime runtime
+                        |> Sg.noEvents
+                        |> Sg.transform (Trafo3d.Translation(p.center))
+                        |> Sg.translate 0.0 0.0 (p.radius * 1.8)
+                        |> Sg.blendMode (AVal.constant mode)
+                        |> Sg.pass pass2
+                    let statisticsSg2 = 
+                        Sg.textWithBackground (Font "Calibri") C4b.White C4b.Black Border2d.None text
+                        |> Sg.noEvents
+                        |> Sg.trafo statisticsScaleTrafo
+                        |> Sg.translate 0.0 (p.radius * 0.75) 0.0
+                        |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+                        |> Sg.myBillboard combinedTrafo
+                        |> Sg.applyRuntime runtime
+                        |> Sg.noEvents
+                        |> Sg.transform (Trafo3d.Translation(p.center))
+                        |> Sg.translate 0.0 0.0 (p.radius * 1.8)
+                        |> Sg.pass pass2
+                    Sg.sphere 6 color (AVal.constant p.radiusRelToHera)
                     |> Sg.noEvents
                     |> Sg.transform (Trafo3d.Translation(p.centerRelToHera))
                     |> Sg.trafo m.heraTransformations // so that it moves with hera!!!
+                    |> Sg.fillMode (FillMode.Line |> AVal.constant)
                     |> Sg.andAlso statisticsSg
                     |> Some
                 )
@@ -218,9 +247,10 @@ module Demo =
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
             }
-            |> Sg.cullMode (CullMode.Front |> AVal.constant)
-            |> Sg.blendMode (AVal.constant mode)
-            |> Sg.pass pass1
+            //|> Sg.cullMode (CullMode.Front |> AVal.constant)
+            //|> Sg.depthTest (AVal.constant DepthTestMode.Always)
+           // |> Sg.blendMode (AVal.constant mode)
+            |> Sg.pass pass2
 
         let contrClippingPlane = m.planeCorners |> AVal.map (fun c -> Plane3d(c.P0, c.P1, c.P2))
 
@@ -275,7 +305,7 @@ module Demo =
 
         let planePositions = m.planeCorners |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
 
-        let clipPlaneSg = planeSg planePositions (C4f(0.0,0.0,1.0,0.1)) FillMode.Fill (AVal.constant mode) pass1
+        let clipPlaneSg = planeSg planePositions (C4f(1.0,1.0,0.1,0.2)) FillMode.Fill (AVal.constant mode) pass3
 
         let tvSg = 
             Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"tv";"tv.obj"])
@@ -368,7 +398,7 @@ module Demo =
                 toEffect DefaultSurfaces.thickLine
                 ]
             |> Sg.depthTest (AVal.constant DepthTestMode.LessOrEqual)
-            |> Sg.pass pass2
+            |> Sg.pass pass1
 
         let quadPositions = m.tvQuad |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
 
@@ -462,14 +492,7 @@ module Demo =
                 |> Sg.trafo m.heraTransformations
                 |> Sg.fillMode (FillMode.Line |> AVal.constant)
 
-            let cfg : Aardvark.Rendering.Text.TextConfig = 
-                {
-                    font = Font "Calibri"
-                    color = C4b.White
-                    align = TextAlignment.Center
-                    flipViewDependent = true
-                    renderStyle       = RenderStyle.Billboard
-                }
+
 
             let t = 
                 Sg.textWithConfig ({ TextConfig.Default with renderStyle = RenderStyle.Normal })  (AVal.constant "hello world\nsuperstar")
