@@ -10,7 +10,7 @@ nuget Aardvark.Base                         ~> 5.0.24
 nuget Aardvark.Base.Incremental             ~> 5.0.24
 nuget Aardvark.Base.FSharp                  ~> 5.0.24
 
-nuget Aardvark.VR                           ~> 5.0.5
+nuget Aardvark.VR                           ~> 5.0.7
                                             
 nuget Aardvark.Base.Rendering               ~> 5.0.16
 nuget Aardvark.SceneGraph                   ~> 5.0.16
@@ -41,6 +41,9 @@ nuget Another.Unofficial.Xilium.CefGlue.UnpackNativeDependencies
 nuget Aardvark.Data.Durable.Codec = 0.2.18
 
 nuget sharpcompress
+
+nuget Silk.NET.GLFW                      = 1.7.0
+nuget Silk.NET.Core                      = 1.7.0
 
 group Build
 source https://api.nuget.org/v3/index.json
