@@ -203,13 +203,13 @@ module Demo =
                     let statisticsScaleTrafo = 
                         m.sphereRadius |> AVal.map (fun r -> 
                             let sphereScale = p.radius / r
-                            let statScale = 0.05 * sphereScale
+                            let statScale = 0.04 * sphereScale
                             Trafo3d(Scale3d(statScale)))
                     let text = AVal.constant p.currStatistics
                     let statisticsSg = 
                         text
                         |> AVal.map cfg.Layout
-                        |> Sg.shapeWithBackground C4b.Black Border2d.None
+                        |> Sg.shapeWithBackground C4b.Gray10 Border2d.None
                         |> Sg.noEvents
                         |> Sg.trafo statisticsScaleTrafo
                         |> Sg.translate 0.0 (p.radius * 0.75) 0.0

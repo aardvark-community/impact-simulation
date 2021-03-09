@@ -290,9 +290,8 @@ module App =
         let variance = roundDecimal (filteredPoints.Variance()) 
         let standardDeviation = roundDecimal (filteredPoints.StandardDeviation())
         let statisticsText = 
-            "Attr.: " + renderVal + "\n" + 
-            "No. of Points: " + string numOfPoints + "\n" + 
-            "Min: " + string min + " " +
+            renderVal.Capitalized() + " | " + string numOfPoints + " points \n" + 
+            "Min: " + string min + "\n" +
             "Max: " + string max + "\n" + 
             "Mean: " + string mean + "\n" + 
             "Median: " + string median + "\n" + 
