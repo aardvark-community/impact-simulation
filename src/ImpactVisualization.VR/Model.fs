@@ -42,6 +42,7 @@ type Probe = {
     radiusRelToHera : float
     insideHera      : bool
     currStatistics  : string
+    showBillboard   : bool 
 
     [<NonAdaptive>]
     id : string

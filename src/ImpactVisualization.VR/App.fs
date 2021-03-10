@@ -219,6 +219,7 @@ module Demo =
                         |> Sg.noEvents
                         |> Sg.transform (Trafo3d.Translation(p.center))
                         |> Sg.translate 0.0 0.0 (p.radius * 1.8)
+                        |> Sg.onOff (AVal.constant p.showBillboard)
                         |> Sg.blendMode (AVal.constant mode)
                         |> Sg.pass pass2
                     let statisticsSg2 = 

@@ -124,6 +124,8 @@ module Shaders =
             let normalizeData = uniform?NormalizeData
             let outliersRange : Range = uniform?OutliersRange 
 
+         
+
             let value renderValue = 
                 match renderValue with
                 | RenderValue.Energy -> p.Value.energy

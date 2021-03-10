@@ -113,7 +113,7 @@ module AppUpdate =
 
     let sphereIntersection (controllerSphere : Sphere3d) (probe : Sphere3d) = controllerSphere.Intersects(probe)
     
-    let createProbe (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) (inside : bool) (statistics : string )  : Probe = 
+    let createProbe (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) (inside : bool) (statistics : string ) (billboard : bool): Probe = 
         {
             id = Guid.NewGuid().ToString()
             center = pos
@@ -122,6 +122,7 @@ module AppUpdate =
             radiusRelToHera = radToHera
             insideHera = inside
             currStatistics = statistics
+            showBillboard = billboard
         }
     
     let convertCartesianToPolar (cartCoords : V2d) = 
@@ -204,6 +205,8 @@ module AppUpdate =
 
         let getTexture tex = Option.defaultValue model.touchpadTexture tex
         let texture tex = allTextures.TryFind(tex) |> getTexture    
+
+        let hmdPos = state.display.pose.deviceToWorld.GetModelOrigin()
 
         //printf "VR STATE: %A \n" state
 
@@ -366,26 +369,68 @@ module AppUpdate =
                     Quad3d(p0, p1, p2, p3)
                 | None -> model.planeCorners
 
+            let mutable copyOfAllProbes = model.allProbes //TODO: At each iteration the showBillboard must be false!!!
+
+            if model.allProbes.Count >= 2 then
+                model.allProbes
+                |> HashMap.iter (fun key probe -> 
+                    let temp = 
+                        model.allProbes
+                        |> HashMap.map (fun k p ->
+                            if k = key || p.showBillboard = false then
+                               p
+                            else 
+                                //TODO: Convert it into screenspace!!!!!!!!
+                                //let currProbeCenter = probe.center
+                                //let probeCenter = p.center
+                                let distance = probe.center.Distance(p.center)
+                                let allowedMaxDistance = 0.75 * (probe.radius + p.radius)
+                                let newVisibility = 
+                                    if (distance < allowedMaxDistance) then
+                                        let depthProbe = hmdPos.Distance(probe.center)
+                                        let depthP = hmdPos.Distance(p.center)
+                                        if depthProbe >= depthP then true else false 
+                                    else
+                                        true
+                                {p with showBillboard = newVisibility}
+                        )
+                    copyOfAllProbes <- temp
+                )
+            
+
+                //if model.allProbes.Count > 2 then
+                //    let mutable copyOfAllProbes = model.allProbes
+                //    while (not copyOfAllProbes.IsEmpty) do 
+                //        let keyFirst, pFirst = copyOfAllProbes |> Seq.head
+                //        copyOfAllProbes <- (copyOfAllProbes.Remove(keyFirst))
+                //        copyOfAllProbes
+                //        |> HashMap.map (fun key probe -> 
+                //            let newProbeValue = {probe with showBillboard = false}
+                //            model.allProbes.Add(key, newProbeValue)
+                //            )
+                //        |> ignore
+
+
             //PROBES UPDATE
             let allProbesUpdated =
-                if model.grabberId.IsSome && not model.allProbes.IsEmpty then 
-                    model.allProbes
-                    |> HashMap.map (fun key probe -> 
+                model.allProbes
+                |> HashMap.map (fun key probe -> 
+                    let billboardVisible = copyOfAllProbes.Item(key).showBillboard
+                    if model.grabberId.IsSome && not model.allProbes.IsEmpty then 
                         let newCenter = heraTrafos.Forward.TransformPos(probe.centerRelToHera)
                         let newRadius = probe.radiusRelToHera * heraTrafos.Forward.GetScaleVector3().X
                         let sphere = Sphere3d(newCenter, newRadius)
                         let intersection = heraBBox.Intersects(sphere)
-                        {
+                        { probe with 
                             center = newCenter
                             radius = newRadius
-                            centerRelToHera = probe.centerRelToHera
-                            radiusRelToHera = probe.radiusRelToHera
                             insideHera = intersection
-                            id = probe.id
-                            currStatistics = probe.currStatistics
-                        })
-                else 
-                    model.allProbes
+                            showBillboard = billboardVisible
+                        }
+                    else 
+                        {probe with showBillboard = billboardVisible}
+                )
+
 
             //MENU, TOUCHPAD AND TEXTURES TRAFOS
             let currMenuTrafo = newOrOldTrafo id trafo model.menuControllerId model.menuControllerTrafo
@@ -553,7 +598,7 @@ module AppUpdate =
                         let intersection = model.heraBox.Intersects(sphere)
                                     
                         let array, stats = filterDataForOneFrameSphere frames.[mTwoD.frame] (Some sphereTransformed) model.attribute
-                        let probe = createProbe spherePos sphereRadius spherePosTransformed radiusTransformed intersection stats
+                        let probe = createProbe spherePos sphereRadius spherePosTransformed radiusTransformed intersection stats true
 
                         // printf "Statistics: \n %A" stats
                         let filteredData = if intersection then array else mTwoD.data.arr
