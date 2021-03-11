@@ -29,6 +29,15 @@ module Demo =
     open Aardvark.UI.Primitives
     open Aardvark.Base.Rendering
 
+
+    let combinedTrafo (trafos : aval<Trafo3d []>) = 
+        trafos |> AVal.map (fun trafos ->
+        let left = trafos.[0]
+        let right = trafos.[1]
+        let combined = (left.Forward + right.Forward)/2.0
+        let combinedInv = (left.Backward + right.Backward)/2.0
+        Trafo3d(combined, combinedInv))
+
     let threads (model : Model) =
         AardVolume.App.threads model.twoDModel |> ThreadPool.map TwoD
         
@@ -69,7 +78,7 @@ module Demo =
     let ui (runtime : IRuntime) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : DomNode<Message> = // 2D UI
         div [] [AardVolume.App.view runtime data m.twoDModel |> UI.map TwoD]
 
-    let vr (runtime : IRuntime) (client : Browser) (viewTrafos : aval<Trafo3d []>) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
+    let vr (runtime : IRuntime) (client : Browser) (viewTrafo : aval<Trafo3d>) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
        
         let pass0 = RenderPass.main
         let pass1 = RenderPass.after "pass1" RenderPassOrder.Arbitrary pass0 
@@ -171,14 +180,6 @@ module Demo =
            // |> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass3
 
-        let combinedTrafo = 
-            viewTrafos |> AVal.map (fun trafos ->
-            let left = trafos.[0]
-            let right = trafos.[1]
-            let combined = (left.Forward + right.Forward)/2.0
-            let combinedInv = (left.Backward + right.Backward)/2.0
-            Trafo3d(combined, combinedInv))
-
         let cfg : Aardvark.Rendering.Text.TextConfig = 
             {
                 font              = Font "Calibri"
@@ -214,25 +215,13 @@ module Demo =
                         |> Sg.trafo statisticsScaleTrafo
                         |> Sg.translate 0.0 (p.radius * 0.75) 0.0
                         |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
-                        |> Sg.myBillboard combinedTrafo
+                        |> Sg.myBillboard viewTrafo
                         |> Sg.applyRuntime runtime
                         |> Sg.noEvents
                         |> Sg.transform (Trafo3d.Translation(p.center))
                         |> Sg.translate 0.0 0.0 (p.radius * 1.8)
                         |> Sg.onOff (AVal.constant p.showBillboard)
                         |> Sg.blendMode (AVal.constant mode)
-                        |> Sg.pass pass2
-                    let statisticsSg2 = 
-                        Sg.textWithBackground (Font "Calibri") C4b.White C4b.Black Border2d.None text
-                        |> Sg.noEvents
-                        |> Sg.trafo statisticsScaleTrafo
-                        |> Sg.translate 0.0 (p.radius * 0.75) 0.0
-                        |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
-                        |> Sg.myBillboard combinedTrafo
-                        |> Sg.applyRuntime runtime
-                        |> Sg.noEvents
-                        |> Sg.transform (Trafo3d.Translation(p.center))
-                        |> Sg.translate 0.0 0.0 (p.radius * 1.8)
                         |> Sg.pass pass2
                     Sg.sphere 6 color (AVal.constant p.radiusRelToHera)
                     |> Sg.noEvents
@@ -283,7 +272,7 @@ module Demo =
                 model.scalingFactorHera
                 m.renderValue m.currentMap m.domainRange m.clippingPlane contrClippingPlane 
                 m.boxFilter sphereProbe m.currFilters m.dataRange m.colorValue.c 
-                m.cameraState.view combinedTrafo
+                m.cameraState.view viewTrafo
                 runtime
             |> Sg.noEvents
             |> Sg.trafo model.heraTransformations
@@ -465,21 +454,33 @@ module Demo =
         
             let quadSg = planeSg quadPositions C4f.Gray10 FillMode.Fill (AVal.constant BlendMode.None) pass0
 
-            //let statisticsSg = 
-            //    Sg.textWithConfig cfg (AVal.constant "Hello, User! \n Flip the text \n Float 5.505050 \n Not working ;(")
-            //    |> Sg.noEvents
-            //    |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
-            //    |> Sg.scale 0.1
+            let statisticsSg = 
+                Sg.textWithConfig cfg (AVal.constant "Hello, User! \n Flip the text \n Float 5.505050 \n Not working ;(")
+                |> Sg.noEvents
+                |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+                |> Sg.scale 0.1
 
-            //let statisticsSg = 
-            //    Sg.textWithBackground (Font "Calibri") C4b.White C4b.Blue Border2d.None ( AVal.constant "Hello, User! \n Flip the text \n Float 5.505050 \n Not working ;(")
-            //    |> Sg.noEvents
-            //    |> Sg.scale 0.1
-            //    |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
-            //    |> Sg.billboard
-            //    |> Sg.noEvents
+            let statisticsSg = 
+                Sg.textWithBackground (Font "Calibri") C4b.White C4b.Blue Border2d.None ( AVal.constant "Hello, User! \n Flip the text \n Float 5.505050 \n Not working ;(")
+                |> Sg.noEvents
+                |> Sg.scale 0.1
+                |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+                |> Sg.billboard
+                |> Sg.noEvents
 
-                //|> Sg.transform (Trafo3d.RotationZInDegrees(180.0))
+                |> Sg.transform (Trafo3d.RotationZInDegrees(180.0))
+            //let statisticsSg2 = 
+            //    Sg.textWithBackground (Font "Calibri") C4b.White C4b.Black Border2d.None text
+            //    |> Sg.noEvents
+            //    |> Sg.trafo statisticsScaleTrafo
+            //    |> Sg.translate 0.0 (p.radius * 0.75) 0.0
+            //    |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+            //    |> Sg.myBillboard viewTrafo
+            //    |> Sg.applyRuntime runtime
+            //    |> Sg.noEvents
+            //    |> Sg.transform (Trafo3d.Translation(p.center))
+            //    |> Sg.translate 0.0 0.0 (p.radius * 1.8)
+            //    |> Sg.pass pass2
         
             let world = 
                 Sg.textWithConfig TextConfig.Default m.text
@@ -500,7 +501,7 @@ module Demo =
                 |> Sg.noEvents
                 |> Sg.scale 0.08
                 |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
-                |> Sg.myBillboard combinedTrafo
+                |> Sg.myBillboard viewTrafo
                 |> Sg.applyRuntime runtime
                 |> Sg.noEvents
 
@@ -534,16 +535,18 @@ module Demo =
             do! DefaultSurfaces.simpleLighting
         }
 
-    let app (client : Browser) (viewTrafos : aval<Trafo3d []>) (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
+    let app (client : Browser) (viewTrafos : aval<Trafo3d []>) (projTrafos : aval<Trafo3d []>) (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
         let frames = DataLoader.loadDataAllFrames runtime
         client.SetFocus true
+        let viewTrafo = combinedTrafo viewTrafos
+        let projTrafo = combinedTrafo projTrafos
         {
             unpersist = Unpersist.instance
             initial = initial runtime frames
-            update = update runtime client frames
+            update = update runtime client viewTrafo projTrafo frames
             threads = threads
             input = input 
             ui = ui runtime frames
-            vr = vr runtime client viewTrafos frames
+            vr = vr runtime client viewTrafo frames
             pauseScene = Some pause
         }

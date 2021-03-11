@@ -136,6 +136,7 @@ module AppUpdate =
             if y < 0.0 then angle + 360.0 else angle
         r, theta
 
+
     let initial runtime frames = 
         {   
             twoDModel = AardVolume.App.initial frames
@@ -200,7 +201,7 @@ module AppUpdate =
             heraTransformations = Trafo3d(Scale3d(0.05)) * Trafo3d.Translation(0.0, 0.0, 0.7)
         }
 
-    let rec update (runtime : IRuntime) (client : Browser) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
+    let rec update (runtime : IRuntime) (client : Browser) (viewTrafo : aval<Trafo3d>) (projTrafo : aval<Trafo3d>) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
         let mTwoD = model.twoDModel
 
         let getTexture tex = Option.defaultValue model.touchpadTexture tex
@@ -208,7 +209,27 @@ module AppUpdate =
 
         let hmdPos = state.display.pose.deviceToWorld.GetModelOrigin()
 
+        let viewProjTrafoAVal = AVal.map2 (fun v p -> v * p) viewTrafo projTrafo
+        let viewProj = AVal.force(viewProjTrafoAVal)
+        let viewTr = AVal.force(viewTrafo)
+        let projTr = AVal.force(projTrafo)
+        //printf "View Trafo: %A \n" (AVal.force(viewTrafo))
+       // printf "ViewProj Trafo: %A \n" (AVal.force(viewProjTrafoAVal))
+
         //printf "VR STATE: %A \n" state
+
+        // https://stackoverflow.com/questions/3717226/radius-of-projected-sphere
+        let probeInScreenCoordinates (probeCenter : V3d) (radius : float) = 
+            let center_view = viewTr.Forward.TransformPos(probeCenter)
+            let pointOnSphere = probeCenter + V3d(radius, 0.0, 0.0)
+            let pointOnSphere_view = viewTr.Forward.TransformPos(pointOnSphere)
+            let radius_view = center_view.Distance(pointOnSphere_view)
+            let pointOnSphere_perpendicular = center_view + V3d(radius_view, 0.0, 0.0)
+            let center_screen = projTr.Forward.TransformPosProj(center_view)
+            let pointOnSphere_screen = projTr.Forward.TransformPosProj(pointOnSphere_perpendicular)
+            let radius_screen = center_screen.Distance(pointOnSphere_screen)
+            center_screen, radius_screen
+
 
         match msg with
         | ThreeD _ -> model
@@ -276,8 +297,6 @@ module AppUpdate =
                         contrScreenTexture = texture "empty"}
             | _ -> model
         | MoveController (id, (trafo : Trafo3d)) -> 
-            //printf "MOVE \n"
-
             let newInput = model.devicesTrafos.Add(id, trafo)
 
             //CURRENT SPHERE UPDATE
@@ -387,30 +406,42 @@ module AppUpdate =
                 else 
                     model.allProbes                
 
+            //TODO: when a probe is hovered with a controller, hide all billboards in proximity!!!
             let allProbesUpdated = 
                 if model.allProbes.Count >= 2 then
                     probesUpdate
                     |> HashMap.map (fun key probe -> 
+                        let currProbeIntersected = 
+                            match probeIntersection with 
+                            | Some prKey when prKey = key -> true
+                            | _ -> false
                         let allProbesWithoutCurrent = probesUpdate.Remove(key)
+                        let probePos, probeRadius = probeInScreenCoordinates probe.center probe.radius
                         let probeVisible = 
                             allProbesWithoutCurrent
                             |> HashMap.forall (fun k p ->
-                                //TODO: Convert it into screenspace!!!!!!!!
                                 //let currProbeCenter = probe.center
                                 //let probeCenter = p.center
-                                let distanceCurr = probe.center.Distance(p.center)
-                                let allowedMinDistance = 0.75 * (probe.radius + p.radius)
-                                let depthCurr = hmdPos.Distance(probe.center)
-                                let depth = hmdPos.Distance(p.center)
+                                //let distanceWorld = probe.center.Distance(p.center)
+                                //let allowedMinDistanceWorld = 0.65 * (probe.radius + p.radius)
+                                //let depthCurr = hmdPos.Distance(probe.center)
+                                //let depth = hmdPos.Distance(p.center)
+                                let pPos, pRadius = probeInScreenCoordinates p.center p.radius
+                                let distance = probePos.XY.Distance(pPos.XY)
+                                let allowedMinDistance = 0.65 * (probeRadius + pRadius)
                                 let predicate = 
-                                    if (distanceCurr < allowedMinDistance) then
-                                        depthCurr < depth
+                                    if (distance < allowedMinDistance) then // checks if the two probes intersect
+                                        if probePos.Z < pPos.Z then // checks wether the current probe is closer to the screen
+                                            true
+                                        else 
+                                            not p.showBillboard
                                     else
                                         true
                                 predicate
                             )
-                        {probe with showBillboard = probeVisible}
+                        {probe with showBillboard = (if currProbeIntersected then true else probeVisible)}
                     )
+
                 else 
                     probesUpdate
             
@@ -476,9 +507,9 @@ module AppUpdate =
             let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
             if not model.controllerMenuOpen then 
                 match model.controllerMode with
-                | ControllerMode.Probe -> update runtime client frames state vr model (CreateProbe (id, currDeviceTrafo))
-                | ControllerMode.Ray -> update runtime client frames state vr model (CreateRay (id, currDeviceTrafo))
-                | ControllerMode.Clipping -> update runtime client frames state vr model (CreateClipping (id, currDeviceTrafo))
+                | ControllerMode.Probe -> update runtime client viewTrafo projTrafo frames state vr model (CreateProbe (id, currDeviceTrafo))
+                | ControllerMode.Ray -> update runtime client viewTrafo projTrafo frames state vr model (CreateRay (id, currDeviceTrafo))
+                | ControllerMode.Clipping -> update runtime client viewTrafo projTrafo frames state vr model (CreateClipping (id, currDeviceTrafo))
                 | _ -> model
             else 
                 { model with 
