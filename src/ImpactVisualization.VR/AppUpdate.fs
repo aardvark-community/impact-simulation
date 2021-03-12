@@ -418,26 +418,30 @@ module AppUpdate =
                         let allProbesWithoutCurrent = probesUpdate.Remove(key)
                         let probePos, probeRadius = probeInScreenCoordinates probe.center probe.radius
                         let probeVisible = 
-                            allProbesWithoutCurrent
-                            |> HashMap.forall (fun k p ->
-                                //let currProbeCenter = probe.center
-                                //let probeCenter = p.center
-                                //let distanceWorld = probe.center.Distance(p.center)
-                                //let allowedMinDistanceWorld = 0.65 * (probe.radius + p.radius)
-                                //let depthCurr = hmdPos.Distance(probe.center)
-                                //let depth = hmdPos.Distance(p.center)
-                                let pPos, pRadius = probeInScreenCoordinates p.center p.radius
-                                let distance = probePos.XY.Distance(pPos.XY)
-                                let allowedMinDistance = 0.65 * (probeRadius + pRadius)
-                                let predicate = 
-                                    if (distance < allowedMinDistance) then // checks if the two probes intersect
-                                        if probePos.Z < pPos.Z then // checks wether the current probe is closer to the screen
+                            if currProbeIntersected then true
+                            else
+                                allProbesWithoutCurrent
+                                |> HashMap.forall (fun k p ->
+                                    //let currProbeCenter = probe.center
+                                    //let probeCenter = p.center
+                                    //let distanceWorld = probe.center.Distance(p.center)
+                                    //let allowedMinDistanceWorld = 0.65 * (probe.radius + p.radius)
+                                    //let depthCurr = hmdPos.Distance(probe.center)
+                                    //let depth = hmdPos.Distance(p.center)
+                                    let pPos, pRadius = probeInScreenCoordinates p.center p.radius
+                                    let distance = probePos.XY.Distance(pPos.XY)
+                                    let allowedMinDistance = 0.65 * (probeRadius + pRadius)
+                                    let predicate = 
+                                        if (distance < allowedMinDistance) then // checks if the two probes intersect
+                                            if probePos.Z < pPos.Z then // checks wether the current probe is closer to the screen
+                                                match probeIntersection with 
+                                                | Some prKey when prKey = k -> false
+                                                | _ -> true
+                                            else 
+                                                not p.showBillboard
+                                        else
                                             true
-                                        else 
-                                            not p.showBillboard
-                                    else
-                                        true
-                                predicate
+                                    predicate
                             )
                         {probe with showBillboard = (if currProbeIntersected then true else probeVisible)}
                     )
