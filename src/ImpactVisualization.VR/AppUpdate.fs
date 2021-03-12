@@ -388,7 +388,7 @@ module AppUpdate =
                     Quad3d(p0, p1, p2, p3)
                 | None -> model.planeCorners
 
-            //PROBES UPDATE
+            //PROBES UPDATE WHEN HERA GRABBED
             let probesUpdate =
                 if model.grabberId.IsSome && not model.allProbes.IsEmpty then 
                     model.allProbes
@@ -406,7 +406,7 @@ module AppUpdate =
                 else 
                     model.allProbes                
 
-            //TODO: when a probe is hovered with a controller, hide all billboards in proximity!!!
+            // UPDATE VISIBILITY OF THE BILLBOARDS ABOVE PROBES
             let allProbesUpdated = 
                 if model.allProbes.Count >= 2 then
                     probesUpdate
@@ -422,8 +422,6 @@ module AppUpdate =
                             else
                                 allProbesWithoutCurrent
                                 |> HashMap.forall (fun k p ->
-                                    //let currProbeCenter = probe.center
-                                    //let probeCenter = p.center
                                     //let distanceWorld = probe.center.Distance(p.center)
                                     //let allowedMinDistanceWorld = 0.65 * (probe.radius + p.radius)
                                     //let depthCurr = hmdPos.Distance(probe.center)
@@ -431,40 +429,19 @@ module AppUpdate =
                                     let pPos, pRadius = probeInScreenCoordinates p.center p.radius
                                     let distance = probePos.XY.Distance(pPos.XY)
                                     let allowedMinDistance = 0.65 * (probeRadius + pRadius)
-                                    let predicate = 
-                                        if (distance < allowedMinDistance) then // checks if the two probes intersect
-                                            if probePos.Z < pPos.Z then // checks wether the current probe is closer to the screen
-                                                match probeIntersection with 
-                                                | Some prKey when prKey = k -> false
-                                                | _ -> true
-                                            else 
-                                                not p.showBillboard
-                                        else
-                                            true
-                                    predicate
+                                    if (distance < allowedMinDistance) then // checks if the two probes intersect
+                                        if probePos.Z < pPos.Z then // checks wether the current probe is closer to the screen
+                                            match probeIntersection with 
+                                            | Some prKey when prKey = k -> false
+                                            | _ -> true
+                                        else not p.showBillboard
+                                    else true
                             )
-                        {probe with showBillboard = (if currProbeIntersected then true else probeVisible)}
+                        {probe with showBillboard = probeVisible}
                     )
 
                 else 
                     probesUpdate
-            
-
-                //if model.allProbes.Count > 2 then
-                //    let mutable copyOfAllProbes = model.allProbes
-                //    while (not copyOfAllProbes.IsEmpty) do 
-                //        let keyFirst, pFirst = copyOfAllProbes |> Seq.head
-                //        copyOfAllProbes <- (copyOfAllProbes.Remove(keyFirst))
-                //        copyOfAllProbes
-                //        |> HashMap.map (fun key probe -> 
-                //            let newProbeValue = {probe with showBillboard = false}
-                //            model.allProbes.Add(key, newProbeValue)
-                //            )
-                //        |> ignore
-
-
-  
-
 
             //MENU, TOUCHPAD AND TEXTURES TRAFOS
             let currMenuTrafo = newOrOldTrafo id trafo model.menuControllerId model.menuControllerTrafo

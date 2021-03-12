@@ -259,6 +259,18 @@ module Demo =
                     Sphere3d(spherePos, sphereRadius)
                 ) m.sphereControllerTrafo probeScale m.sphereRadius
 
+        let allPlacedSpheres = 
+            m.allProbes
+            |> AMap.map (fun key probe ->
+                let p = probe.Current |> AVal.force
+                let sphere = Sphere3d(p.center, p.radius)
+                sphere                    
+                )
+            |> AMap.toASetValues
+            |> ASet.toAList
+            |> AList.toAVal
+            |> AVal.map (fun value -> value.AsArray)
+
        // let sphereProbe = Sphere3d.Invalid |> AVal.constant
 
         let heraSg = 
@@ -271,7 +283,7 @@ module Demo =
                 m.lowerOutliers m.higherOutliers m.outliersRange
                 model.scalingFactorHera
                 m.renderValue m.currentMap m.domainRange m.clippingPlane contrClippingPlane 
-                m.boxFilter sphereProbe m.currFilters m.dataRange m.colorValue.c 
+                m.boxFilter sphereProbe allPlacedSpheres m.currFilters m.dataRange m.colorValue.c 
                 m.cameraState.view viewTrafo
                 runtime
             |> Sg.noEvents

@@ -72,6 +72,11 @@ module Shaders =
             addressV WrapMode.Clamp
         }
 
+    //let pointInSphere (point : V3d) (sphere : Sphere3d) = 
+    //    let pos = sphere.Center
+    //    let r = sphere.Radius
+    //    (point.X - pos.X) ** 2.0 + (point.Y - pos.Y) ** 2.0 + (point.Z - pos.Z) ** 2.0 <= r ** 2.0
+
     //let vs (v : Vertex) =
     //    vertex {
     //        let color = 
@@ -203,15 +208,20 @@ module Shaders =
             let dataRange : Range = uniform?DataRange
             let filterBox : Box3f = uniform?Filter
             let boxIsSet : bool = uniform?BoxSet
-            let sphereProbe : Sphere3d = uniform?SphereProbe
             let filters : Filters = uniform?CurrFilters
             let discardPoints = uniform?DiscardPoints
             let renderValue = uniform?RenderValue
             let colorValue = uniform?Color
             let normalizeData = uniform?NormalizeData
             let outliersRange : Range = uniform?OutliersRange 
+            let plane = uniform?ClippingPlane
+            let pSize = uniform?PointSize
 
-           
+            //VR Variables only
+            let controllerPlane : Plane3d = uniform?ControllerClippingPlane
+            let sphereProbe : Sphere3d = uniform?SphereProbe
+            let allProbes : Sphere3d[] = uniform?AllSpheres
+
             let value renderValue = 
                 match renderValue with
                 | RenderValue.Energy -> p.Value.energy
@@ -261,34 +271,53 @@ module Shaders =
             let maxOutlier = outliersRange.max
             let isInsideOutlierRange = minOutlier <= currValue && currValue <= maxOutlier
 
-            let plane = uniform?ClippingPlane
-
-            let pSize = uniform?PointSize
-
-            let controllerPlane : Plane3d = uniform?ControllerClippingPlane
-
             let isOutsideControllerPlane = 
                 if controllerPlane.Normal = V3d.Zero then
                     true
                 else 
                     Vec.Dot(controllerPlane.Normal, pPos) - controllerPlane.Distance >= 0.0
 
-            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && isNotInsideSphere && isInsideOutlierRange //&& minRange <= linearCoord && linearCoord <= maxRange
+            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && isInsideOutlierRange //&& minRange <= linearCoord && linearCoord <= maxRange
 
             let color = if (isInAllRanges) then transferFunc else colorValue
             let size = if (isNotInsideSphere) then (pSize + 8.0) else pSize
 
-            if (wpInv.X >= dm.x.min && wpInv.X <= dm.x.max && wpInv.Y >= dm.y.min && wpInv.Y <= dm.y.max && wpInv.Z >= dm.z.min && wpInv.Z <= dm.z.max) &&
-                (wpInv.X <= plane.x && wpInv.Y <= plane.y && wpInv.Z <= plane.z) && isOutsideControllerPlane then
-                if (discardPoints) then
-                    if (isInAllRanges) then
-                        yield  { p.Value with 
-                                    pointColor = color
-                                    pointSize = uniform?PointSize}
-                else
-                    yield { p.Value with 
-                                pointColor = color
-                                pointSize = uniform?PointSize}
+            // SHORTLY DISABLED
+            //if (wpInv.X >= dm.x.min && wpInv.X <= dm.x.max && wpInv.Y >= dm.y.min && wpInv.Y <= dm.y.max && wpInv.Z >= dm.z.min && wpInv.Z <= dm.z.max) &&
+            //    (wpInv.X <= plane.x && wpInv.Y <= plane.y && wpInv.Z <= plane.z) && isOutsideControllerPlane then
+            //    if (discardPoints) then
+            //        if (isInAllRanges) then
+            //            yield  { p.Value with 
+            //                        pointColor = color
+            //                        pointSize = uniform?PointSize}
+            //    else
+            //        yield { p.Value with 
+            //                    pointColor = color
+            //                    pointSize = uniform?PointSize}
+
+            //let pointInAProbe = 
+            //    let mutable inAProbe = false
+            //    for i in 0 .. allProbes.Length - 1 do 
+            //        let temp = allProbes.[i]
+            //        if temp.Radius > 0.0 then 
+            //            inAProbe <- true 
+            //        else 
+            //            inAProbe <- false
+            //    inAProbe
+                    
+                
+            //    |> IndexList.exists (fun i sphere -> 
+            //        pointInSphere pPos sphere)
+
+            if (pPos.X - spPos.X) ** 2.0 + (pPos.Y - spPos.Y) ** 2.0 + (pPos.Z - spPos.Z) ** 2.0 <= radius ** 2.0 then
+                yield  { p.Value with 
+                            pointColor = transferFunc
+                            pointSize = uniform?PointSize}
+            else 
+                yield  { p.Value with 
+                            pointColor = V4d(transferFunc.XYZ/2.0, 1.0)
+                            pointSize = uniform?PointSize}
+
         }
         
     let fs (v : Vertex) = 
@@ -321,7 +350,7 @@ module Shaders =
             //BLINN-PHONG LIGHTING MODEL FROM MY LECTURE
             let lp = V3d(0.0, 40.0, 0.0)
             let spherePos_view = viewMatrix * v.wp
-            let posOnSphere = spherePos_view + V4d(norm, 1.0) * pointRadius // TODO: not sure if the radius is always one
+            let posOnSphere = spherePos_view + V4d(norm, 1.0) * pointRadius // Radius is different for 2D and VR
 
             //Depth reconstruction
             let posOnSphere_screen = projectionMatrix * posOnSphere
@@ -484,7 +513,7 @@ module HeraSg =
                            (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
                            (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
                            (contrClippingPlane : aval<Plane3d>)
-                           (filterBox : aval<option<Box3f>>) (sphereProbe : aval<Sphere3d>)
+                           (filterBox : aval<option<Box3f>>) (sphereProbe : aval<Sphere3d>) (allSpheres : aval<Sphere3d []>)
                            (currFilters : aval<Filters>) 
                            (dataRange : aval<Range>) (colorValue : aval<C4b>) 
                            (cameraView : aval<CameraView>) (viewTrafoVR : aval<Trafo3d>)
@@ -567,3 +596,4 @@ module HeraSg =
         |> Sg.uniform "DataRange" dataRange
         |> Sg.uniform "Color" color
         |> Sg.uniform "SphereProbe" sphereProbe  
+        |> Sg.uniform "AllSpheres" allSpheres
