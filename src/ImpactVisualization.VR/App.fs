@@ -263,13 +263,17 @@ module Demo =
             m.allProbes
             |> AMap.map (fun key probe ->
                 let p = probe.Current |> AVal.force
-                let sphere = Sphere3d(p.center, p.radius)
-                sphere                    
+                V4f(p.center, p.radius)                 
                 )
             |> AMap.toASetValues
             |> ASet.toAList
             |> AList.toAVal
             |> AVal.map (fun value -> value.AsArray)
+
+        let spheresLength =
+            m.allProbes
+            |> AMap.toAVal
+            |> AVal.map (fun probes -> probes.Count)
 
        // let sphereProbe = Sphere3d.Invalid |> AVal.constant
 
@@ -283,7 +287,8 @@ module Demo =
                 m.lowerOutliers m.higherOutliers m.outliersRange
                 model.scalingFactorHera
                 m.renderValue m.currentMap m.domainRange m.clippingPlane contrClippingPlane 
-                m.boxFilter sphereProbe allPlacedSpheres m.currFilters m.dataRange m.colorValue.c 
+                m.boxFilter sphereProbe allPlacedSpheres spheresLength
+                m.currFilters m.dataRange m.colorValue.c 
                 m.cameraState.view viewTrafo
                 runtime
             |> Sg.noEvents

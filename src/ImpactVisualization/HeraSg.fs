@@ -72,6 +72,9 @@ module Shaders =
             addressV WrapMode.Clamp
         }
 
+    type UniformScope with
+        member x.SpheresInfos : V4f[] = uniform?StorageBuffer?SpheresInfos
+
     //let pointInSphere (point : V3d) (sphere : Sphere3d) = 
     //    let pos = sphere.Center
     //    let r = sphere.Radius
@@ -220,7 +223,6 @@ module Shaders =
             //VR Variables only
             let controllerPlane : Plane3d = uniform?ControllerClippingPlane
             let sphereProbe : Sphere3d = uniform?SphereProbe
-            let allProbes : Sphere3d[] = uniform?AllSpheres
 
             let value renderValue = 
                 match renderValue with
@@ -251,21 +253,21 @@ module Shaders =
             let min = filterBox.Min
             let max = filterBox.Max
 
-            let pos = V3f(wpInv)
+            let posInv = V3f(wpInv)
             let pPos = V3d(wp)
 
             let spPos = sphereProbe.Center
-            let radius = sphereProbe.Radius
+            let r = sphereProbe.Radius
 
-            let isNotInsideSphere = 
-                if radius < 0.0 then 
-                    true
+            let isInsideCurrProbe = 
+                if r < 0.0 then 
+                    false
                 else 
-                    (pPos.X - spPos.X) ** 2.0 + (pPos.Y - spPos.Y) ** 2.0 + (pPos.Z - spPos.Z) ** 2.0 <= radius ** 2.0
+                    (pPos.X - spPos.X) ** 2.0 + (pPos.Y - spPos.Y) ** 2.0 + (pPos.Z - spPos.Z) ** 2.0 <= r ** 2.0
 
             let minRange = dataRange.min
             let maxRange = dataRange.max
-            let isInsideMinMaxRange = min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z
+            let isInsideMinMaxRange = min.X <= posInv.X && posInv.X <= max.X && min.Y <= posInv.Y && posInv.Y <= max.Y && min.Z <= posInv.Z && posInv.Z <= max.Z
 
             let minOutlier = outliersRange.min
             let maxOutlier = outliersRange.max
@@ -280,7 +282,7 @@ module Shaders =
             let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && isInsideOutlierRange //&& minRange <= linearCoord && linearCoord <= maxRange
 
             let color = if (isInAllRanges) then transferFunc else colorValue
-            let size = if (isNotInsideSphere) then (pSize + 8.0) else pSize
+            let size = if (isInsideCurrProbe) then (pSize + 8.0) else pSize
 
             // SHORTLY DISABLED
             //if (wpInv.X >= dm.x.min && wpInv.X <= dm.x.max && wpInv.Y >= dm.y.min && wpInv.Y <= dm.y.max && wpInv.Z >= dm.z.min && wpInv.Z <= dm.z.max) &&
@@ -295,28 +297,41 @@ module Shaders =
             //                    pointColor = color
             //                    pointSize = uniform?PointSize}
 
-            //let pointInAProbe = 
-            //    let mutable inAProbe = false
-            //    for i in 0 .. allProbes.Length - 1 do 
-            //        let temp = allProbes.[i]
-            //        if temp.Radius > 0.0 then 
-            //            inAProbe <- true 
-            //        else 
-            //            inAProbe <- false
-            //    inAProbe
-                    
-                
-            //    |> IndexList.exists (fun i sphere -> 
-            //        pointInSphere pPos sphere)
+            let probesLength = uniform?SpheresLength
+            let allProbes : V4f[] = uniform.SpheresInfos
 
-            if (pPos.X - spPos.X) ** 2.0 + (pPos.Y - spPos.Y) ** 2.0 + (pPos.Z - spPos.Z) ** 2.0 <= radius ** 2.0 then
+            let pointInAProbe = 
+                let mutable isInsideAProbe = false
+                for i in 0 .. probesLength - 1 do 
+                    let currProbe = allProbes.[i]
+                    let pos = currProbe.XYZ |> V3d
+                    let radius = currProbe.W |> float
+                    if (pPos.X - pos.X) ** 2.0 + (pPos.Y - pos.Y) ** 2.0 + (pPos.Z - pos.Z) ** 2.0 <= radius ** 2.0 then 
+                        isInsideAProbe <- true
+                isInsideAProbe
+
+            if probesLength <= 0 && r < 0.0 then 
                 yield  { p.Value with 
                             pointColor = transferFunc
                             pointSize = uniform?PointSize}
             else 
-                yield  { p.Value with 
-                            pointColor = V4d(transferFunc.XYZ/2.0, 1.0)
-                            pointSize = uniform?PointSize}
+                if pointInAProbe || isInsideCurrProbe then 
+                    yield  { p.Value with 
+                                pointColor = transferFunc
+                                pointSize = uniform?PointSize}
+                else 
+                    yield  { p.Value with 
+                                pointColor = V4d(transferFunc.XYZ/2.0, 1.0)
+                                pointSize = uniform?PointSize}
+
+            //if (pPos.X - spPos.X) ** 2.0 + (pPos.Y - spPos.Y) ** 2.0 + (pPos.Z - spPos.Z) ** 2.0 <= r ** 2.0 then
+            //    yield  { p.Value with 
+            //                pointColor = transferFunc
+            //                pointSize = uniform?PointSize}
+            //else 
+            //    yield  { p.Value with 
+            //                pointColor = V4d(transferFunc.XYZ/2.0, 1.0)
+            //                pointSize = uniform?PointSize}
 
         }
         
@@ -513,7 +528,7 @@ module HeraSg =
                            (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
                            (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
                            (contrClippingPlane : aval<Plane3d>)
-                           (filterBox : aval<option<Box3f>>) (sphereProbe : aval<Sphere3d>) (allSpheres : aval<Sphere3d []>)
+                           (filterBox : aval<option<Box3f>>) (sphereProbe : aval<Sphere3d>) (allSpheres : aval<V4f[]>) (spheresLength : aval<int>)
                            (currFilters : aval<Filters>) 
                            (dataRange : aval<Range>) (colorValue : aval<C4b>) 
                            (cameraView : aval<CameraView>) (viewTrafoVR : aval<Trafo3d>)
@@ -596,4 +611,5 @@ module HeraSg =
         |> Sg.uniform "DataRange" dataRange
         |> Sg.uniform "Color" color
         |> Sg.uniform "SphereProbe" sphereProbe  
-        |> Sg.uniform "AllSpheres" allSpheres
+        |> Sg.uniform "SpheresInfos" allSpheres
+        |> Sg.uniform "SpheresLength" spheresLength
