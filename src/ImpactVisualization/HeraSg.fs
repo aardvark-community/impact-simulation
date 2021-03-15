@@ -200,10 +200,11 @@ module Shaders =
     let internal pointSpriteVr (p : Point<Vertex>) = 
         point {
             let wp = p.Value.wp
+            let pPos = V3d(wp)
 
             let modelMatrixInv = uniform.ModelTrafoInv
-
             let wpInv = modelMatrixInv * wp
+            let posInv = V3f(wpInv)
 
             let modelMatrix = uniform.ModelTrafo
 
@@ -223,6 +224,8 @@ module Shaders =
             //VR Variables only
             let controllerPlane : Plane3d = uniform?ControllerClippingPlane
             let sphereProbe : Sphere3d = uniform?SphereProbe
+            let probesLength = uniform?SpheresLength
+            let allProbes : V4f[] = uniform.SpheresInfos
 
             let value renderValue = 
                 match renderValue with
@@ -247,60 +250,39 @@ module Shaders =
                     (p.Value.alphaJutzi >= filters.filterAlphaJutzi.min && p.Value.alphaJutzi <= filters.filterAlphaJutzi.max) &&
                     (p.Value.pressure >= filters.filterPressure.min && p.Value.pressure <= filters.filterPressure.max) 
 
-            //let min = if boxIsSet then V3f(modelMatrix.TransformPos(V3d(filterBox.Min))) else filterBox.Min
-            //let max = if boxIsSet then V3f(modelMatrix.TransformPos(V3d(filterBox.Max))) else filterBox.Max
-            //let min = if temp then filterBox.Min else V3f(modelMatrix.TransformPos(V3d(filterBox.Min)))
             let min = filterBox.Min
             let max = filterBox.Max
+            let isInsideBoxFilter = min.X <= posInv.X && posInv.X <= max.X && min.Y <= posInv.Y && posInv.Y <= max.Y && min.Z <= posInv.Z && posInv.Z <= max.Z
 
-            let posInv = V3f(wpInv)
-            let pPos = V3d(wp)
+            let minOutlier = outliersRange.min
+            let maxOutlier = outliersRange.max
+            let isInsideOutlierRange = minOutlier <= currValue && currValue <= maxOutlier
 
+            //let minRange = dataRange.min
+            //let maxRange = dataRange.max
+            let isInAllRanges = notDiscardByFilters && isInsideBoxFilter && isInsideOutlierRange //&& minRange <= linearCoord && linearCoord <= maxRange
+
+            // DISCARD EVALUATIONS 
+            let pointInDomainRange = wpInv.X >= dm.x.min && wpInv.X <= dm.x.max && wpInv.Y >= dm.y.min && wpInv.Y <= dm.y.max && wpInv.Z >= dm.z.min && wpInv.Z <= dm.z.max
+            let pointInsidePlanes = wpInv.X <= plane.x && wpInv.Y <= plane.y && wpInv.Z <= plane.z
+            let isOutsideControllerPlane = 
+                if controllerPlane.Normal = V3d.Zero then
+                    true
+                else 
+                    Vec.Dot(controllerPlane.Normal, pPos) - controllerPlane.Distance >= 0.0
+            let discardByRanges = if isInAllRanges then false else discardPoints
+
+            // POINT IN CURRENT PROBE 
             let spPos = sphereProbe.Center
             let r = sphereProbe.Radius
-
             let isInsideCurrProbe = 
                 if r < 0.0 then 
                     false
                 else 
                     (pPos.X - spPos.X) ** 2.0 + (pPos.Y - spPos.Y) ** 2.0 + (pPos.Z - spPos.Z) ** 2.0 <= r ** 2.0
 
-            let minRange = dataRange.min
-            let maxRange = dataRange.max
-            let isInsideMinMaxRange = min.X <= posInv.X && posInv.X <= max.X && min.Y <= posInv.Y && posInv.Y <= max.Y && min.Z <= posInv.Z && posInv.Z <= max.Z
-
-            let minOutlier = outliersRange.min
-            let maxOutlier = outliersRange.max
-            let isInsideOutlierRange = minOutlier <= currValue && currValue <= maxOutlier
-
-            let isOutsideControllerPlane = 
-                if controllerPlane.Normal = V3d.Zero then
-                    true
-                else 
-                    Vec.Dot(controllerPlane.Normal, pPos) - controllerPlane.Distance >= 0.0
-
-            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && isInsideOutlierRange //&& minRange <= linearCoord && linearCoord <= maxRange
-
-            let color = if (isInAllRanges) then transferFunc else colorValue
-            let size = if (isInsideCurrProbe) then (pSize + 8.0) else pSize
-
-            // SHORTLY DISABLED
-            //if (wpInv.X >= dm.x.min && wpInv.X <= dm.x.max && wpInv.Y >= dm.y.min && wpInv.Y <= dm.y.max && wpInv.Z >= dm.z.min && wpInv.Z <= dm.z.max) &&
-            //    (wpInv.X <= plane.x && wpInv.Y <= plane.y && wpInv.Z <= plane.z) && isOutsideControllerPlane then
-            //    if (discardPoints) then
-            //        if (isInAllRanges) then
-            //            yield  { p.Value with 
-            //                        pointColor = color
-            //                        pointSize = uniform?PointSize}
-            //    else
-            //        yield { p.Value with 
-            //                    pointColor = color
-            //                    pointSize = uniform?PointSize}
-
-            let probesLength = uniform?SpheresLength
-            let allProbes : V4f[] = uniform.SpheresInfos
-
-            let pointInAProbe = 
+            // POINT IN ANY OF THE PLACED PROBES
+            let pointInAnyProbe = 
                 let mutable isInsideAProbe = false
                 for i in 0 .. probesLength - 1 do 
                     let currProbe = allProbes.[i]
@@ -310,29 +292,17 @@ module Shaders =
                         isInsideAProbe <- true
                 isInsideAProbe
 
-            if probesLength <= 0 && r < 0.0 then 
+            // RESULTING COLOR
+            let color = 
+                if probesLength <= 0 && r < 0.0 then 
+                    if isInAllRanges then transferFunc else colorValue 
+                else
+                    if pointInAnyProbe || isInsideCurrProbe then transferFunc else V4d(transferFunc.XYZ/2.0, 1.0)
+
+            if pointInDomainRange && pointInsidePlanes && isOutsideControllerPlane && not discardByRanges then
                 yield  { p.Value with 
-                            pointColor = transferFunc
+                            pointColor = color
                             pointSize = uniform?PointSize}
-            else 
-                if pointInAProbe || isInsideCurrProbe then 
-                    yield  { p.Value with 
-                                pointColor = transferFunc
-                                pointSize = uniform?PointSize}
-                else 
-                    yield  { p.Value with 
-                                pointColor = V4d(transferFunc.XYZ/2.0, 1.0)
-                                pointSize = uniform?PointSize}
-
-            //if (pPos.X - spPos.X) ** 2.0 + (pPos.Y - spPos.Y) ** 2.0 + (pPos.Z - spPos.Z) ** 2.0 <= r ** 2.0 then
-            //    yield  { p.Value with 
-            //                pointColor = transferFunc
-            //                pointSize = uniform?PointSize}
-            //else 
-            //    yield  { p.Value with 
-            //                pointColor = V4d(transferFunc.XYZ/2.0, 1.0)
-            //                pointSize = uniform?PointSize}
-
         }
         
     let fs (v : Vertex) = 
