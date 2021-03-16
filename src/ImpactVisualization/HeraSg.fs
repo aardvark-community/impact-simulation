@@ -302,7 +302,7 @@ module Shaders =
             if pointInDomainRange && pointInsidePlanes && isOutsideControllerPlane && not discardByRanges then
                 yield  { p.Value with 
                             pointColor = color
-                            pointSize = uniform?PointSize}
+                            pointSize = pSize}
         }
         
     let fs (v : Vertex) = 
