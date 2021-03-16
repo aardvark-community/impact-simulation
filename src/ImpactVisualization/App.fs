@@ -270,7 +270,6 @@ module App =
         let higherOutliersBoundary = quartile3 + 1.5 * IQR
         lowerOutliersBoundary, higherOutliersBoundary
 
-
     let computeStatistics (filteredPoints : float[]) (renderValue : RenderValue) = 
         let renderVal = 
             match renderValue with 

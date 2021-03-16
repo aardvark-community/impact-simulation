@@ -261,9 +261,9 @@ module Demo =
 
         let allPlacedSpheres = 
             m.allProbes
-            |> AMap.map (fun key probe ->
-                let p = probe.Current |> AVal.force
-                V4f(p.center, p.radius)                 
+            |> AMap.mapA (fun key probe ->
+                probe.Current |> AVal.map (fun p -> 
+                    V4f(p.center, p.radius))                 
                 )
             |> AMap.toASetValues
             |> ASet.toAList

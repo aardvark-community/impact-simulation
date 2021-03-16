@@ -334,7 +334,7 @@ module AppUpdate =
                     let screenCoords = (V2d(hit.Coord.Y * screenResolution.ToV2d().X, hit.Coord.X * screenResolution.ToV2d().Y)).ToV2i()
                     let screenPos = PixelPosition(screenCoords, screenResolution.X, screenResolution.Y)
                     if model.rayTriggerClicked then
-                        printf "client MOVE \n" 
+                        //printf "client MOVE \n" 
                         client.Mouse.Move(screenPos)
                     //printf "client Focus TRUE \n" 
                     //client.SetFocus true
@@ -395,6 +395,8 @@ module AppUpdate =
                     |> HashMap.map (fun key probe -> 
                         let newCenter = heraTrafos.Forward.TransformPos(probe.centerRelToHera)
                         let newRadius = probe.radiusRelToHera * heraTrafos.Forward.GetScaleVector3().X
+                        printf "New Center: %A \n" newCenter
+                        printf "New Radius: %A \n" newRadius
                         let sphere = Sphere3d(newCenter, newRadius)
                         let intersection = heraBBox.Intersects(sphere)
                         { probe with 
@@ -553,7 +555,7 @@ module AppUpdate =
         | CreateRay (id, trafo) ->
             match model.rayDeviceId with 
             | Some i when i = id -> 
-                printf "client Mouse DOWN" 
+                //printf "client Mouse DOWN" 
                 client.Mouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
                // if model.screenIntersection then client.SetFocus true
                 {model with 
@@ -636,7 +638,7 @@ module AppUpdate =
                 | ControllerMode.Ray ->     
                     match model.rayDeviceId with
                     | Some i when i = id ->
-                        printf "client Mouse UP + CLICK \n" 
+                        //printf "client Mouse UP + CLICK \n" 
                         client.Mouse.Up(model.screenCoordsHitPos, MouseButtons.Left)
                         //client.Mouse.Click(model.screenCoordsHitPos, MouseButtons.Left)
                        // client.SetFocus false
@@ -768,7 +770,7 @@ module AppUpdate =
             let currTouchDevice = model.devicesTrafos.TryFind(id)
             match model.rayDeviceId with 
             | Some i when i = id && model.screenIntersection -> 
-                printf "client SCROLL \n" 
+               // printf "client SCROLL \n" 
                 client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
             | _ -> ()
             let newId = if pos.X = 0.0 && pos.Y = 0.0 then None else Some id //when both X and Y are equal to 0.0 it means we are currently not touching the touchpad
