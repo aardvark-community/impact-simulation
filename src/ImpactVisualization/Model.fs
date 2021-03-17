@@ -62,6 +62,13 @@ type RenderValue =
     | Density = 6
     | NoValue = 7
 
+type DiscardProperties =
+    {
+        plane           : V3d
+        controllerPlane : Plane3d
+    }
+    
+
 //type FilterQuery<'a> = 'a -> Frame -> GenericChunk[]
 //type AppliedFilterQuery = Frame -> GenericChunk[]
 

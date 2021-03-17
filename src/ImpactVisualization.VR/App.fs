@@ -249,15 +249,22 @@ module Demo =
                 if currProbMan then currScale else lastScale
                 ) m.currentProbeManipulated m.sphereScale m.lastSphereScale
 
+        let sphereScaleAndRadius = 
+            AVal.map2 (fun (scale : float) (radius : float) -> 
+                    V2d(scale, radius)
+                ) probeScale m.sphereRadius
+
         let sphereProbe = 
-            AVal.map3 (fun (trafo : Trafo3d) scale initRadius -> 
-                if trafo.Forward.IsIdentity() then 
+            AVal.map3 (fun (manipulated : bool) (trafo : Trafo3d) (scaleAndRadius : V2d) -> 
+                let scale = scaleAndRadius.X
+                let initRadius = scaleAndRadius.Y
+                if (not manipulated) then 
                     Sphere3d.Invalid
                 else 
                     let spherePos = trafo.Forward.TransformPos(V3d.OOO)
                     let sphereRadius : float = initRadius * scale 
                     Sphere3d(spherePos, sphereRadius)
-                ) m.sphereControllerTrafo probeScale m.sphereRadius
+                ) m.currentProbeManipulated m.sphereControllerTrafo sphereScaleAndRadius
 
         let allPlacedSpheres = 
             m.allProbes
@@ -275,7 +282,7 @@ module Demo =
             |> AMap.toAVal
             |> AVal.map (fun probes -> probes.Count)
 
-       // let sphereProbe = Sphere3d.Invalid |> AVal.constant
+        //let sphereProbe = Sphere3d.Invalid |> AVal.constant
 
         let heraSg = 
             let model = m

@@ -215,15 +215,22 @@ module App =
             |> Seq.toArray
         chunk
 
+    let pointIsNotDiscardedByAPlane (point : V3d) (discardProps : DiscardProperties) = 
+        let plane = discardProps.plane
+        let controllerPlane = discardProps.controllerPlane
+        let pointInsideAxisAlignedPlanes = point.X <= plane.X && point.Y <= plane.Y && point.Z <= plane.Z
+        let pointInsideControllerPlane = if controllerPlane.IsInvalid then true else (Vec.Dot(controllerPlane.Normal, point) - controllerPlane.Distance >= 0.0)
+        pointInsideAxisAlignedPlanes && pointInsideControllerPlane
+
     //TODO: Must be improved to really check intersection between Sphere and Box
-    let createSphereQuery (sphere : Sphere3d) (frame : Frame) =
+    let createSphereQuery (sphere : Sphere3d) (frame : Frame) (discardProps : DiscardProperties) =
         let chunk = 
             let sphereBox = sphere.BoundingBox3d
             let squaredR = sphere.Radius * sphere.Radius
             Queries.QueryPointsCustom frame.pointSet.Root.Value
                 (fun n -> sphereBox.Contains n.BoundingBoxExactGlobal) 
                 (fun n -> not (sphereBox.Intersects n.BoundingBoxExactGlobal)) 
-                (fun p -> sphere.Center.Distance(p) <= sphere.Radius)
+                (fun p -> (sphere.Center.DistanceSquared(p) <= squaredR) && (pointIsNotDiscardedByAPlane p discardProps))
                 Hera.Defs.all
                 None
             |> Seq.toArray
@@ -282,7 +289,7 @@ module App =
             | RenderValue.Density -> "Density"
             | _ -> "Energy"
         let numOfPoints = filteredPoints.Length
-        let max = roundDecimal (filteredPoints.Max()) //TODO: Probably directly use the data range somehow ?!?!?!
+        let max = roundDecimal (filteredPoints.Max())
         let min = roundDecimal (filteredPoints.Min())
         let mean = roundDecimal (filteredPoints.Mean())
         let median = if numOfPoints < 1 then nan else roundDecimal (filteredPoints.Median())
@@ -319,10 +326,10 @@ module App =
          filterDataForOneFrame chunk renderVal
         
     //TODO: Connect the two filtering funnctions!!!!!!!!!!!!
-    let filterDataForOneFrameSphere (frame : Frame) (filter : option<Sphere3d>) (renderVal : RenderValue) = 
+    let filterDataForOneFrameSphere (frame : Frame) (filter : option<Sphere3d>) (renderVal : RenderValue) (discardProps : DiscardProperties)= 
          let sphere = filter |> (fun elem -> defaultArg elem Sphere3d.Invalid)
-         let chunk = createSphereQuery sphere frame
-         let result = filterDataForOneFrame chunk renderVal
+         let chunk = createSphereQuery sphere frame discardProps
+         let result = filterDataForOneFrame chunk renderVal 
          let statistics = computeStatistics result renderVal
          result, statistics
 

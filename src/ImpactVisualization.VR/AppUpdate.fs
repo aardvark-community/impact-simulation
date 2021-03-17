@@ -395,8 +395,6 @@ module AppUpdate =
                     |> HashMap.map (fun key probe -> 
                         let newCenter = heraTrafos.Forward.TransformPos(probe.centerRelToHera)
                         let newRadius = probe.radiusRelToHera * heraTrafos.Forward.GetScaleVector3().X
-                        printf "New Center: %A \n" newCenter
-                        printf "New Radius: %A \n" newRadius
                         let sphere = Sphere3d(newCenter, newRadius)
                         let intersection = heraBBox.Intersects(sphere)
                         { probe with 
@@ -610,7 +608,22 @@ module AppUpdate =
                         //TODO: use only the relative Pos and Radius to spare code and storage
                         let intersection = model.heraBox.Intersects(sphere)
                                     
-                        let array, stats = filterDataForOneFrameSphere frames.[mTwoD.frame] (Some sphereTransformed) model.attribute
+                        let pl = mTwoD.clippingPlane
+                        let plane = V3d(pl.x, pl.y, pl.z)
+
+                        let pc = model.planeCorners
+                        let corner1 = heraInvMatrix.TransformPos(pc.P0)
+                        let corner2 = heraInvMatrix.TransformPos(pc.P1)
+                        let corner3 = heraInvMatrix.TransformPos(pc.P2)
+                        let clippingPlane = Plane3d(corner1, corner2, corner3)
+
+                        let discardProperties : DiscardProperties = 
+                            {
+                                plane = plane
+                                controllerPlane = clippingPlane
+                            }
+
+                        let array, stats = filterDataForOneFrameSphere frames.[mTwoD.frame] (Some sphereTransformed) model.attribute discardProperties
                         let probe = createProbe spherePos sphereRadius spherePosTransformed radiusTransformed intersection stats true
 
                         // printf "Statistics: \n %A" stats
