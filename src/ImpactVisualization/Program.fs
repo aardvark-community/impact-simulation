@@ -28,7 +28,7 @@ let main args =
         title "Aardvark rocks \\o/"
         width 1024
         height 768
-        url "http://localhost:4321/"
+        url "http://localhost:4321/?page=histogramPage"
     }
 
     0

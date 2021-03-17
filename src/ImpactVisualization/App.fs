@@ -857,233 +857,252 @@ module App =
                 inputView (string dim + ":") (inRange |> AVal.map (fun r -> r.max)) (fun v -> SetDomainRange (dim, Max, v)) 0.0 maxV
                 br []
             ]
-        require Html.semui (
-            body [] [
-                FreeFlyController.controlledControl m.cameraState CameraMessage frustum (AttributeMap.ofList att) sg
-                require dependencies ( // here we execute Histogram.js.... all values, functions defined in Histogram.js are further down accessible...
+        page (fun request -> 
+            match Map.tryFind "page" request.queryParams with 
+            | Some "mainPage" -> 
+                require Html.semui (
+                    body [] [
+                        FreeFlyController.controlledControl m.cameraState CameraMessage frustum (AttributeMap.ofList att) sg
+                        require dependencies ( // here we execute Histogram.js.... all values, functions defined in Histogram.js are further down accessible...
+                            div[style "margin: 7px"] [
+                                div [style "position: fixed; left: 10px; top: 10px; width: 220px"] [
+                                Incremental.div AttributeMap.empty dynamicNameChange
+                                //  br []
+                                div [style "margin-top: 3px; margin-bottom: 3px"] [
+                                    span [style "padding: 4px; color: white"] [text "Point Size: "]
+                                    numeric { min = 1.0; max = 20.0; smallStep = 1.0; largeStep = 5.0 } [style "width: 55%; padding: 2px"] m.pointSize SetPointSize
+                                ]
+                                // Incremental.div AttributeMap.empty dynamicUI
+                                // br []
+                                dropdown { placeholder = "ColorMaps"; allowEmpty = false} [ clazz "ui selection"; style "margin-top: 5px; margin-bottom: 5px"] colorMaps (m.currentMap |> AVal.map Some) SetTransferFunc
+                                // br []
+                                dropdown1 [ clazz "ui selection"; style "margin-top: 5px; margin-bottom: 5px"] renderValues m.renderValue SetRenderValue
+                                // br []
+                                div [ style "color: white" ] [
 
-                    div[style "margin: 7px"] [
-                        div [style "position: fixed; left: 10px; top: 10px; width: 220px"] [
-                        Incremental.div AttributeMap.empty dynamicNameChange
-                      //  br []
-                        div [style "margin-top: 3px; margin-bottom: 3px"] [
-                            span [style "padding: 4px; color: white"] [text "Point Size: "]
-                            numeric { min = 1.0; max = 20.0; smallStep = 1.0; largeStep = 5.0 } [style "width: 55%; padding: 2px"] m.pointSize SetPointSize
-                        ]
-                       // Incremental.div AttributeMap.empty dynamicUI
-                       // br []
-                        dropdown { placeholder = "ColorMaps"; allowEmpty = false} [ clazz "ui selection"; style "margin-top: 5px; margin-bottom: 5px"] colorMaps (m.currentMap |> AVal.map Some) SetTransferFunc
-                       // br []
-                        dropdown1 [ clazz "ui selection"; style "margin-top: 5px; margin-bottom: 5px"] renderValues m.renderValue SetRenderValue
-                       // br []
-                        div [ style "color: white" ] [
-
-                            div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
-                                simplecheckbox { 
-                                    attributes [clazz "ui inverted checkbox"]
-                                    state m.normalizeData
-                                    toggle NormalizeData
-                                    content [ text "Normalize Data"]  
-                                }
-                            ]
-
-                            div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
-                                simplecheckbox { 
-                                    attributes [clazz "ui inverted checkbox"]
-                                    state m.enableShading
-                                    toggle EnableShading
-                                    content [ text "Enable Shading"]  
-                                }
-                            ]
-
-                            div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
-                                simplecheckbox { 
-                                    attributes [clazz "ui inverted checkbox"]
-                                    state m.reconstructNormal
-                                    toggle ReconstructNormal
-                                    content [ text "Reconstruct Normal"]  
-                                }
-                            ]
-
-                            div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
-                                simplecheckbox { 
-                                    attributes [clazz "ui inverted checkbox"]
-                                    state m.reconstructDepth
-                                    toggle ReconstructDepth
-                                    content [ text "Reconstruct Depth"]  
-                                }
-                            ]
-                              
-                            div [style "width: 90%; margin-top: 5px; margin-bottom: 5px"] [  
-                                Html.SemUi.accordion "Clipping Box" "plus" false [
-                                    Incremental.div (AttributeMap.ofAMap (amap {
-                                        yield clazz "item"
-                                        yield style "width: 100%"
-                                    })) (alist {
-                                        span [style "padding: 3px; padding-inline-start: 0px; padding-inline-end: 50px"] [text "Min:"]
-                                        span [style "padding: 3px; padding-inline-start: 15px; padding-inline-end: 50px"] [text "Max:"]
-                                        br []
-                                        rangeView X (m.domainRange |> AVal.map (fun r -> r.x)) -25.0 25.0 
-                                        rangeView Y (m.domainRange |> AVal.map (fun r -> r.y)) -25.0 30.0 
-                                        rangeView Z (m.domainRange |> AVal.map (fun r -> r.z)) -25.0 25.0 
+                                    div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
+                                        simplecheckbox { 
+                                            attributes [clazz "ui inverted checkbox"]
+                                            state m.normalizeData
+                                            toggle NormalizeData
+                                            content [ text "Normalize Data"]  
                                         }
-                                        )
                                     ]
-                            ]
 
-                            //br []
-                       
-                            div [ clazz "item"; style "width: 90%; margin-top: 7px; margin-bottom: 5px" ] [
-                                span [style "padding: 2px"] [text "X: "]
-                                slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.x)) (fun v -> SetClippingPlane (X, v))
-                                span [style "padding: 2px"] [text "Y: "]
-                                slider { min = -16.0; max = 30.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.y)) (fun v -> SetClippingPlane (Y, v))
-                                span [style "padding: 2px"] [text "Z: "]
-                                slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.z)) (fun v -> SetClippingPlane (Z, v))
-
-                            ]
-                            
-
-                            //br []
-
-                            div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
-                                simplecheckbox { 
-                                    attributes [clazz "ui inverted checkbox"]
-                                    state m.discardPoints
-                                    toggle TogglePointDiscarded
-                                    content [ text "Discard Out of Range?"]  
-                                }
-                            ]
-
-                            //br []
-
-                            div [clazz "colorRange"; style "width: 90%; margin-top: 9px; margin-bottom: 9px"] [ 
-                                span [style "padding: 2px; padding-inline-end: 20px"] [text "Out of Range Color:"]
-                                ColorPicker.view m.colorValue |> UI.map SetColorValue
-                            ]
-
-                            //br []
-
-                            div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
-                                simplecheckbox { 
-                                    attributes [clazz "ui inverted checkbox"]
-                                    state m.lowerOutliers
-                                    toggle DisplayLowerOutliers
-                                    content [ text "Lower"]  
-                                }
-                                simplecheckbox { 
-                                    attributes [clazz "ui inverted checkbox"; style "padding-inline-start: 6px"]
-                                    state m.higherOutliers
-                                    toggle DisplayHigherOutliers
-                                    content [ text "Higher Outliers"]  
-                                }
-                            ]
-
-                            Incremental.div (AttributeMap.ofAMap (amap {
-                                yield style "width: 95%; margin-top: 5px; margin-bottom: 8px"
-                            })) (alist {
-                                let! initRange = m.initDataRange
-                            
-                                //TODO: not very good way... loosing some precision this way!!!
-                                let steps = 
-                                    let range = Math.Abs(initRange.max - initRange.min)
-                                    
-                                    if range <= 0.01 then
-                                        0.001, 0.005
-                                    else if range <= 0.1 then
-                                        0.01, 0.05
-                                    else if range <= 1.0 then
-                                        0.1, 1.0
-                                    else if (range <= 1000.0) then
-                                        1.0, 5.0
-                                    else if (range <= 10000.0) then
-                                        10.0, 50.0
-                                    else if (range <= 100000.0) then
-                                        100.0, 500.0
-                                    else if (range <= 1000000.0) then
-                                        1000.0, 5000.0
-                                    else 
-                                        10000.0, 50000.0
-
-                                yield span [style "padding: 4px"] [text "Min: "]
-                                yield simplenumeric {
-                                        attributes [style "width: 80%; padding: 2px"]
-                                        value (m.dataRange |> AVal.map (fun r -> (roundDecimal r.min)))
-                                        update (fun v -> SetDataRange (Min, (roundDecimal v)))
-                                        step (fst steps)
-                                        largeStep (snd steps)
-                                        min (roundDecimal initRange.min)
-                                        max (roundDecimal initRange.max)
+                                    div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
+                                        simplecheckbox { 
+                                            attributes [clazz "ui inverted checkbox"]
+                                            state m.enableShading
+                                            toggle EnableShading
+                                            content [ text "Enable Shading"]  
                                         }
+                                    ]
 
-                                yield span [style "padding: 3px"] [text "Max: "]
-                                yield simplenumeric {
-                                        attributes [style "width: 80%; padding: 2px"]
-                                        value (m.dataRange |> AVal.map (fun r -> (roundDecimal r.max)))
-                                        update (fun v -> SetDataRange (Max, (roundDecimal v)))
-                                        step (fst steps)
-                                        largeStep (snd steps)
-                                        min (roundDecimal initRange.min)
-                                        max (roundDecimal initRange.max)
-                                        }    
-                               }
-                            )
+                                    div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
+                                        simplecheckbox { 
+                                            attributes [clazz "ui inverted checkbox"]
+                                            state m.reconstructNormal
+                                            toggle ReconstructNormal
+                                            content [ text "Reconstruct Normal"]  
+                                        }
+                                    ]
 
-                           // br []
+                                    div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
+                                        simplecheckbox { 
+                                            attributes [clazz "ui inverted checkbox"]
+                                            state m.reconstructDepth
+                                            toggle ReconstructDepth
+                                            content [ text "Reconstruct Depth"]  
+                                        }
+                                    ]
+                              
+                                    div [style "width: 90%; margin-top: 5px; margin-bottom: 5px"] [  
+                                        Html.SemUi.accordion "Clipping Box" "plus" false [
+                                            Incremental.div (AttributeMap.ofAMap (amap {
+                                                yield clazz "item"
+                                                yield style "width: 100%"
+                                            })) (alist {
+                                                span [style "padding: 3px; padding-inline-start: 0px; padding-inline-end: 50px"] [text "Min:"]
+                                                span [style "padding: 3px; padding-inline-start: 15px; padding-inline-end: 50px"] [text "Max:"]
+                                                br []
+                                                rangeView X (m.domainRange |> AVal.map (fun r -> r.x)) -25.0 25.0 
+                                                rangeView Y (m.domainRange |> AVal.map (fun r -> r.y)) -25.0 30.0 
+                                                rangeView Z (m.domainRange |> AVal.map (fun r -> r.z)) -25.0 25.0 
+                                                }
+                                                )
+                                            ]
+                                    ]
 
-                            div [style "margin-top: 5px; margin-bottom: 5px"] [
-                                button [onClick (fun _ -> SetFilter 1); style "margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 1"]
-                                button [onClick (fun _ -> SetFilter 2); style "margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 2"]
-                                button [onClick (fun _ -> SetFilter 3); style "margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 3"]
-              
-                            ]
-                            button [onClick (fun _ -> ResetFilter); style "margin: 2px; margin-top: 0px; margin-bottom: 5px"] [text "Reset"]
-                            ]
-                        ]   
+                                    //br []
+                       
+                                    div [ clazz "item"; style "width: 90%; margin-top: 7px; margin-bottom: 5px" ] [
+                                        span [style "padding: 2px"] [text "X: "]
+                                        slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.x)) (fun v -> SetClippingPlane (X, v))
+                                        span [style "padding: 2px"] [text "Y: "]
+                                        slider { min = -16.0; max = 30.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.y)) (fun v -> SetClippingPlane (Y, v))
+                                        span [style "padding: 2px"] [text "Z: "]
+                                        slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.z)) (fun v -> SetClippingPlane (Z, v))
 
-                        Incremental.div (AttributeMap.ofAMap (amap {
-                            yield style "position: fixed; top: 20px; right: 20px"
-                        })) (alist {
-                            let! src = m.currentMap
-
-                            let elems = 
-                                src.Split([|'\t'; '\\'|], StringSplitOptions.RemoveEmptyEntries) |> Array.map (fun s -> s.Trim())
-
-                            let currImage = elems.[elems.Length - 1]
-
-                            yield img [
-                                attribute "src" currImage
-                                style "width: 170px; height: 20px"
-                            ]            
-                        
-                            yield hr [
-                                style "width: 168px; height: 0px; background-color: #ffffff; margin-block-start: 3px; margin-block-end: 0px; margin-inline-start: 0px"
-                            ]
-
-                            yield span [style "position: relative; font-size: 0.8em; right: 10px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.min).ToString()))] 
-                            yield span [style "position: inherit; font-size: 0.8em; right: 10px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.max).ToString()))]
-                            }
-                        )
-                        
-                        let histogram = 
-                                onBoot' [("data", dataChannel); ("transition", transitionChannel)] updateChart ( // when div [histogram etc] is constructed updateChart is called.
-                                            div [onBrushed; clazz "histogram"; style "position: fixed; bottom: 20px; right: 20px; width:400px; height: 230px; z-index: 1000"] []          
-                                )
+                                    ]
                             
 
-                        let parallCoords = 
-                                    onBoot' [("dataPath", pathChannel)] updateParallCoords (
-                                            div [onParallCoordsBrushed; clazz "parallCoords"; style "position: fixed; bottom: 20px; right: 20px; width:400px; height: 230px; z-index: 1000"] []          
+                                    //br []
+
+                                    div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
+                                        simplecheckbox { 
+                                            attributes [clazz "ui inverted checkbox"]
+                                            state m.discardPoints
+                                            toggle TogglePointDiscarded
+                                            content [ text "Discard Out of Range?"]  
+                                        }
+                                    ]
+
+                                    //br []
+
+                                    div [clazz "colorRange"; style "width: 90%; margin-top: 9px; margin-bottom: 9px"] [ 
+                                        span [style "padding: 2px; padding-inline-end: 20px"] [text "Out of Range Color:"]
+                                        ColorPicker.view m.colorValue |> UI.map SetColorValue
+                                    ]
+
+                                    //br []
+
+                                    div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
+                                        simplecheckbox { 
+                                            attributes [clazz "ui inverted checkbox"]
+                                            state m.lowerOutliers
+                                            toggle DisplayLowerOutliers
+                                            content [ text "Lower"]  
+                                        }
+                                        simplecheckbox { 
+                                            attributes [clazz "ui inverted checkbox"; style "padding-inline-start: 6px"]
+                                            state m.higherOutliers
+                                            toggle DisplayHigherOutliers
+                                            content [ text "Higher Outliers"]  
+                                        }
+                                    ]
+
+                                    Incremental.div (AttributeMap.ofAMap (amap {
+                                        yield style "width: 95%; margin-top: 5px; margin-bottom: 8px"
+                                    })) (alist {
+                                        let! initRange = m.initDataRange
+                            
+                                        //TODO: not very good way... loosing some precision this way!!!
+                                        let steps = 
+                                            let range = Math.Abs(initRange.max - initRange.min)
+                                    
+                                            if range <= 0.01 then
+                                                0.001, 0.005
+                                            else if range <= 0.1 then
+                                                0.01, 0.05
+                                            else if range <= 1.0 then
+                                                0.1, 1.0
+                                            else if (range <= 1000.0) then
+                                                1.0, 5.0
+                                            else if (range <= 10000.0) then
+                                                10.0, 50.0
+                                            else if (range <= 100000.0) then
+                                                100.0, 500.0
+                                            else if (range <= 1000000.0) then
+                                                1000.0, 5000.0
+                                            else 
+                                                10000.0, 50000.0
+
+                                        yield span [style "padding: 4px"] [text "Min: "]
+                                        yield simplenumeric {
+                                                attributes [style "width: 80%; padding: 2px"]
+                                                value (m.dataRange |> AVal.map (fun r -> (roundDecimal r.min)))
+                                                update (fun v -> SetDataRange (Min, (roundDecimal v)))
+                                                step (fst steps)
+                                                largeStep (snd steps)
+                                                min (roundDecimal initRange.min)
+                                                max (roundDecimal initRange.max)
+                                                }
+
+                                        yield span [style "padding: 3px"] [text "Max: "]
+                                        yield simplenumeric {
+                                                attributes [style "width: 80%; padding: 2px"]
+                                                value (m.dataRange |> AVal.map (fun r -> (roundDecimal r.max)))
+                                                update (fun v -> SetDataRange (Max, (roundDecimal v)))
+                                                step (fst steps)
+                                                largeStep (snd steps)
+                                                min (roundDecimal initRange.min)
+                                                max (roundDecimal initRange.max)
+                                                }    
+                                        }
                                     )
 
-                        Html.SemUi.tabbed [clazz "temp"; style "position: fixed; bottom: 220px; right: 20px" ] [
-                            ("Histogram", histogram)
-                            ("ParallCoords", parallCoords)
-                        ] "Histogram"
+                                    // br []
+
+                                    div [style "margin-top: 5px; margin-bottom: 5px"] [
+                                        button [onClick (fun _ -> SetFilter 1); style "margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 1"]
+                                        button [onClick (fun _ -> SetFilter 2); style "margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 2"]
+                                        button [onClick (fun _ -> SetFilter 3); style "margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 3"]
+              
+                                    ]
+                                    button [onClick (fun _ -> ResetFilter); style "margin: 2px; margin-top: 0px; margin-bottom: 5px"] [text "Reset"]
+                                    ]
+                                ]   
+
+                                Incremental.div (AttributeMap.ofAMap (amap {
+                                    yield style "position: fixed; top: 20px; right: 20px"
+                                })) (alist {
+                                    let! src = m.currentMap
+
+                                    let elems = 
+                                        src.Split([|'\t'; '\\'|], StringSplitOptions.RemoveEmptyEntries) |> Array.map (fun s -> s.Trim())
+
+                                    let currImage = elems.[elems.Length - 1]
+
+                                    yield img [
+                                        attribute "src" currImage
+                                        style "width: 170px; height: 20px"
+                                    ]            
+                        
+                                    yield hr [
+                                        style "width: 168px; height: 0px; background-color: #ffffff; margin-block-start: 3px; margin-block-end: 0px; margin-inline-start: 0px"
+                                    ]
+
+                                    yield span [style "position: relative; font-size: 0.8em; right: 10px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.min).ToString()))] 
+                                    yield span [style "position: inherit; font-size: 0.8em; right: 10px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.max).ToString()))]
+                                    }
+                                )
+                        
+                                let histogram = 
+                                        onBoot' [("data", dataChannel); ("transition", transitionChannel)] updateChart ( // when div [histogram etc] is constructed updateChart is called.
+                                                    div [onBrushed; clazz "histogram"; style "position: fixed; bottom: 20px; right: 20px; width:400px; height: 230px; z-index: 1000"] []          
+                                        )
+                            
+
+                                let parallCoords = 
+                                            onBoot' [("dataPath", pathChannel)] updateParallCoords (
+                                                    div [onParallCoordsBrushed; clazz "parallCoords"; style "position: fixed; bottom: 20px; right: 20px; width:400px; height: 230px; z-index: 1000"] []          
+                                            )
+
+                                Html.SemUi.tabbed [clazz "temp"; style "position: fixed; bottom: 220px; right: 20px" ] [
+                                    ("Histogram", histogram)
+                                    ("ParallCoords", parallCoords)
+                                ] "Histogram"
+                            ]
+                        )  
                     ]
-                )  
-            ]
-            )
+                    )
+            | Some "histogramPage" ->
+                body [] [
+                    require dependencies (
+                        onBoot' [("data", dataChannel); ("transition", transitionChannel)] updateChart ( // when div [histogram etc] is constructed updateChart is called.
+                            div [onBrushed; clazz "histogram"; style "position: fixed; bottom: 20px; right: 20px; width:400px; height: 230px; z-index: 1000"] []          
+                        )
+                    )
+                ]
+            | Some other ->
+                let msg = sprintf "Unknown page: %A" other
+                body [] [
+                    div [style "color: white; font-size: large; background-color: red; width: 100%; height: 100%"] [text msg]
+                ] 
+            | None -> 
+                body [] []
+        )
+
     let threads (state : Model) =
          let pool = ThreadPool.empty
     
