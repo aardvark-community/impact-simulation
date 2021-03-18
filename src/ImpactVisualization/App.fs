@@ -1090,7 +1090,7 @@ module App =
                 body [] [
                     require dependencies (
                         onBoot' [("data", dataChannel); ("transition", transitionChannel)] updateChart ( // when div [histogram etc] is constructed updateChart is called.
-                            div [onBrushed; clazz "histogram"; style "position: fixed; bottom: 20px; right: 20px; width:400px; height: 230px; z-index: 1000"] []          
+                            div [onBrushed; clazz "histogram"; style "width: 100%; height: 100%"] []          
                         )
                     )
                 ]

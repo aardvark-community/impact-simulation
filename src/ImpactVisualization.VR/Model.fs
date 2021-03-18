@@ -42,6 +42,7 @@ type Probe = {
     radiusRelToHera : float
     insideHera      : bool
     currStatistics  : string
+    currHistogram   : Option<ITexture>
     showBillboard   : bool 
 
     [<NonAdaptive>]

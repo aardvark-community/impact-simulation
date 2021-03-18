@@ -113,6 +113,7 @@ module AppUpdate =
 
     let sphereIntersection (controllerSphere : Sphere3d) (probe : Sphere3d) = controllerSphere.Intersects(probe)
     
+
     let createProbe (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) (inside : bool) (statistics : string ) (billboard : bool): Probe = 
         {
             id = Guid.NewGuid().ToString()
@@ -122,6 +123,7 @@ module AppUpdate =
             radiusRelToHera = radToHera
             insideHera = inside
             currStatistics = statistics
+            currHistogram = None
             showBillboard = billboard
         }
     

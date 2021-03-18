@@ -188,6 +188,8 @@ module Demo =
                 flipViewDependent = true
                 renderStyle       = RenderStyle.Normal
         }
+        
+        let probeHistogramPositions = AVal.constant  [|V3f(-1.8, -1.0, 0.0); V3f(1.8, -1.0, 0.0); V3f(1.8, 1.0, 0.0); V3f(-1.8, 1.0, 0.0)|]
 
         let probesSgs = 
             m.allProbes |> AMap.toASet |> ASet.chooseA (fun (key, probe) ->
@@ -206,6 +208,11 @@ module Demo =
                             let sphereScale = p.radius / r
                             let statScale = 0.04 * sphereScale
                             Trafo3d(Scale3d(statScale)))
+                    let histogramScaleTrafo = 
+                        m.sphereRadius |> AVal.map (fun r -> 
+                            let sphereScale = p.radius / r
+                            let statScale = 0.15 * sphereScale
+                            Trafo3d(Scale3d(statScale)))
                     let text = AVal.constant p.currStatistics
                     let statisticsSg = 
                         text
@@ -223,12 +230,34 @@ module Demo =
                         |> Sg.onOff (AVal.constant p.showBillboard)
                         |> Sg.blendMode (AVal.constant mode)
                         |> Sg.pass pass2
-                    Sg.sphere 6 color (AVal.constant p.radiusRelToHera)
+                    let probeHistogramSg = 
+                        Sg.draw IndexedGeometryMode.TriangleList
+                        |> Sg.vertexAttribute DefaultSemantic.Positions probeHistogramPositions
+                        |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
+                        |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
+                        |> Sg.index (AVal.constant [|0;1;2; 0;2;3|]) 
+                        |> Sg.trafo histogramScaleTrafo
+                        //|> Sg.translate 0.0 (p.radius * 0.75) 0.0
+                        |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+                        //|> Sg.myBillboard viewTrafo
+                        //|> Sg.applyRuntime runtime
+                        //|> Sg.noEvents
+                        //|> Sg.transform (Trafo3d.Translation(p.center))
+                        //|> Sg.translate 0.0 0.0 (p.radius * 1.8)
+                        //|> Sg.onOff (AVal.constant p.showBillboard)
+                        |> Sg.shader {
+                            do! DefaultSurfaces.trafo
+                            do! DefaultSurfaces.simpleLighting
+                            do! DefaultSurfaces.constantColor C4f.Yellow
+                        }
+                        |> Sg.blendMode (AVal.constant mode)
+                        |> Sg.pass pass2
+                    Sg.sphere 6 color (AVal.constant 0.2)
                     |> Sg.noEvents
-                    |> Sg.transform (Trafo3d.Translation(p.centerRelToHera))
-                    |> Sg.trafo m.heraTransformations // so that it moves with hera!!!
+                    //|> Sg.transform (Trafo3d.Translation(p.centerRelToHera))
+                    //|> Sg.trafo m.heraTransformations // so that it moves with hera!!!
                     |> Sg.fillMode (FillMode.Line |> AVal.constant)
-                    |> Sg.andAlso statisticsSg
+                    |> Sg.andAlso probeHistogramSg
                     |> Some
                 )
             ) 
