@@ -78,7 +78,7 @@ module Demo =
     let ui (runtime : IRuntime) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : DomNode<Message> = // 2D UI
         div [] [AardVolume.App.view runtime data m.twoDModel |> UI.map TwoD]
 
-    let vr (runtime : IRuntime) (client : Browser) (viewTrafo : aval<Trafo3d>) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
+    let vr (runtime : IRuntime) (client : Browser) (histogramClient : Browser) (viewTrafo : aval<Trafo3d>) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
        
         let pass0 = RenderPass.main
         let pass1 = RenderPass.after "pass1" RenderPassOrder.Arbitrary pass0 
@@ -230,6 +230,10 @@ module Demo =
                         |> Sg.onOff (AVal.constant p.showBillboard)
                         |> Sg.blendMode (AVal.constant mode)
                         |> Sg.pass pass2
+                    let currHistogramTexture = 
+                        match p.currHistogram with 
+                        | Some tex -> AVal.constant tex
+                        | None -> DefaultTextures.blackTex
                     let probeHistogramSg = 
                         Sg.draw IndexedGeometryMode.TriangleList
                         |> Sg.vertexAttribute DefaultSemantic.Positions probeHistogramPositions
@@ -237,25 +241,24 @@ module Demo =
                         |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
                         |> Sg.index (AVal.constant [|0;1;2; 0;2;3|]) 
                         |> Sg.trafo histogramScaleTrafo
-                        //|> Sg.translate 0.0 (p.radius * 0.75) 0.0
-                        |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
-                        //|> Sg.myBillboard viewTrafo
-                        //|> Sg.applyRuntime runtime
-                        //|> Sg.noEvents
-                        //|> Sg.transform (Trafo3d.Translation(p.center))
-                        //|> Sg.translate 0.0 0.0 (p.radius * 1.8)
-                        //|> Sg.onOff (AVal.constant p.showBillboard)
+                        |> Sg.myBillboard viewTrafo
+                        |> Sg.applyRuntime runtime
+                        |> Sg.noEvents
+                        |> Sg.transform (Trafo3d.Translation(p.center))
+                        |> Sg.translate 0.0 0.0 (p.radius * 1.7)
+                        |> Sg.onOff (AVal.constant p.showBillboard)
+                        |> Sg.diffuseTexture currHistogramTexture
                         |> Sg.shader {
                             do! DefaultSurfaces.trafo
                             do! DefaultSurfaces.simpleLighting
-                            do! DefaultSurfaces.constantColor C4f.Yellow
+                            do! DefaultSurfaces.diffuseTexture
                         }
                         |> Sg.blendMode (AVal.constant mode)
                         |> Sg.pass pass2
-                    Sg.sphere 6 color (AVal.constant 0.2)
+                    Sg.sphere 6 color (AVal.constant p.radiusRelToHera)
                     |> Sg.noEvents
-                    //|> Sg.transform (Trafo3d.Translation(p.centerRelToHera))
-                    //|> Sg.trafo m.heraTransformations // so that it moves with hera!!!
+                    |> Sg.transform (Trafo3d.Translation(p.centerRelToHera))
+                    |> Sg.trafo m.heraTransformations // so that it moves with hera!!!
                     |> Sg.fillMode (FillMode.Line |> AVal.constant)
                     |> Sg.andAlso probeHistogramSg
                     |> Some
@@ -588,7 +591,7 @@ module Demo =
             do! DefaultSurfaces.simpleLighting
         }
 
-    let app (client : Browser) (viewTrafos : aval<Trafo3d []>) (projTrafos : aval<Trafo3d []>) (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
+    let app (client : Browser) (histogramClient : Browser) (viewTrafos : aval<Trafo3d []>) (projTrafos : aval<Trafo3d []>) (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
         let frames = DataLoader.loadDataAllFrames runtime
         client.SetFocus true
         let viewTrafo = combinedTrafo viewTrafos
@@ -596,10 +599,10 @@ module Demo =
         {
             unpersist = Unpersist.instance
             initial = initial runtime frames
-            update = update runtime client viewTrafo projTrafo frames
+            update = update runtime client histogramClient viewTrafo projTrafo frames
             threads = threads
             input = input 
             ui = ui runtime frames
-            vr = vr runtime client viewTrafo frames
+            vr = vr runtime client histogramClient viewTrafo frames
             pauseScene = Some pause
         }

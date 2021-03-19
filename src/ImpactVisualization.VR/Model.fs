@@ -42,11 +42,12 @@ type Probe = {
     radiusRelToHera : float
     insideHera      : bool
     currStatistics  : string
-    currHistogram   : Option<ITexture>
     showBillboard   : bool 
 
     [<NonAdaptive>]
     id : string
+    currHistogram   : Option<ITexture>
+
 }
 
 [<ModelType>]
@@ -104,6 +105,8 @@ type Model =
         deletionControllerId : Option<int>
         probeIntersectionId : Option<string>
         lastFilterProbe : Option<Probe>
+        lastFilterProbeId : Option<string>
+        newProbePlaced : bool
 
         statistics : string
         

@@ -55,9 +55,10 @@ let main argv =
 
     let app = VRApplication.create' (VRDisplay.OpenVR 1.0) Aardvark.Application.Backend.GL 8 false
     let client = new Browser(null,AVal.constant System.DateTime.Now,app.Runtime, true, AVal.constant (ImpactVisualization.AppUpdate.screenResolution))
+    let histogramClient = new Browser(null,AVal.constant System.DateTime.Now,app.Runtime, true, AVal.constant (V2i(1280, 720)))
     let viewTrafos = app.SystemInfo.render.viewTrafos
     let projTrafos = app.SystemInfo.render.projTrafos
-    let bla = Demo.app client viewTrafos projTrafos app.Runtime
+    let bla = Demo.app client histogramClient viewTrafos projTrafos app.Runtime
     let mapp = ComposedApp.start' app true bla
     
     WebPart.startServerLocalhost 4321 [
@@ -66,6 +67,7 @@ let main argv =
     ] |> ignore
     
     client.LoadUrl "http://localhost:4321/?page=mainPage" |> ignore
+    histogramClient.LoadUrl "http://localhost:4321/?page=histogramPage" |> ignore
     
     Aardium.run {
         url "http://localhost:4321/?page=mainPage"

@@ -159,12 +159,14 @@ module AppUpdate =
             sphereRadius = 0.2
             sphereColor = C4b(1.0,1.0,1.0,0.4)
             currentProbeManipulated = false
+            newProbePlaced = false
             currentProbe = None
             allProbes = HashMap.Empty
             probeIntersectionId = None
             intersectionControllerId = None
             deletionControllerId = None
             lastFilterProbe = None
+            lastFilterProbeId = None
             statistics = ""
             rayDeviceId = None
             ray = Ray3d.Invalid
@@ -203,11 +205,13 @@ module AppUpdate =
             heraTransformations = Trafo3d(Scale3d(0.05)) * Trafo3d.Translation(0.0, 0.0, 0.7)
         }
 
-    let rec update (runtime : IRuntime) (client : Browser) (viewTrafo : aval<Trafo3d>) (projTrafo : aval<Trafo3d>) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
+    let rec update (runtime : IRuntime) (client : Browser) (histogramClient : Browser) (viewTrafo : aval<Trafo3d>) (projTrafo : aval<Trafo3d>) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
         let mTwoD = model.twoDModel
 
         let getTexture tex = Option.defaultValue model.touchpadTexture tex
         let texture tex = allTextures.TryFind(tex) |> getTexture    
+
+        let currTexture = (histogramClient.Texture |> AVal.force)
 
         let hmdPos = state.display.pose.deviceToWorld.GetModelOrigin()
 
@@ -406,18 +410,41 @@ module AppUpdate =
                         }
                     )
                 else 
-                    model.allProbes                
+                    model.allProbes      
+                    
+            let probeHistogramsUpdated = 
+                //printf "probe Placed: %A \n" model.newProbePlaced
+                if model.newProbePlaced then 
+                    let lastProbe = model.lastFilterProbe
+                    //printf "last Probe: %A \n" lastProbe
+                    match lastProbe with 
+                    | Some p ->
+                        probesUpdate 
+                        |> HashMap.map (fun key probe -> 
+                            let newHistogramTexture = 
+                                if p.id = key then
+                                    //printf "++++++++++++++++++++++++++++++++++++++ \n"
+                                    Some currTexture
+                                else 
+                                    //printf "-------------------------------------- \n"
+                                    probe.currHistogram
+                            //printf "histogram Tex: %A \n" (newHistogramTexture.Value.GetHashCode())
+                            { probe with currHistogram = newHistogramTexture}
+                        )
+                    | None -> probesUpdate
+                else 
+                    probesUpdate
 
             // UPDATE VISIBILITY OF THE BILLBOARDS ABOVE PROBES
             let allProbesUpdated = 
                 if model.allProbes.Count >= 2 then
-                    probesUpdate
+                    probeHistogramsUpdated
                     |> HashMap.map (fun key probe -> 
                         let currProbeIntersected = 
                             match probeIntersection with 
                             | Some prKey when prKey = key -> true
                             | _ -> false
-                        let allProbesWithoutCurrent = probesUpdate.Remove(key)
+                        let allProbesWithoutCurrent = probeHistogramsUpdated.Remove(key)
                         let probePos, probeRadius = probeInScreenCoordinates probe.center probe.radius
                         let probeVisible = 
                             if currProbeIntersected then true
@@ -443,7 +470,7 @@ module AppUpdate =
                     )
 
                 else 
-                    probesUpdate
+                    probeHistogramsUpdated
 
             //MENU, TOUCHPAD AND TEXTURES TRAFOS
             let currMenuTrafo = newOrOldTrafo id trafo model.menuControllerId model.menuControllerTrafo
@@ -490,9 +517,9 @@ module AppUpdate =
             let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
             if not model.controllerMenuOpen then 
                 match model.controllerMode with
-                | ControllerMode.Probe -> update runtime client viewTrafo projTrafo frames state vr model (CreateProbe (id, currDeviceTrafo))
-                | ControllerMode.Ray -> update runtime client viewTrafo projTrafo frames state vr model (CreateRay (id, currDeviceTrafo))
-                | ControllerMode.Clipping -> update runtime client viewTrafo projTrafo frames state vr model (CreateClipping (id, currDeviceTrafo))
+                | ControllerMode.Probe -> update runtime client histogramClient viewTrafo projTrafo frames state vr model (CreateProbe (id, currDeviceTrafo))
+                | ControllerMode.Ray -> update runtime client histogramClient viewTrafo projTrafo frames state vr model (CreateRay (id, currDeviceTrafo))
+                | ControllerMode.Clipping -> update runtime client histogramClient viewTrafo projTrafo frames state vr model (CreateClipping (id, currDeviceTrafo))
                 | _ -> model
             else 
                 { model with 
@@ -508,10 +535,10 @@ module AppUpdate =
                 | Some i when i = id -> 
                     if model.deletionControllerId.IsSome then // if deletion controller is set then DELETE current probe with main controller 
                         //TODO: Check if the deleted probe is the last one used for filtering
-                        let filterProbe = 
+                        let filterProbe, probeId = 
                             match model.lastFilterProbe with 
-                                | Some pr when pr.id <> probe -> model.lastFilterProbe
-                                | _ -> None
+                                | Some pr when pr.id <> probe -> model.lastFilterProbe, Some pr.id
+                                | _ -> None, None
                         let updatedTwoDmodel = 
                             { mTwoD with
                                 sphereFilter = None
@@ -521,18 +548,22 @@ module AppUpdate =
                         {model with 
                             allProbes = model.allProbes.Remove(probe)
                             lastFilterProbe = filterProbe
+                            lastFilterProbeId = probeId
                             twoDModel = updatedTwoDmodel
                             } 
                     else // if deletion controller is not set -> MANIPULATE probe
                         let currProbe = model.allProbes.TryFind(probe)
-                        let currScale = 
+                        
+                        let currScale, probeId = 
                             match currProbe with
-                            | Some pr -> (pr.radius / model.sphereRadius)
-                            | None -> model.sphereScale
+                            | Some pr -> (pr.radius / model.sphereRadius), Some pr.id
+                            | None -> model.sphereScale, None
                         {model with 
                             allProbes = model.allProbes.Remove(probe)
                             lastFilterProbe = currProbe
+                            lastFilterProbeId = probeId
                             currentProbeManipulated = true
+                            newProbePlaced = false
                             sphereControllerTrafo = trafo
                             sphereControllerId = Some id
                             sphereScale = currScale
@@ -544,11 +575,13 @@ module AppUpdate =
                 | Some i when i <> id -> 
                     {model with // if not the same id -> sphere shold be scaled 
                         currentProbeManipulated = true
+                        newProbePlaced = false
                         sphereScalerId = Some id
                         sphereScalerTrafo = trafo} 
                 | _ -> // if the current id is the same as the previous -> set new trafos for the sphere
                     {model with 
                         currentProbeManipulated = true
+                        newProbePlaced = false
                         sphereControllerTrafo = trafo
                         sphereControllerId = Some id
                         intersectionControllerId = Some id}
@@ -641,6 +674,8 @@ module AppUpdate =
                             allProbes = model.allProbes.Add(probe.id, probe)
                             lastSphereScale = model.sphereScale
                             lastFilterProbe = Some probe
+                            lastFilterProbeId = Some probe.id
+                            newProbePlaced = true
                             statistics = stats
                             sphereScale = 1.0
                             sphereControllerId = None
