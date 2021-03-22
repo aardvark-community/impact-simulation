@@ -87,6 +87,8 @@ function initHisto(id) {
         .style("border", "3px solid #ffffff");
 
     svg = container.append("svg")
+        .attr("id","histogramSvg")
+        .attr("viewBox", "0 0 " + svg_width + " " + svg_height)
         .attr("width", width + svg_margin.left + svg_margin.right)
         .attr("height", height + svg_margin.top + svg_margin.bottom);
 

@@ -777,7 +777,6 @@ module App =
                 { kind = Script; name = "histogramScript"; url = "Histogram.js" }
                 { kind = Stylesheet; name = "parallCoordStyle"; url = "ParallCoords.css" }
                 { kind = Script; name = "parallCoordScript"; url = "ParallCoords.js" }
-
             ]
 
        // let a = m.data | AVal.map (fun data -> encodeToJSONData)
@@ -1088,9 +1087,14 @@ module App =
                     )
             | Some "histogramPage" ->
                 body [] [
+                    DomNode.Text ("style", Option.None, AttributeMap.Empty, (AVal.constant "
+                        #histogramSvg {
+                            width: 100%;
+                            height: 100%;
+                            }"))
                     require dependencies (
                         onBoot' [("data", dataChannel); ("transition", transitionChannel)] updateChart ( // when div [histogram etc] is constructed updateChart is called.
-                            div [onBrushed; clazz "histogram"; style "width: 100%; height: 100%"] []          
+                            div [onBrushed; clazz "histogram"; style "width: 100%; height: 100%"] [] 
                         )
                     )
                 ]
