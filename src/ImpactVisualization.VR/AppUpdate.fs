@@ -3,8 +3,11 @@
 open System
 open System.IO
 open Aardvark.Base
+open Aardvark.Base.Rendering
 open Aardvark.Vr
 open Aardvark.Application
+open Aardvark.Rendering.GL
+
 
 open FSharp.Data.Adaptive
 
@@ -13,30 +16,7 @@ open AardVolume.App
 open ImpactVisualization
 open Aardvark.Cef
 
-type ThreeDMessage = Nop
 
-type Message =
-    | ThreeD of ThreeDMessage
-    | TwoD of AardVolume.Message 
-    | Nop
-    | StartVr
-    | GrabHera of int
-    | UngrabHera of int
-    | ScaleHera of int * float
-    | MoveController of int * Trafo3d
-    | ToggleControllerMenu of int
-    | OpenControllerMenu of int
-    | ChangeTouchpadPos of int * V2d
-    | ChangeControllerMode of int
-    | SelectAttribute of int
-    | ActivateControllerMode of int
-    | CreateProbe of int * Trafo3d
-    | CreateRay of int * Trafo3d
-    | CreateClipping of int * Trafo3d
-    | DeactivateControllerMode of int
-    | UntouchDevice of int 
-    | MouseClick
-    | ResetHera 
 
 module AppUpdate =
     open Aardvark.UI.Primitives
@@ -70,6 +50,9 @@ module AppUpdate =
         let p = PixImage.Create s
         let t = PixTexture2d(PixImageMipMap [| p |], true) :> ITexture
         t
+
+    let convertPixImageToITexture (p : PixImage) =
+        PixTexture2d(PixImageMipMap [| p |], true) :> ITexture
 
     let allTextures = 
         HashMap.ofList ["initial", fromStreamToTexture "initial.png"; 
@@ -143,6 +126,7 @@ module AppUpdate =
         {   
             twoDModel = AardVolume.App.initial frames
             text = "hello" 
+            threads = ThreadPool.Empty
             devicesTrafos = HashMap.Empty
             controllerTrafo = Trafo3d.Identity
             heraTrafo = Trafo3d.Identity
@@ -205,13 +189,27 @@ module AppUpdate =
             heraTransformations = Trafo3d(Scale3d(0.05)) * Trafo3d.Translation(0.0, 0.0, 0.7)
         }
 
+    let getScreenshot (histogramClient : Browser) = 
+        let pixImage = PixImage<byte>(Col.Format.BGRA,histogramClient.Size.GetValue())
+        let temp = pixImage.GetMatrix<C4b>().SetByCoord(fun (v : V2l) -> histogramClient.ReadPixel(V2i v) |> C4b) 
+        pixImage :> PixImage
+
     let rec update (runtime : IRuntime) (client : Browser) (histogramClient : Browser) (viewTrafo : aval<Trafo3d>) (projTrafo : aval<Trafo3d>) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
         let mTwoD = model.twoDModel
 
         let getTexture tex = Option.defaultValue model.touchpadTexture tex
         let texture tex = allTextures.TryFind(tex) |> getTexture    
+       
+        //let currTex =
+        //    match histogramClient.Texture |> AVal.force with
+        //    | :? IBackendTexture as ba -> ba
+        //    | _ -> failwith "no backend texture"
+        
+        //let t = currTex 
 
-        let currTexture = (histogramClient.Texture |> AVal.force)
+        ////let newTexture = new Texture(, t.Handle, t.Dimension, t.MipMapLevels, t.Samples, t.Size, t.Count, TextureFormat.Rgba, )
+
+        //let currTexture = runtime.Download currTex
 
         let hmdPos = state.display.pose.deviceToWorld.GetModelOrigin()
 
@@ -412,39 +410,17 @@ module AppUpdate =
                 else 
                     model.allProbes      
                     
-            let probeHistogramsUpdated = 
-                //printf "probe Placed: %A \n" model.newProbePlaced
-                if model.newProbePlaced then 
-                    let lastProbe = model.lastFilterProbe
-                    //printf "last Probe: %A \n" lastProbe
-                    match lastProbe with 
-                    | Some p ->
-                        probesUpdate 
-                        |> HashMap.map (fun key probe -> 
-                            let newHistogramTexture = 
-                                if p.id = key then
-                                    //printf "++++++++++++++++++++++++++++++++++++++ \n"
-                                    Some currTexture
-                                else 
-                                    //printf "-------------------------------------- \n"
-                                    probe.currHistogram
-                            //printf "histogram Tex: %A \n" (newHistogramTexture.Value.GetHashCode())
-                            { probe with currHistogram = newHistogramTexture}
-                        )
-                    | None -> probesUpdate
-                else 
-                    probesUpdate
 
             // UPDATE VISIBILITY OF THE BILLBOARDS ABOVE PROBES
             let allProbesUpdated = 
                 if model.allProbes.Count >= 2 then
-                    probeHistogramsUpdated
+                    probesUpdate
                     |> HashMap.map (fun key probe -> 
                         let currProbeIntersected = 
                             match probeIntersection with 
                             | Some prKey when prKey = key -> true
                             | _ -> false
-                        let allProbesWithoutCurrent = probeHistogramsUpdated.Remove(key)
+                        let allProbesWithoutCurrent = probesUpdate.Remove(key)
                         let probePos, probeRadius = probeInScreenCoordinates probe.center probe.radius
                         let probeVisible = 
                             if currProbeIntersected then true
@@ -470,7 +446,7 @@ module AppUpdate =
                     )
 
                 else 
-                    probeHistogramsUpdated
+                    probesUpdate
 
             //MENU, TOUCHPAD AND TEXTURES TRAFOS
             let currMenuTrafo = newOrOldTrafo id trafo model.menuControllerId model.menuControllerTrafo
@@ -479,7 +455,7 @@ module AppUpdate =
                 if model.controllerMenuOpen then currMenuTrafo
                 else if model.allowHeraScaling then heraContrTrafo
                 else model.textureDeviceTrafo
-
+        
             {model with 
                 controllerTrafo = heraContrTrafo
                 sphereControllerTrafo = sphereContrTrafo
@@ -501,7 +477,8 @@ module AppUpdate =
                 allProbes = allProbesUpdated
                 heraTransformations = heraTrafos
                 touchpadDeviceTrafo = newTouchpadDeviceTrafo
-                textureDeviceTrafo = newTextureDeviceTrafo}
+                textureDeviceTrafo = newTextureDeviceTrafo
+                newProbePlaced = (if model.newProbePlaced then false else model.newProbePlaced)}
         | ActivateControllerMode id ->
             //printf "VR STATE: %A \n" state.devices
             
@@ -669,6 +646,16 @@ module AppUpdate =
                                 sphereFilter = Some sphereTransformed
                                 data = { version = mTwoD.data.version + 1; arr = filteredData}
                             }
+
+                        let threadsVr = 
+                            proclist { 
+                                do! Async.SwitchToThreadPool()
+                                do! Async.Sleep 800
+                                // perform readback
+                                let t = getScreenshot histogramClient
+                                yield SetTexture(t, probe)
+                            }
+
                         {model with
                             currentProbeManipulated = false
                             allProbes = model.allProbes.Add(probe.id, probe)
@@ -681,7 +668,8 @@ module AppUpdate =
                             sphereControllerId = None
                             sphereScalerId = None
                             deletionControllerId = delControllerId
-                            twoDModel = updatedTwoDmodel}
+                            twoDModel = updatedTwoDmodel
+                            threads = ThreadPool.start threadsVr ThreadPool.empty}
                     | _ -> {model with 
                                     sphereScalerId = None
                                     deletionControllerId = delControllerId}
@@ -828,6 +816,18 @@ module AppUpdate =
                 currTouchPadPos = pos
                 touchpadDeviceId = newId
                 touchpadDeviceTrafo = trafoOrIdentity currTouchDevice}
+        | SetTexture (t, p) ->
+            let probeHistogramsUpdated = 
+                model.allProbes 
+                |> HashMap.map (fun key probe -> 
+                    let newHistogramTexture = 
+                        if p.id = key then
+                            Some t
+                        else 
+                            probe.currHistogram
+                    { probe with currHistogram = newHistogramTexture}
+                )
+            {model with allProbes = probeHistogramsUpdated}
         | UntouchDevice id ->
             let tex = if model.allowHeraScaling then (texture "initial-scaling") else model.touchpadTexture
             match model.touchpadDeviceId with 

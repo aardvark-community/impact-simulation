@@ -1109,7 +1109,6 @@ module App =
 
     let threads (state : Model) =
          let pool = ThreadPool.empty
-    
          let rec time() =
              proclist {
                  do! Proc.Sleep 10

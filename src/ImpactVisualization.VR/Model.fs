@@ -46,15 +46,42 @@ type Probe = {
 
     [<NonAdaptive>]
     id : string
-    currHistogram   : Option<ITexture>
+    currHistogram   : Option<PixImage>
 
 }
+
+type ThreeDMessage = Nop
+
+type Message =
+    | ThreeD of ThreeDMessage
+    | TwoD of AardVolume.Message 
+    | Nop
+    | StartVr
+    | GrabHera of int
+    | UngrabHera of int
+    | ScaleHera of int * float
+    | MoveController of int * Trafo3d
+    | ToggleControllerMenu of int
+    | OpenControllerMenu of int
+    | ChangeTouchpadPos of int * V2d
+    | ChangeControllerMode of int
+    | SelectAttribute of int
+    | ActivateControllerMode of int
+    | CreateProbe of int * Trafo3d
+    | CreateRay of int * Trafo3d
+    | CreateClipping of int * Trafo3d
+    | DeactivateControllerMode of int
+    | UntouchDevice of int 
+    | MouseClick
+    | SetTexture of PixImage * Probe
+    | ResetHera 
 
 [<ModelType>]
 type Model = 
     {
         text : string
         twoDModel : AardVolume.Model.Model
+        threads : ThreadPool<Message>
 
         //Controllers
         devicesTrafos : HashMap<int, Trafo3d>

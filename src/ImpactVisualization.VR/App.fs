@@ -29,7 +29,6 @@ module Demo =
     open Aardvark.UI.Primitives
     open Aardvark.Base.Rendering
 
-
     let combinedTrafo (trafos : aval<Trafo3d []>) = 
         trafos |> AVal.map (fun trafos ->
         let left = trafos.[0]
@@ -39,7 +38,9 @@ module Demo =
         Trafo3d(combined, combinedInv))
 
     let threads (model : Model) =
-        AardVolume.App.threads model.twoDModel |> ThreadPool.map TwoD
+        let thread2d = AardVolume.App.threads model.twoDModel |> ThreadPool.map TwoD
+        let threadsVr = model.threads
+        ThreadPool.union thread2d threadsVr
         
     let input (msg : VrMessage) =
         match msg with
@@ -232,8 +233,11 @@ module Demo =
                         |> Sg.pass pass2
                     let currHistogramTexture = 
                         match p.currHistogram with 
-                        | Some tex -> AVal.constant tex
-                        | None -> DefaultTextures.blackTex
+                        | Some tex -> tex
+                        | None -> DefaultTextures.blackPix :> PixImage
+                    let tex =
+                        convertPixImageToITexture currHistogramTexture
+                        |> AVal.constant
                     let probeHistogramSg = 
                         Sg.draw IndexedGeometryMode.TriangleList
                         |> Sg.vertexAttribute DefaultSemantic.Positions probeHistogramPositions
@@ -241,13 +245,14 @@ module Demo =
                         |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
                         |> Sg.index (AVal.constant [|0;1;2; 0;2;3|]) 
                         |> Sg.trafo histogramScaleTrafo
+                        |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
                         |> Sg.myBillboard viewTrafo
                         |> Sg.applyRuntime runtime
                         |> Sg.noEvents
                         |> Sg.transform (Trafo3d.Translation(p.center))
                         |> Sg.translate 0.0 0.0 (p.radius * 1.7)
                         |> Sg.onOff (AVal.constant p.showBillboard)
-                        |> Sg.diffuseTexture currHistogramTexture
+                        |> Sg.diffuseTexture tex
                         |> Sg.shader {
                             do! DefaultSurfaces.trafo
                             do! DefaultSurfaces.simpleLighting
