@@ -647,10 +647,21 @@ module AppUpdate =
                                 data = { version = mTwoD.data.version + 1; arr = filteredData}
                             }
 
+                        let sleepTime = 
+                            let dataSize = filteredData.Length
+                            match dataSize with 
+                            | d when d >= 800000 -> 2000
+                            | d when d >= 500000 -> 1500
+                            | d when d >= 100000 -> 800
+                            | d when d >= 50000  -> 300
+                            | d when d >= 10000  -> 200
+                            | d when d >= 100    -> 130
+                            | _ -> 100
+
                         let threadsVr = 
                             proclist { 
                                 do! Async.SwitchToThreadPool()
-                                do! Async.Sleep 800
+                                do! Async.Sleep sleepTime
                                 // perform readback
                                 let t = getScreenshot histogramClient
                                 yield SetTexture(t, probe)

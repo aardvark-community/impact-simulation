@@ -789,6 +789,8 @@ module App =
         let transitionChannel = m.transition.Channel
         let updateChart =
             "initHisto(__ID__); data.onmessage = function (values) { refresh(values);  }; transition.onmessage = function (v) { shouldUseTransition = v; }"  // subscribe to m.data
+        let updateChart1 =
+            "initHisto(__ID__); data.onmessage = function (values) { refresh(values);  }; transition.onmessage = function (v) { shouldUseTransition = false; }"  // subscribe to m.data
 
         let pathChannel = m.dataPath.Channel
         let updateParallCoords = 
@@ -1093,7 +1095,7 @@ module App =
                             height: 100%;
                             }"))
                     require dependencies (
-                        onBoot' [("data", dataChannel); ("transition", transitionChannel)] updateChart ( // when div [histogram etc] is constructed updateChart is called.
+                        onBoot' [("data", dataChannel); ("transition", transitionChannel)] updateChart1 ( // when div [histogram etc] is constructed updateChart is called.
                             div [onBrushed; clazz "histogram"; style "width: 100%; height: 100%"] [] 
                         )
                     )

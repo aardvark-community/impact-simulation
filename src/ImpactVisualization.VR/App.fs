@@ -86,7 +86,6 @@ module Demo =
         let pass2 = RenderPass.after "pass2" RenderPassOrder.Arbitrary pass1   
         let pass3 = RenderPass.after "pass3" RenderPassOrder.Arbitrary pass2   
 
-        
         let mutable mode = BlendMode(true)
         mode.Enabled <- true
         mode.Operation <- BlendOperation.Add
@@ -235,6 +234,7 @@ module Demo =
                         match p.currHistogram with 
                         | Some tex -> tex
                         | None -> DefaultTextures.blackPix :> PixImage
+                    let showCurrHistogram = if p.currHistogram.IsSome then true else false
                     let tex =
                         convertPixImageToITexture currHistogramTexture
                         |> AVal.constant
@@ -251,7 +251,7 @@ module Demo =
                         |> Sg.noEvents
                         |> Sg.transform (Trafo3d.Translation(p.center))
                         |> Sg.translate 0.0 0.0 (p.radius * 1.7)
-                        |> Sg.onOff (AVal.constant p.showBillboard)
+                        |> Sg.onOff (AVal.constant (p.showBillboard && showCurrHistogram))
                         |> Sg.diffuseTexture tex
                         |> Sg.shader {
                             do! DefaultSurfaces.trafo
@@ -554,8 +554,6 @@ module Demo =
                 |> Sg.noEvents
                 |> Sg.trafo m.heraTransformations
                 |> Sg.fillMode (FillMode.Line |> AVal.constant)
-
-
 
             let t = 
                 Sg.textWithConfig ({ TextConfig.Default with renderStyle = RenderStyle.Normal })  (AVal.constant "hello world\nsuperstar")
