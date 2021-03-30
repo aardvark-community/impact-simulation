@@ -267,11 +267,13 @@ module Demo =
                         }
                         |> Sg.blendMode (AVal.constant mode)
                         |> Sg.pass pass2
+                    let showBillboard = m.grabberId |> AVal.map (fun grabber -> grabber.IsNone)
                     let billboardSg = 
                         match p.currBillboard with 
                         | BillboardType.Histogram -> probeHistogramSg
                         | BillboardType.Statistic -> statisticsSg
                         | _ -> probeHistogramSg
+                        |> Sg.onOff showBillboard
                     Sg.sphere 6 color (AVal.constant p.radiusRelToHera)
                     |> Sg.noEvents
                     |> Sg.transform (Trafo3d.Translation(p.centerRelToHera))

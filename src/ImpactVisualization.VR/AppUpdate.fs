@@ -433,11 +433,10 @@ module AppUpdate =
                     )
                 else 
                     model.allProbes      
-                    
 
             // UPDATE VISIBILITY OF THE BILLBOARDS ABOVE PROBES
             let allProbesUpdated = 
-                if model.allProbes.Count >= 2 then
+                if model.allProbes.Count >= 2 && model.grabberId.IsNone then
                     probesUpdate
                     |> HashMap.map (fun key probe -> 
                         let currProbeIntersected = 
@@ -471,7 +470,6 @@ module AppUpdate =
                             showStatistics = statisticsVisible
                             showHistogram = statisticsVisible}
                     )
-
                 else 
                     probesUpdate
 
