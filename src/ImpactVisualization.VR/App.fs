@@ -70,7 +70,12 @@ module Demo =
             []
         | VrMessage.ValueChange(controllerId, buttonId, value) ->
             match buttonId with 
-            | 0 ->  [ChangeTouchpadPos (controllerId, value); ScaleHera (controllerId, value.X); ChangeControllerMode controllerId; SelectAttribute controllerId]
+            | 0 ->  [ChangeTouchpadPos (controllerId, value); 
+                     ScaleHera (controllerId, value.X); 
+                     ChangeControllerMode controllerId; 
+                     SelectAttribute controllerId;
+                     ChangeBillboard controllerId
+                     ]
             | _ -> []
         | VrMessage.UpdatePose(controllerId, pose) ->
             if pose.isValid then [MoveController (controllerId, pose.deviceToWorld)] else []
@@ -85,6 +90,8 @@ module Demo =
         let pass1 = RenderPass.after "pass1" RenderPassOrder.Arbitrary pass0 
         let pass2 = RenderPass.after "pass2" RenderPassOrder.Arbitrary pass1   
         let pass3 = RenderPass.after "pass3" RenderPassOrder.Arbitrary pass2   
+        let pass4 = RenderPass.after "pass4" RenderPassOrder.Arbitrary pass3   
+
 
         let mutable mode = BlendMode(true)
         mode.Enabled <- true
@@ -178,7 +185,7 @@ module Demo =
             |> Sg.fillMode (FillMode.Line |> AVal.constant)
            // |> Sg.cullMode (CullMode.Front |> AVal.constant)
            // |> Sg.blendMode (AVal.constant mode)
-            |> Sg.pass pass3
+            |> Sg.pass pass4
 
         let cfg : Aardvark.Rendering.Text.TextConfig = 
             {
@@ -189,7 +196,7 @@ module Demo =
                 renderStyle       = RenderStyle.Normal
         }
         
-        let probeHistogramPositions = AVal.constant  [|V3f(-1.8, -1.0, 0.0); V3f(1.8, -1.0, 0.0); V3f(1.8, 1.0, 0.0); V3f(-1.8, 1.0, 0.0)|]
+        let probeHistogramPositions = AVal.constant  [|V3f(-1.75, -1.0, 0.0); V3f(1.75, -1.0, 0.0); V3f(1.75, 1.0, 0.0); V3f(-1.75, 1.0, 0.0)|]
 
         let probesSgs = 
             m.allProbes |> AMap.toASet |> ASet.chooseA (fun (key, probe) ->
@@ -211,7 +218,7 @@ module Demo =
                     let histogramScaleTrafo = 
                         m.sphereRadius |> AVal.map (fun r -> 
                             let sphereScale = p.radius / r
-                            let statScale = 0.15 * sphereScale
+                            let statScale = 0.12 * sphereScale
                             Trafo3d(Scale3d(statScale)))
                     let text = AVal.constant p.currStatistics
                     let statisticsSg = 
@@ -227,9 +234,9 @@ module Demo =
                         |> Sg.noEvents
                         |> Sg.transform (Trafo3d.Translation(p.center))
                         |> Sg.translate 0.0 0.0 (p.radius * 1.8)
-                        |> Sg.onOff (AVal.constant p.showBillboard)
+                        |> Sg.onOff (AVal.constant p.showStatistics)
                         |> Sg.blendMode (AVal.constant mode)
-                        |> Sg.pass pass2
+                        |> Sg.pass pass3
                     let currHistogramTexture = 
                         match p.currHistogram with 
                         | Some tex -> tex
@@ -250,8 +257,8 @@ module Demo =
                         |> Sg.applyRuntime runtime
                         |> Sg.noEvents
                         |> Sg.transform (Trafo3d.Translation(p.center))
-                        |> Sg.translate 0.0 0.0 (p.radius * 1.7)
-                        |> Sg.onOff (AVal.constant (p.showBillboard && showCurrHistogram))
+                        |> Sg.translate 0.0 0.0 (p.radius * 1.6)
+                        |> Sg.onOff (AVal.constant (p.showHistogram && showCurrHistogram))
                         |> Sg.diffuseTexture tex
                         |> Sg.shader {
                             do! DefaultSurfaces.trafo
@@ -260,12 +267,17 @@ module Demo =
                         }
                         |> Sg.blendMode (AVal.constant mode)
                         |> Sg.pass pass2
+                    let billboardSg = 
+                        match p.currBillboard with 
+                        | BillboardType.Histogram -> probeHistogramSg
+                        | BillboardType.Statistic -> statisticsSg
+                        | _ -> probeHistogramSg
                     Sg.sphere 6 color (AVal.constant p.radiusRelToHera)
                     |> Sg.noEvents
                     |> Sg.transform (Trafo3d.Translation(p.centerRelToHera))
                     |> Sg.trafo m.heraTransformations // so that it moves with hera!!!
                     |> Sg.fillMode (FillMode.Line |> AVal.constant)
-                    |> Sg.andAlso probeHistogramSg
+                    |> Sg.andAlso billboardSg
                     |> Some
                 )
             ) 
@@ -356,7 +368,7 @@ module Demo =
 
         let planePositions = m.planeCorners |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
 
-        let clipPlaneSg = planeSg planePositions (C4f(1.0,1.0,0.1,0.2)) FillMode.Fill (AVal.constant mode) pass3
+        let clipPlaneSg = planeSg planePositions (C4f(1.0,1.0,0.1,0.2)) FillMode.Fill (AVal.constant mode) pass4
 
         let tvSg = 
             Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"tv";"tv.obj"])

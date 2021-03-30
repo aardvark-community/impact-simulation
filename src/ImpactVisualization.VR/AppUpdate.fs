@@ -83,7 +83,11 @@ module AppUpdate =
                         "empty", fromStreamToTexture "empty.png";
                         "grab-sphere", fromStreamToTexture "grab-sphere.png";
                         "scaling-up", fromStreamToTexture "scaling-up.png";
-                        "scaling-down", fromStreamToTexture "scaling-down.png"]
+                        "scaling-down", fromStreamToTexture "scaling-down.png";
+                        "histogram-selected", fromStreamToTexture "histogram-selected.png";
+                        "statistics-selected", fromStreamToTexture "statistics-selected.png";
+                        "histogram", fromStreamToTexture "histogram.png";
+                        "statistics", fromStreamToTexture "statistics.png"]
     
     let trafoOrIdentity trafo = Option.defaultValue Trafo3d.Identity trafo
 
@@ -97,7 +101,7 @@ module AppUpdate =
     let sphereIntersection (controllerSphere : Sphere3d) (probe : Sphere3d) = controllerSphere.Intersects(probe)
     
 
-    let createProbe (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) (inside : bool) (statistics : string ) (billboard : bool): Probe = 
+    let createProbe (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) (inside : bool) (statistics : string ) (showStats : bool) (showHisto : bool) : Probe = 
         {
             id = Guid.NewGuid().ToString()
             center = pos
@@ -106,8 +110,10 @@ module AppUpdate =
             radiusRelToHera = radToHera
             insideHera = inside
             currStatistics = statistics
+            showStatistics = showStats
             currHistogram = None
-            showBillboard = billboard
+            showHistogram = showHisto
+            currBillboard = BillboardType.Histogram
         }
     
     let convertCartesianToPolar (cartCoords : V2d) = 
@@ -378,6 +384,24 @@ module AppUpdate =
                 | None -> None
                 | _ -> model.probeIntersectionId
 
+
+            ////SHOW CONTROLLER TEXTURES WHEN INTERSECTING WITH A PROBE
+            let tex, screenTex = 
+                if not model.allowHeraScaling && not model.controllerMenuOpen then 
+                    match probeIntersection with
+                    | Some probeId ->
+                        let intersectedProbe = model.allProbes.Item probeId
+                        let billboard = intersectedProbe.currBillboard
+                        let texName, screenTexName =    
+                            match billboard with
+                            | BillboardType.Histogram -> "histogram-selected", "histogram"
+                            | BillboardType.Statistic -> "statistics-selcted", "statistics"
+                            | _ -> "histogram-selected", "histogram"
+                        (texture texName), (texture screenTexName)
+                    | _ -> model.touchpadTexture, (texture "empty")
+                else 
+                    model.touchpadTexture, model.contrScreenTexture
+
             //let screenTex = if probeIntersection.IsSome then texture "grab-sphere" else model.contrScreenTexture
 
             //CLIPPING PLANE UPDATE
@@ -422,7 +446,7 @@ module AppUpdate =
                             | _ -> false
                         let allProbesWithoutCurrent = probesUpdate.Remove(key)
                         let probePos, probeRadius = probeInScreenCoordinates probe.center probe.radius
-                        let probeVisible = 
+                        let statisticsVisible = 
                             if currProbeIntersected then true
                             else
                                 allProbesWithoutCurrent
@@ -434,19 +458,24 @@ module AppUpdate =
                                     let pPos, pRadius = probeInScreenCoordinates p.center p.radius
                                     let distance = probePos.XY.Distance(pPos.XY)
                                     let allowedMinDistance = 0.65 * (probeRadius + pRadius)
+                                    //let allowedMinDistanceHisto = 0.85 * (probeRadius + pRadius)
                                     if (distance < allowedMinDistance) then // checks if the two probes intersect
                                         if probePos.Z < pPos.Z then // checks wether the current probe is closer to the screen
                                             match probeIntersection with 
                                             | Some prKey when prKey = k -> false
                                             | _ -> true
-                                        else not p.showBillboard
+                                        else not p.showStatistics
                                     else true
                             )
-                        {probe with showBillboard = probeVisible}
+                        {probe with 
+                            showStatistics = statisticsVisible
+                            showHistogram = statisticsVisible}
                     )
 
                 else 
                     probesUpdate
+
+            let textureContrTrafo = newOrOldTrafo id trafo model.intersectionControllerId model.textureDeviceTrafo
 
             //MENU, TOUCHPAD AND TEXTURES TRAFOS
             let currMenuTrafo = newOrOldTrafo id trafo model.menuControllerId model.menuControllerTrafo
@@ -454,7 +483,14 @@ module AppUpdate =
             let newTextureDeviceTrafo = 
                 if model.controllerMenuOpen then currMenuTrafo
                 else if model.allowHeraScaling then heraContrTrafo
+                else if probeIntersection.IsSome then textureContrTrafo
                 else model.textureDeviceTrafo
+
+            let showTexture = 
+                if probeIntersection.IsSome then 
+                    true
+                else 
+                    model.allowHeraScaling || model.controllerMenuOpen
         
             {model with 
                 controllerTrafo = heraContrTrafo
@@ -472,6 +508,9 @@ module AppUpdate =
                 screenHitPoint = hit.Coord
                 screenCoordsHitPos = screenCoordsHitPos
                 probeIntersectionId = probeIntersection
+                touchpadTexture = tex
+                contrScreenTexture = screenTex
+                showTexture = showTexture
                 //contrScreenTexture = screenTex
                 heraBox = heraBBox
                 allProbes = allProbesUpdated
@@ -636,7 +675,7 @@ module AppUpdate =
                             }
 
                         let array, stats = filterDataForOneFrameSphere frames.[mTwoD.frame] (Some sphereTransformed) model.attribute discardProperties
-                        let probe = createProbe spherePos sphereRadius spherePosTransformed radiusTransformed intersection stats true
+                        let probe = createProbe spherePos sphereRadius spherePosTransformed radiusTransformed intersection stats true true
 
                         // printf "Statistics: \n %A" stats
                         let filteredData = if intersection then array else mTwoD.data.arr
@@ -749,7 +788,7 @@ module AppUpdate =
                 {model with menuControllerId = None}
         | ChangeControllerMode id -> 
             match model.menuControllerId with  
-            | Some i when i = id && model.menuLevel = 1 && not model.allowHeraScaling -> 
+            | Some i when i = id && model.menuLevel = 1 && not model.allowHeraScaling && model.probeIntersectionId.IsNone -> 
                 let r, theta = convertCartesianToPolar model.currTouchPadPos
                 let newContrlMode = 
                     if r >= 0.5 then 
@@ -778,9 +817,38 @@ module AppUpdate =
                     contrScreenTexture = screenTexture
                     lastContrScreenModeTexture = screenTexture}
             | _ -> model
+        | ChangeBillboard id ->
+            match model.probeIntersectionId with
+            | Some probeId ->
+                match model.intersectionControllerId with 
+                | Some i when i = id && model.touchpadDeviceId.IsSome ->
+                    let r, theta = convertCartesianToPolar model.currTouchPadPos
+                    let intersectedProbe = model.allProbes.Item probeId
+                    let newBillboardType = 
+                        match theta with 
+                        | t when t >= 0.0 && t < 90.0 -> BillboardType.Histogram
+                        | t when t >= 90.0 && t < 180.0 -> BillboardType.Statistic
+                        | _ -> intersectedProbe.currBillboard
+                    let updatedProbe = {intersectedProbe with currBillboard = newBillboardType}
+                    let update (pr : Option<Probe>) = updatedProbe 
+                    let allProbesUpdated = model.allProbes |> HashMap.update probeId update
+                    let texture, screenTexture =    
+                        let texName, screenTexName =    
+                            match newBillboardType with
+                            | BillboardType.Histogram -> "histogram-selected", "histogram"
+                            | BillboardType.Statistic -> "statistics-selected", "statistics"
+                            | _ -> "histogram-selected", "histogram"
+                        (texture texName), (texture screenTexName)
+                    {model with 
+                        allProbes = allProbesUpdated
+                        touchpadTexture = texture
+                        contrScreenTexture = screenTexture
+                        showTexture = true}
+                | _ -> model
+            | None -> model
         | SelectAttribute id ->
             match model.menuControllerId with  
-            | Some i when i = id && model.menuLevel = 2 && not model.allowHeraScaling -> 
+            | Some i when i = id && model.menuLevel = 2 && not model.allowHeraScaling && model.probeIntersectionId.IsNone -> 
                 let r, theta = convertCartesianToPolar model.currTouchPadPos
                 let newAttribute = 
                     if r >= 0.5 then 
@@ -813,7 +881,7 @@ module AppUpdate =
                     attribute = newAttribute
                     touchpadTexture = texture
                     contrScreenTexture = screenTexture}
-                | _ -> model
+            | _ -> model
         | ChangeTouchpadPos (id, pos) -> 
            // printf "CHANGE TOUCHPAD POS %A \n" pos
             let currTouchDevice = model.devicesTrafos.TryFind(id)

@@ -33,21 +33,25 @@ type Attribute =
     | Density = 6
     | NoAttribute = 7
 
+type BillboardType = 
+    | Statistic = 0
+    | Histogram = 1
+
 [<ModelType>]
 type Probe = {
-    
     center          : V3d
     radius          : float
     centerRelToHera : V3d
     radiusRelToHera : float
     insideHera      : bool
     currStatistics  : string
-    showBillboard   : bool 
+    showStatistics  : bool 
+    currHistogram   : Option<PixImage>
+    showHistogram   : bool
+    currBillboard   : BillboardType
 
     [<NonAdaptive>]
     id : string
-    currHistogram   : Option<PixImage>
-
 }
 
 type ThreeDMessage = Nop
@@ -65,6 +69,7 @@ type Message =
     | OpenControllerMenu of int
     | ChangeTouchpadPos of int * V2d
     | ChangeControllerMode of int
+    | ChangeBillboard of int
     | SelectAttribute of int
     | ActivateControllerMode of int
     | CreateProbe of int * Trafo3d
