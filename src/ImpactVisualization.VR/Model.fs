@@ -76,6 +76,7 @@ type Message =
     | CreateRay of int * Trafo3d
     | CreateClipping of int * Trafo3d
     | DeactivateControllerMode of int
+    | TouchDevice of int
     | UntouchDevice of int 
     | MouseClick
     | SetTexture of PixImage * Probe

@@ -205,6 +205,8 @@ module AppUpdate =
 
         let getTexture tex = Option.defaultValue model.touchpadTexture tex
         let texture tex = allTextures.TryFind(tex) |> getTexture    
+
+        let callUpdate (msg : Message) = update runtime client histogramClient viewTrafo projTrafo frames state vr model msg
        
         //let currTex =
         //    match histogramClient.Texture |> AVal.force with
@@ -344,15 +346,9 @@ module AppUpdate =
                     let screenCoords = (V2d(hit.Coord.Y * screenResolution.ToV2d().X, hit.Coord.X * screenResolution.ToV2d().Y)).ToV2i()
                     let screenPos = PixelPosition(screenCoords, screenResolution.X, screenResolution.Y)
                     if model.rayTriggerClicked then
-                        //printf "client MOVE \n" 
                         client.Mouse.Move(screenPos)
-                    //printf "client Focus TRUE \n" 
-                    //client.SetFocus true
                     Ray3d(initRay.Origin, hit.Point), C4b.Green, screenPos
                 else
-                   // printf "client Focus FALSE" 
-                    //
-                   // client.SetFocus false
                     initRay, C4b.Red, PixelPosition()
     
             //HERA TRANSFORMATIONS UPDATE
@@ -370,7 +366,7 @@ module AppUpdate =
             //INTERSECTION OF CONTROLLER WITH A PROBE
             let probeIntersection = 
                 match model.intersectionControllerId with 
-                | Some i when i = id && not model.currentProbeManipulated -> 
+                | Some i when i = id && not model.currentProbeManipulated && model.grabberId.IsNone -> 
                         let intersectionContrTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(i))
                         let intersectionContrTrafoPos = intersectionContrTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
                         let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
@@ -387,7 +383,7 @@ module AppUpdate =
 
             ////SHOW CONTROLLER TEXTURES WHEN INTERSECTING WITH A PROBE
             let tex, screenTex = 
-                if not model.allowHeraScaling && not model.controllerMenuOpen then 
+                if not model.allowHeraScaling && not model.controllerMenuOpen && model.grabberId.IsNone then 
                     match probeIntersection with
                     | Some probeId ->
                         let intersectedProbe = model.allProbes.Item probeId
@@ -398,7 +394,7 @@ module AppUpdate =
                             | BillboardType.Statistic -> "statistics-selcted", "statistics"
                             | _ -> "histogram-selected", "histogram"
                         (texture texName), (texture screenTexName)
-                    | _ -> model.touchpadTexture, (texture "empty")
+                    | _ -> model.touchpadTexture, model.lastContrScreenModeTexture
                 else 
                     model.touchpadTexture, model.contrScreenTexture
 
@@ -473,11 +469,11 @@ module AppUpdate =
                 else 
                     probesUpdate
 
-            let textureContrTrafo = newOrOldTrafo id trafo model.intersectionControllerId model.textureDeviceTrafo
 
             //MENU, TOUCHPAD AND TEXTURES TRAFOS
             let currMenuTrafo = newOrOldTrafo id trafo model.menuControllerId model.menuControllerTrafo
             let newTouchpadDeviceTrafo = newOrOldTrafo id trafo model.touchpadDeviceId model.touchpadDeviceTrafo 
+            let textureContrTrafo = newOrOldTrafo id trafo model.intersectionControllerId model.textureDeviceTrafo
             let newTextureDeviceTrafo = 
                 if model.controllerMenuOpen then currMenuTrafo
                 else if model.allowHeraScaling then heraContrTrafo
@@ -531,9 +527,9 @@ module AppUpdate =
             let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
             if not model.controllerMenuOpen then 
                 match model.controllerMode with
-                | ControllerMode.Probe -> update runtime client histogramClient viewTrafo projTrafo frames state vr model (CreateProbe (id, currDeviceTrafo))
-                | ControllerMode.Ray -> update runtime client histogramClient viewTrafo projTrafo frames state vr model (CreateRay (id, currDeviceTrafo))
-                | ControllerMode.Clipping -> update runtime client histogramClient viewTrafo projTrafo frames state vr model (CreateClipping (id, currDeviceTrafo))
+                | ControllerMode.Probe -> callUpdate (CreateProbe (id, currDeviceTrafo))
+                | ControllerMode.Ray -> callUpdate (CreateRay (id, currDeviceTrafo))
+                | ControllerMode.Clipping -> callUpdate (CreateClipping (id, currDeviceTrafo))
                 | _ -> model
             else 
                 { model with 
@@ -757,7 +753,7 @@ module AppUpdate =
                     | 1 -> if model.controllerMode = ControllerMode.Probe then goToNextMenu else closeMenu
                     | _ -> closeMenu
                 | _ -> 1, true
-            let screenTex = if not isOpen then (texture "empty") else model.contrScreenTexture
+            let screenTex = if not isOpen then model.lastContrScreenModeTexture else model.contrScreenTexture
             {model with 
                 menuLevel = level
                 controllerMenuOpen = isOpen
@@ -882,17 +878,17 @@ module AppUpdate =
             | _ -> model
         | ChangeTouchpadPos (id, pos) -> 
            // printf "CHANGE TOUCHPAD POS %A \n" pos
-            let currTouchDevice = model.devicesTrafos.TryFind(id)
+            //let currTouchDevice = trafoOrIdentity (model.devicesTrafos.TryFind(id))
             match model.rayDeviceId with 
             | Some i when i = id && model.screenIntersection -> 
                // printf "client SCROLL \n" 
                 client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
             | _ -> ()
-            let newId = if pos.X = 0.0 && pos.Y = 0.0 then None else Some id //when both X and Y are equal to 0.0 it means we are currently not touching the touchpad
+            //when both X and Y are equal to 0.0 it means we are currently not touching the touchpad
+            let newId = if pos.X = 0.0 && pos.Y = 0.0 then None else Some id
             {model with 
                 currTouchPadPos = pos
-                touchpadDeviceId = newId
-                touchpadDeviceTrafo = trafoOrIdentity currTouchDevice}
+                touchpadDeviceId = newId }
         | SetTexture (t, p) ->
             let probeHistogramsUpdated = 
                 model.allProbes 
@@ -905,12 +901,12 @@ module AppUpdate =
                     { probe with currHistogram = newHistogramTexture}
                 )
             {model with allProbes = probeHistogramsUpdated}
+        | TouchDevice id ->
+             {model with touchpadDeviceId = Some id} 
         | UntouchDevice id ->
-            let tex = if model.allowHeraScaling then (texture "initial-scaling") else model.touchpadTexture
+            //let tex = if model.allowHeraScaling then (texture "initial-scaling") else model.touchpadTexture
             match model.touchpadDeviceId with 
             | Some i when i = id -> 
-                {model with 
-                    touchpadDeviceId = None
-                    touchpadTexture = tex} 
+                {model with touchpadDeviceId = None} 
             | _ -> model
         | ResetHera -> initial runtime frames

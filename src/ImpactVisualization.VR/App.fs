@@ -64,9 +64,14 @@ module Demo =
             | 1 ->  [DeactivateControllerMode controllerId]
             | _ -> []
         | VrMessage.Touch(controllerId, buttonId) ->
+            //match buttonId with 
+            //| 0 -> [TouchDevice controllerId]
+            //| _ -> []
             []
         | VrMessage.Untouch(controllerId, buttonId) ->
-            //[UntouchDevice controllerId]
+            //match buttonId with 
+            //| 0 -> [UntouchDevice controllerId]
+            //| _ -> []
             []
         | VrMessage.ValueChange(controllerId, buttonId, value) ->
             match buttonId with 
@@ -131,6 +136,38 @@ module Demo =
                 do! DefaultSurfaces.diffuseTexture
             }
 
+        let texturePositions =  AVal.constant  [|V3f(-1.0, -1.0, 0.0); V3f(1.0, -1.0, 0.0); V3f(1.0, 1.0, 0.0); V3f(-1.0, 1.0, 0.0)|]
+
+        let touchpadPlaneSg = 
+            Sg.draw IndexedGeometryMode.TriangleList
+            |> Sg.vertexAttribute DefaultSemantic.Positions texturePositions
+            |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
+            |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
+            |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
+            |> Sg.scale 0.0205
+            |> Sg.transform (Trafo3d.RotationXInDegrees(6.5))
+            |> Sg.translate 0.0 -0.05 0.0052
+            |> Sg.onOff m.showTexture
+            |> Sg.diffuseTexture m.touchpadTexture
+            |> Sg.shader {
+                do! DefaultSurfaces.trafo
+                do! DefaultSurfaces.diffuseTexture
+                do! TouchpadShaders.fragmentSh
+            }
+
+        let touching = m.touchpadDeviceId |> AVal.map (fun id -> id.IsSome)
+
+        let touchpadPos = m.currTouchPadPos |> AVal.map (fun pos -> let z = tan (6.5 * (Math.PI / 180.0))
+                                                                    V3d(pos, z * (pos.Y + 1.0)) * 0.019)
+
+        let touchpadSphereSg = 
+            Sg.sphere' 9 C4b.LightGreen 0.002
+            |> Sg.noEvents
+            |> Sg.translate 0.0 -0.05 0.0035 // translation so that it is in the middle of the touchpad
+            |> Sg.translate' touchpadPos
+            |> Sg.trafo m.touchpadDeviceTrafo
+            |> Sg.onOff touching
+
         //let textPlaneSg = 
         //    Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"controllerText";"plane.obj"])
         //    |> Sg.adapter
@@ -157,6 +194,7 @@ module Demo =
                         |> Sg.noEvents 
                         |> Sg.andAlso textScreenSg
                         |> Sg.andAlso textPlaneSg
+                        |> Sg.andAlso touchpadPlaneSg
                         |> Sg.trafo d.pose.deviceToWorld
                         |> Sg.onOff d.pose.isValid
                         |> Some
@@ -198,6 +236,66 @@ module Demo =
         
         let probeHistogramPositions = AVal.constant  [|V3f(-1.75, -1.0, 0.0); V3f(1.75, -1.0, 0.0); V3f(1.75, 1.0, 0.0); V3f(-1.75, 1.0, 0.0)|]
 
+        let createStatisticsSg (p : Probe) = 
+            let text = AVal.constant p.currStatistics
+            let statisticsScaleTrafo = 
+                m.sphereRadius |> AVal.map (fun r -> 
+                    let sphereScale = p.radius / r
+                    let statScale = 0.04 * sphereScale
+                    Trafo3d(Scale3d(statScale)))
+            text
+            |> AVal.map cfg.Layout
+            |> Sg.shapeWithBackground C4b.Gray10 Border2d.None
+            |> Sg.noEvents
+            |> Sg.trafo statisticsScaleTrafo
+            |> Sg.translate 0.0 (p.radius * 0.75) 0.0
+            |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+            |> Sg.myBillboard viewTrafo
+            |> Sg.applyRuntime runtime
+            |> Sg.noEvents
+            |> Sg.transform (Trafo3d.Translation(p.center))
+            |> Sg.translate 0.0 0.0 (p.radius * 1.8)
+            |> Sg.onOff (AVal.constant p.showStatistics)
+            |> Sg.blendMode (AVal.constant mode)
+            |> Sg.pass pass3
+
+        let createHistogramSg (p : Probe) = 
+            let histogramScaleTrafo = 
+                m.sphereRadius |> AVal.map (fun r -> 
+                    let sphereScale = p.radius / r
+                    let statScale = 0.12 * sphereScale
+                    Trafo3d(Scale3d(statScale)))
+            let currHistogramTexture = 
+                match p.currHistogram with 
+                | Some tex -> tex
+                | None -> DefaultTextures.blackPix :> PixImage
+            let showCurrHistogram = if p.currHistogram.IsSome then true else false
+            let tex = convertPixImageToITexture currHistogramTexture |> AVal.constant
+            Sg.draw IndexedGeometryMode.TriangleList
+            |> Sg.vertexAttribute DefaultSemantic.Positions probeHistogramPositions
+            |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
+            |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
+            |> Sg.index (AVal.constant [|0;1;2; 0;2;3|]) 
+            |> Sg.trafo histogramScaleTrafo
+            |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+            |> Sg.myBillboard viewTrafo
+            |> Sg.applyRuntime runtime
+            |> Sg.noEvents
+            |> Sg.transform (Trafo3d.Translation(p.center))
+            |> Sg.translate 0.0 0.0 (p.radius * 1.6)
+            |> Sg.onOff (AVal.constant (p.showHistogram && showCurrHistogram))
+            |> Sg.diffuseTexture tex
+            |> Sg.shader {
+                do! DefaultSurfaces.trafo
+                do! DefaultSurfaces.simpleLighting
+                do! DefaultSurfaces.diffuseTexture
+            }
+            |> Sg.blendMode (AVal.constant mode)
+            |> Sg.pass pass2
+
+        let showBillboard = m.grabberId |> AVal.map (fun grabber -> grabber.IsNone)
+
+        //TODO: Probably causing overhead due to the complexity, especially when grabbing hera
         let probesSgs = 
             m.allProbes |> AMap.toASet |> ASet.chooseA (fun (key, probe) ->
                 probe.Current |> AVal.map (fun p -> 
@@ -210,76 +308,21 @@ module Demo =
                                 | None -> C4b(0.0,1.0,0.0,1.0) 
                             | _ -> if p.insideHera then C4b(0.0,0.0,1.0,1.0)  else C4b(1.0,1.0,1.0,1.0)
                         ) m.probeIntersectionId m.deletionControllerId
-                    let statisticsScaleTrafo = 
-                        m.sphereRadius |> AVal.map (fun r -> 
-                            let sphereScale = p.radius / r
-                            let statScale = 0.04 * sphereScale
-                            Trafo3d(Scale3d(statScale)))
-                    let histogramScaleTrafo = 
-                        m.sphereRadius |> AVal.map (fun r -> 
-                            let sphereScale = p.radius / r
-                            let statScale = 0.12 * sphereScale
-                            Trafo3d(Scale3d(statScale)))
-                    let text = AVal.constant p.currStatistics
-                    let statisticsSg = 
-                        text
-                        |> AVal.map cfg.Layout
-                        |> Sg.shapeWithBackground C4b.Gray10 Border2d.None
-                        |> Sg.noEvents
-                        |> Sg.trafo statisticsScaleTrafo
-                        |> Sg.translate 0.0 (p.radius * 0.75) 0.0
-                        |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
-                        |> Sg.myBillboard viewTrafo
-                        |> Sg.applyRuntime runtime
-                        |> Sg.noEvents
-                        |> Sg.transform (Trafo3d.Translation(p.center))
-                        |> Sg.translate 0.0 0.0 (p.radius * 1.8)
-                        |> Sg.onOff (AVal.constant p.showStatistics)
-                        |> Sg.blendMode (AVal.constant mode)
-                        |> Sg.pass pass3
-                    let currHistogramTexture = 
-                        match p.currHistogram with 
-                        | Some tex -> tex
-                        | None -> DefaultTextures.blackPix :> PixImage
-                    let showCurrHistogram = if p.currHistogram.IsSome then true else false
-                    let tex =
-                        convertPixImageToITexture currHistogramTexture
-                        |> AVal.constant
-                    let probeHistogramSg = 
-                        Sg.draw IndexedGeometryMode.TriangleList
-                        |> Sg.vertexAttribute DefaultSemantic.Positions probeHistogramPositions
-                        |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
-                        |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
-                        |> Sg.index (AVal.constant [|0;1;2; 0;2;3|]) 
-                        |> Sg.trafo histogramScaleTrafo
-                        |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
-                        |> Sg.myBillboard viewTrafo
-                        |> Sg.applyRuntime runtime
-                        |> Sg.noEvents
-                        |> Sg.transform (Trafo3d.Translation(p.center))
-                        |> Sg.translate 0.0 0.0 (p.radius * 1.6)
-                        |> Sg.onOff (AVal.constant (p.showHistogram && showCurrHistogram))
-                        |> Sg.diffuseTexture tex
-                        |> Sg.shader {
-                            do! DefaultSurfaces.trafo
-                            do! DefaultSurfaces.simpleLighting
-                            do! DefaultSurfaces.diffuseTexture
-                        }
-                        |> Sg.blendMode (AVal.constant mode)
-                        |> Sg.pass pass2
-                    let showBillboard = m.grabberId |> AVal.map (fun grabber -> grabber.IsNone)
+                    let statisticsSg = createStatisticsSg p
+                    let probeHistogramSg = createHistogramSg p
                     let billboardSg = 
                         match p.currBillboard with 
                         | BillboardType.Histogram -> probeHistogramSg
                         | BillboardType.Statistic -> statisticsSg
                         | _ -> probeHistogramSg
                         |> Sg.onOff showBillboard
+
                     Sg.sphere 6 color (AVal.constant p.radiusRelToHera)
                     |> Sg.noEvents
                     |> Sg.transform (Trafo3d.Translation(p.centerRelToHera))
                     |> Sg.trafo m.heraTransformations // so that it moves with hera!!!
                     |> Sg.fillMode (FillMode.Line |> AVal.constant)
-                    |> Sg.andAlso billboardSg
+                    //|> Sg.andAlso billboardSg
                     |> Some
                 )
             ) 
@@ -492,108 +535,79 @@ module Demo =
             |> Sg.trafo m.heraTransformations
             |> Sg.fillMode (FillMode.Line |> AVal.constant)
 
-        let touching = m.touchpadDeviceId |> AVal.map (fun id -> id.IsSome)
 
-        let touchpadPos = m.currTouchPadPos |> AVal.map (fun pos -> let z = tan (6.5 * (Math.PI / 180.0))
-                                                                    V3d(pos, z * (pos.Y + 1.0)) * 0.019)
 
-        let touchpadSphereSg = 
-            Sg.sphere' 9 C4b.LightGreen 0.002
-            |> Sg.noEvents
-            |> Sg.translate 0.0 -0.05 0.0035 // translation so that it is in the middle of the touchpad
-            |> Sg.translate' touchpadPos
-            |> Sg.trafo m.touchpadDeviceTrafo
-            |> Sg.onOff touching
 
-        let texturePositions =  AVal.constant  [|V3f(-1.0, -1.0, 0.0); V3f(1.0, -1.0, 0.0); V3f(1.0, 1.0, 0.0); V3f(-1.0, 1.0, 0.0)|]
-
-        let touchpadPlaneSg = 
-            Sg.draw IndexedGeometryMode.TriangleList
-            |> Sg.vertexAttribute DefaultSemantic.Positions texturePositions
-            |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
-            |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
-            |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
-            |> Sg.scale 0.0205
-            |> Sg.transform (Trafo3d.RotationXInDegrees(6.5))
-            |> Sg.translate 0.0 -0.05 0.0051
-            |> Sg.trafo m.textureDeviceTrafo
-            |> Sg.onOff m.showTexture
-            |> Sg.diffuseTexture m.touchpadTexture
-            |> Sg.shader {
-                do! DefaultSurfaces.trafo
-                do! DefaultSurfaces.diffuseTexture
-                do! TouchpadShaders.fragmentSh
-            }
          
-        let unusedParts = 
+        //let unusedParts = 
         
-            let quadSg = planeSg quadPositions C4f.Gray10 FillMode.Fill (AVal.constant BlendMode.None) pass0
+        //    let quadSg = planeSg quadPositions C4f.Gray10 FillMode.Fill (AVal.constant BlendMode.None) pass0
 
-            let statisticsSg = 
-                Sg.textWithConfig cfg (AVal.constant "Hello, User! \n Flip the text \n Float 5.505050 \n Not working ;(")
-                |> Sg.noEvents
-                |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
-                |> Sg.scale 0.1
+        //    let statisticsSg = 
+        //        Sg.textWithConfig cfg (AVal.constant "Hello, User! \n Flip the text \n Float 5.505050 \n Not working ;(")
+        //        |> Sg.noEvents
+        //        |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+        //        |> Sg.scale 0.1
 
-            let statisticsSg = 
-                Sg.textWithBackground (Font "Calibri") C4b.White C4b.Blue Border2d.None ( AVal.constant "Hello, User! \n Flip the text \n Float 5.505050 \n Not working ;(")
-                |> Sg.noEvents
-                |> Sg.scale 0.1
-                |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
-                |> Sg.billboard
-                |> Sg.noEvents
+        //    let statisticsSg = 
+        //        Sg.textWithBackground (Font "Calibri") C4b.White C4b.Blue Border2d.None ( AVal.constant "Hello, User! \n Flip the text \n Float 5.505050 \n Not working ;(")
+        //        |> Sg.noEvents
+        //        |> Sg.scale 0.1
+        //        |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+        //        |> Sg.billboard
+        //        |> Sg.noEvents
 
-                |> Sg.transform (Trafo3d.RotationZInDegrees(180.0))
-            //let statisticsSg2 = 
-            //    Sg.textWithBackground (Font "Calibri") C4b.White C4b.Black Border2d.None text
-            //    |> Sg.noEvents
-            //    |> Sg.trafo statisticsScaleTrafo
-            //    |> Sg.translate 0.0 (p.radius * 0.75) 0.0
-            //    |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
-            //    |> Sg.myBillboard viewTrafo
-            //    |> Sg.applyRuntime runtime
-            //    |> Sg.noEvents
-            //    |> Sg.transform (Trafo3d.Translation(p.center))
-            //    |> Sg.translate 0.0 0.0 (p.radius * 1.8)
-            //    |> Sg.pass pass2
+        //        |> Sg.transform (Trafo3d.RotationZInDegrees(180.0))
+        //    //let statisticsSg2 = 
+        //    //    Sg.textWithBackground (Font "Calibri") C4b.White C4b.Black Border2d.None text
+        //    //    |> Sg.noEvents
+        //    //    |> Sg.trafo statisticsScaleTrafo
+        //    //    |> Sg.translate 0.0 (p.radius * 0.75) 0.0
+        //    //    |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+        //    //    |> Sg.myBillboard viewTrafo
+        //    //    |> Sg.applyRuntime runtime
+        //    //    |> Sg.noEvents
+        //    //    |> Sg.transform (Trafo3d.Translation(p.center))
+        //    //    |> Sg.translate 0.0 0.0 (p.radius * 1.8)
+        //    //    |> Sg.pass pass2
         
-            let world = 
-                Sg.textWithConfig TextConfig.Default m.text
-                |> Sg.noEvents
-                |> Sg.andAlso deviceSgs
-                |> Sg.pass pass0
+        //    let world = 
+        //        Sg.textWithConfig TextConfig.Default m.text
+        //        |> Sg.noEvents
+        //        |> Sg.andAlso deviceSgs
+        //        |> Sg.pass pass0
 
-            let heraBBox = 
-                Sg.box (AVal.constant C4b.White) m.twoDModel.currHeraBBox
-                |> Sg.noEvents
-                |> Sg.trafo m.heraTransformations
-                |> Sg.fillMode (FillMode.Line |> AVal.constant)
+        //    let heraBBox = 
+        //        Sg.box (AVal.constant C4b.White) m.twoDModel.currHeraBBox
+        //        |> Sg.noEvents
+        //        |> Sg.trafo m.heraTransformations
+        //        |> Sg.fillMode (FillMode.Line |> AVal.constant)
 
-            let t = 
-                Sg.textWithConfig ({ TextConfig.Default with renderStyle = RenderStyle.Normal })  (AVal.constant "hello world\nsuperstar")
-                |> Sg.noEvents
-                |> Sg.scale 0.08
-                |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
-                |> Sg.myBillboard viewTrafo
-                |> Sg.applyRuntime runtime
-                |> Sg.noEvents
+        //    let t = 
+        //        Sg.textWithConfig ({ TextConfig.Default with renderStyle = RenderStyle.Normal })  (AVal.constant "hello world\nsuperstar")
+        //        |> Sg.noEvents
+        //        |> Sg.scale 0.08
+        //        |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+        //        |> Sg.myBillboard viewTrafo
+        //        |> Sg.applyRuntime runtime
+        //        |> Sg.noEvents
 
-            let label2 =
-               //Sg.text f C4b.Green message
-                Sg.markdown MarkdownConfig.light (AVal.constant "Hello, User! \n Flip the text \n Float 5.505050 \n Not working ;(")
-                    |> Sg.noEvents
-                    |> Sg.scale 0.1
-                    |> Sg.transform (Trafo3d.FromOrthoNormalBasis(-V3d.IOO,V3d.OOI,V3d.OIO))
-                    |> Sg.trafo (m.controllerTrafo |> AVal.map (fun mtw -> mtw.Forward.TransformPos(V3d.OOO) |> Trafo3d.Translation))
-                    |> Sg.billboard
-                    |> Sg.noEvents
-                    |> Sg.translate 0.0 5.0 0.0
-            0
+        //    let label2 =
+        //       //Sg.text f C4b.Green message
+        //        Sg.markdown MarkdownConfig.light (AVal.constant "Hello, User! \n Flip the text \n Float 5.505050 \n Not working ;(")
+        //            |> Sg.noEvents
+        //            |> Sg.scale 0.1
+        //            |> Sg.transform (Trafo3d.FromOrthoNormalBasis(-V3d.IOO,V3d.OOI,V3d.OIO))
+        //            |> Sg.trafo (m.controllerTrafo |> AVal.map (fun mtw -> mtw.Forward.TransformPos(V3d.OOO) |> Trafo3d.Translation))
+        //            |> Sg.billboard
+        //            |> Sg.noEvents
+        //            |> Sg.translate 0.0 5.0 0.0
+        //    0
 
         Sg.ofSeq [
             deviceSgs; currentSphereProbeSg; probesSgs; heraSg; clipPlaneSg; tvSg;
             tvPosSphereSg; probeContrSg; laserContrSg; clippingContrSg; raySg;
-            browserSg; boxSg; touchpadSphereSg; touchpadPlaneSg
+            browserSg; boxSg; touchpadSphereSg
         ] |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
