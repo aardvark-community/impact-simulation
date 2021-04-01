@@ -127,6 +127,7 @@ module AppUpdate =
             if y < 0.0 then angle + 360.0 else angle
         r, theta
 
+    let initialScalingHera = 0.05
 
     let initial runtime frames = 
         {   
@@ -143,7 +144,8 @@ module AppUpdate =
             sphereControllerId = None
             sphereScalerTrafo = Trafo3d.Identity
             sphereScalerId = None
-            scalingFactorHera = 0.05
+            scalingFactorHera = initialScalingHera
+            lastHeraScaleTrafo = Trafo3d(Scale3d(initialScalingHera))
             sphereScale = 1.0
             lastSphereScale = 1.0
             sphereRadius = 0.2
@@ -192,7 +194,7 @@ module AppUpdate =
             textureDeviceTrafo = Trafo3d.Identity
             showTexture = false
             heraBox = Box3d.Infinite
-            heraTransformations = Trafo3d(Scale3d(0.05)) * Trafo3d.Translation(0.0, 0.0, 0.7)
+            heraTransformations = Trafo3d(Scale3d(initialScalingHera)) * Trafo3d.Translation(0.0, 0.0, 0.7)
         }
 
     let getScreenshot (histogramClient : Browser) = 
@@ -287,6 +289,7 @@ module AppUpdate =
             match model.grabberId with 
             | Some i when i = id && model.allowHeraScaling ->
                 if model.touchpadDeviceId.IsSome then
+                    printf "SCALE HERA \n"
                     if f >= 0.0 then
                         let maxScale = 1.0
                         let currScale = model.scalingFactorHera * (f*f/5.0 + 1.0)
@@ -350,15 +353,22 @@ module AppUpdate =
                     Ray3d(initRay.Origin, hit.Point), C4b.Green, screenPos
                 else
                     initRay, C4b.Red, PixelPosition()
+
+            let newHeraScaleTrafo = 
+                if model.grabberId.IsSome && model.touchpadDeviceId.IsSome then
+                    printf "UPDATE SCALING \n"
+                    Trafo3d(Scale3d(model.scalingFactorHera))
+                else 
+                    model.lastHeraScaleTrafo
     
             //HERA TRANSFORMATIONS UPDATE
             let heraContrTrafo = newOrOldTrafo id trafo model.grabberId model.controllerTrafo
             let heraTrafos = 
                 if model.grabberId.IsSome then
                     let heraTrafo = model.heraToControllerTrafo * heraContrTrafo
-                    let heraScaleTrafo = Trafo3d(Scale3d(model.scalingFactorHera))
+                    //let heraScaleTrafo = Trafo3d(Scale3d(model.scalingFactorHera))
                     let heraTranslation = Trafo3d.Translation(0.0, 0.0, 0.7)
-                    heraScaleTrafo * heraTranslation * heraTrafo
+                    newHeraScaleTrafo * heraTranslation * heraTrafo
                 else 
                     model.heraTransformations
             let heraBBox = model.twoDModel.currHeraBBox.Transformed(heraTrafos)
@@ -509,6 +519,7 @@ module AppUpdate =
                 heraBox = heraBBox
                 allProbes = allProbesUpdated
                 heraTransformations = heraTrafos
+                lastHeraScaleTrafo = newHeraScaleTrafo
                 touchpadDeviceTrafo = newTouchpadDeviceTrafo
                 textureDeviceTrafo = newTextureDeviceTrafo
                 newProbePlaced = (if model.newProbePlaced then false else model.newProbePlaced)}
@@ -885,7 +896,13 @@ module AppUpdate =
                 client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
             | _ -> ()
             //when both X and Y are equal to 0.0 it means we are currently not touching the touchpad
-            let newId = if pos.X = 0.0 && pos.Y = 0.0 then None else Some id
+            let newId = 
+                if pos.X = 0.0 && pos.Y = 0.0 then
+                    printf "UNTOUCH \n"
+                    None 
+                else 
+                    Some id
+
             {model with 
                 currTouchPadPos = pos
                 touchpadDeviceId = newId }

@@ -96,6 +96,7 @@ type Model =
         controllerTrafo : Trafo3d
         heraTrafo : Trafo3d
         heraToControllerTrafo : Trafo3d
+        lastHeraScaleTrafo : Trafo3d
         grabberId : Option<int>
         allowHeraScaling : bool
         heraBox : Box3d

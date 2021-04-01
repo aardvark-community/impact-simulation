@@ -344,7 +344,7 @@ module Demo =
             }
             //|> Sg.cullMode (CullMode.Front |> AVal.constant)
             //|> Sg.depthTest (AVal.constant DepthTestMode.Always)
-           // |> Sg.blendMode (AVal.constant mode)
+            //|> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass2
 
         let contrClippingPlane = m.planeCorners |> AVal.map (fun c -> Plane3d(c.P0, c.P1, c.P2))
