@@ -322,7 +322,7 @@ module Demo =
                     |> Sg.transform (Trafo3d.Translation(p.centerRelToHera))
                     |> Sg.trafo m.heraTransformations // so that it moves with hera!!!
                     |> Sg.fillMode (FillMode.Line |> AVal.constant)
-                    //|> Sg.andAlso billboardSg
+                    |> Sg.andAlso billboardSg
                     |> Some
                 )
             ) 
