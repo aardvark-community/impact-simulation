@@ -236,41 +236,57 @@ module Demo =
         
         let probeHistogramPositions = AVal.constant  [|V3f(-1.75, -1.0, 0.0); V3f(1.75, -1.0, 0.0); V3f(1.75, 1.0, 0.0); V3f(-1.75, 1.0, 0.0)|]
 
-        let createStatisticsSg (p : Probe) = 
-            let text = AVal.constant p.currStatistics
+        let createStatisticsSg (p : AdaptiveProbe) = 
+            let text = p.currStatistics
             let statisticsScaleTrafo = 
-                m.sphereRadius |> AVal.map (fun r -> 
-                    let sphereScale = p.radius / r
+                (m.sphereRadius, p.radius) ||> AVal.map2 (fun r radius -> 
+                    let sphereScale = radius / r
                     let statScale = 0.04 * sphereScale
                     Trafo3d(Scale3d(statScale)))
+            let showStatistics = 
+                (p.showStatistics, p.currBillboard) ||> AVal.map2 (fun showStats billboardType ->
+                    let showBillboard = 
+                        match billboardType with 
+                        | BillboardType.Statistic -> true
+                        | _ -> false
+                    showStats && showBillboard)
             text
             |> AVal.map cfg.Layout
             |> Sg.shapeWithBackground C4b.Gray10 Border2d.None
             |> Sg.noEvents
             |> Sg.trafo statisticsScaleTrafo
-            |> Sg.translate 0.0 (p.radius * 0.75) 0.0
+            |> Sg.trafo (p.radius |> AVal.map (fun r -> Trafo3d.Translation(0.0, (r * 0.75), 0.0)))
             |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
             |> Sg.myBillboard viewTrafo
             |> Sg.applyRuntime runtime
             |> Sg.noEvents
-            |> Sg.transform (Trafo3d.Translation(p.center))
-            |> Sg.translate 0.0 0.0 (p.radius * 1.8)
-            |> Sg.onOff (AVal.constant p.showStatistics)
+            |> Sg.trafo (p.center |> AVal.map (fun center -> Trafo3d.Translation(center)))
+            |> Sg.trafo (p.radius |> AVal.map (fun r -> Trafo3d.Translation(0.0, 0.0, (r * 1.8))))
+            |> Sg.onOff showStatistics
             |> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass3
 
-        let createHistogramSg (p : Probe) = 
+        let createHistogramSg (p : AdaptiveProbe) = 
             let histogramScaleTrafo = 
-                m.sphereRadius |> AVal.map (fun r -> 
-                    let sphereScale = p.radius / r
+                (m.sphereRadius, p.radius) ||> AVal.map2 (fun r radius -> 
+                    let sphereScale = radius / r
                     let statScale = 0.12 * sphereScale
                     Trafo3d(Scale3d(statScale)))
-            let currHistogramTexture = 
-                match p.currHistogram with 
-                | Some tex -> tex
-                | None -> DefaultTextures.blackPix :> PixImage
-            let showCurrHistogram = if p.currHistogram.IsSome then true else false
-            let tex = convertPixImageToITexture currHistogramTexture |> AVal.constant
+            let showCurrHistogram = 
+                (p.showHistogram, p.currHistogram, p.currBillboard) |||> AVal.map3 (fun showHisto currHisto billboardType -> 
+                    let showBillboard = 
+                        match billboardType with 
+                        | BillboardType.Histogram -> true
+                        | _ -> false
+                    showHisto && currHisto.IsSome && showBillboard)
+            let texture = 
+                p.currHistogram 
+                |> AVal.map (fun histo ->
+                    let pixImage = 
+                        match histo with 
+                        | Some tex -> tex
+                        | None -> DefaultTextures.blackPix :> PixImage
+                    convertPixImageToITexture pixImage)
             Sg.draw IndexedGeometryMode.TriangleList
             |> Sg.vertexAttribute DefaultSemantic.Positions probeHistogramPositions
             |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
@@ -281,10 +297,10 @@ module Demo =
             |> Sg.myBillboard viewTrafo
             |> Sg.applyRuntime runtime
             |> Sg.noEvents
-            |> Sg.transform (Trafo3d.Translation(p.center))
-            |> Sg.translate 0.0 0.0 (p.radius * 1.6)
-            |> Sg.onOff (AVal.constant (p.showHistogram && showCurrHistogram))
-            |> Sg.diffuseTexture tex
+            |> Sg.trafo (p.center |> AVal.map (fun center -> Trafo3d.Translation(center)))
+            |> Sg.trafo (p.radius |> AVal.map (fun r -> Trafo3d.Translation(0.0, 0.0, (r * 1.6))))
+            |> Sg.onOff showCurrHistogram
+            |> Sg.diffuseTexture texture
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
@@ -297,34 +313,29 @@ module Demo =
 
         //TODO: Probably causing overhead due to the complexity, especially when grabbing hera
         let probesSgs = 
-            m.allProbes |> AMap.toASet |> ASet.chooseA (fun (key, probe) ->
-                probe.Current |> AVal.map (fun p -> 
-                    let color =
-                        AVal.map2 (fun probeIntId delId ->
-                            match probeIntId with 
-                            | Some i when i = key -> 
-                                match delId with 
-                                | Some dId -> C4b(1.0,0.0,0.0,1.0) 
-                                | None -> C4b(0.0,1.0,0.0,1.0) 
-                            | _ -> if p.insideHera then C4b(0.0,0.0,1.0,1.0)  else C4b(1.0,1.0,1.0,1.0)
-                        ) m.probeIntersectionId m.deletionControllerId
-                    let statisticsSg = createStatisticsSg p
-                    let probeHistogramSg = createHistogramSg p
-                    let billboardSg = 
-                        match p.currBillboard with 
-                        | BillboardType.Histogram -> probeHistogramSg
-                        | BillboardType.Statistic -> statisticsSg
-                        | _ -> probeHistogramSg
-                        |> Sg.onOff showBillboard
-
-                    Sg.sphere 6 color (AVal.constant p.radiusRelToHera)
-                    |> Sg.noEvents
-                    |> Sg.transform (Trafo3d.Translation(p.centerRelToHera))
-                    |> Sg.trafo m.heraTransformations // so that it moves with hera!!!
-                    |> Sg.fillMode (FillMode.Line |> AVal.constant)
-                    |> Sg.andAlso billboardSg
-                    |> Some
-                )
+            m.allProbes |> AMap.toASet |> ASet.choose (fun (key, probe) ->
+                let color =
+                    AVal.map3 (fun probeIntId delId probeIsInsideHera ->
+                        match probeIntId with 
+                        | Some i when i = key -> 
+                            match delId with 
+                            | Some dId -> C4b(1.0,0.0,0.0,1.0) 
+                            | None -> C4b(0.0,1.0,0.0,1.0) 
+                        | _ -> if probeIsInsideHera then C4b(0.0,0.0,1.0,1.0)  else C4b(1.0,1.0,1.0,1.0)
+                    ) m.probeIntersectionId m.deletionControllerId probe.insideHera
+                let statisticsSg = createStatisticsSg probe
+                let probeHistogramSg = createHistogramSg probe
+                let billboardSg = 
+                    statisticsSg
+                    |> Sg.andAlso probeHistogramSg
+                    |> Sg.onOff showBillboard
+                Sg.sphere 6 color probe.radiusRelToHera
+                |> Sg.noEvents
+                |> Sg.trafo (probe.centerRelToHera |> AVal.map (fun center -> Trafo3d.Translation(center)))
+                |> Sg.trafo m.heraTransformations // so that it moves with hera!!!
+                |> Sg.fillMode (FillMode.Line |> AVal.constant)
+                |> Sg.andAlso billboardSg
+                |> Some
             ) 
             |> Sg.set
             |> Sg.shader {
