@@ -187,6 +187,7 @@ module AppUpdate =
             currTouchPadPos = V2d.OO
             touchpadDeviceId = None
             touchpadDeviceTrafo = Trafo3d.Identity
+            changeProbeAttribute = false
             touchpadTexture = FileTexture(texturesPath + "initial.png", true) :> ITexture
             lastTouchpadModeTexture = FileTexture(texturesPath + "initial.png", true) :> ITexture
             contrScreenTexture = FileTexture(texturesPath + "empty.png", true) :> ITexture
@@ -395,7 +396,7 @@ module AppUpdate =
             let tex, screenTex = 
                 if not model.allowHeraScaling && not model.controllerMenuOpen && model.grabberId.IsNone then 
                     match probeIntersection with
-                    | Some probeId ->
+                    | Some probeId when not model.changeProbeAttribute ->
                         let intersectedProbe = model.allProbes.Item probeId
                         let billboard = intersectedProbe.currBillboard
                         let texName, screenTexName =    
@@ -757,13 +758,16 @@ module AppUpdate =
             let level, isOpen = 
                 let closeMenu = 0, false
                 let goToNextMenu = (model.menuLevel + 1), true
-                match model.menuControllerId with 
-                | Some i when i = id ->
-                    match model.menuLevel with
-                    | 0 -> goToNextMenu
-                    | 1 -> if model.controllerMode = ControllerMode.Probe then goToNextMenu else closeMenu
-                    | _ -> closeMenu
-                | _ -> 1, true
+                if model.probeIntersectionId.IsNone then 
+                    match model.menuControllerId with 
+                    | Some i when i = id ->
+                        match model.menuLevel with
+                        | 0 -> goToNextMenu
+                        | 1 -> if model.controllerMode = ControllerMode.Probe then goToNextMenu else closeMenu
+                        | _ -> closeMenu
+                    | _ -> 1, true
+                else 
+                    closeMenu
             let screenTex = if not isOpen then model.lastContrScreenModeTexture else model.contrScreenTexture
             {model with 
                 menuLevel = level
@@ -774,6 +778,16 @@ module AppUpdate =
                 sphereScalerId = None
                 rayDeviceId = None
                 clippingPlaneDeviceId = None }
+        | OpenProbeAttributeMenu id ->
+            let r, theta = convertCartesianToPolar model.currTouchPadPos
+            match model.intersectionControllerId with 
+            | Some i when i = id ->
+                let probeAttribute = model.probeIntersectionId.IsSome && theta >= 180.0 && theta < 360.0 && model.menuLevel = 0
+                {model with 
+                    changeProbeAttribute = probeAttribute
+                    menuLevel = 2
+                    controllerMenuOpen = true}                        
+            | _ -> model
         | OpenControllerMenu id ->
             let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
             let r, theta = convertCartesianToPolar model.currTouchPadPos
@@ -853,7 +867,7 @@ module AppUpdate =
             | None -> model
         | SelectAttribute id ->
             match model.menuControllerId with  
-            | Some i when i = id && model.menuLevel = 2 && not model.allowHeraScaling && model.probeIntersectionId.IsNone -> 
+            | Some i when i = id && model.menuLevel = 2 && not model.allowHeraScaling -> //&& model.probeIntersectionId.IsNone -> 
                 let r, theta = convertCartesianToPolar model.currTouchPadPos
                 let newAttribute = 
                     if r >= 0.5 then 

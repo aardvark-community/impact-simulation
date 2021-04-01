@@ -56,7 +56,7 @@ module Demo =
             | _ -> []
         | VrMessage.Press(controllerId, buttonId) ->
             match buttonId with 
-            | 0 -> [ToggleControllerMenu controllerId; OpenControllerMenu controllerId]
+            | 0 -> [ToggleControllerMenu controllerId; OpenProbeAttributeMenu controllerId; OpenControllerMenu controllerId]
             | 1 -> [ActivateControllerMode controllerId]
             | _ -> []
         | VrMessage.Unpress(controllerId, buttonId) ->

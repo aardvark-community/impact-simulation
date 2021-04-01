@@ -66,6 +66,7 @@ type Message =
     | ScaleHera of int * float
     | MoveController of int * Trafo3d
     | ToggleControllerMenu of int
+    | OpenProbeAttributeMenu of int
     | OpenControllerMenu of int
     | ChangeTouchpadPos of int * V2d
     | ChangeControllerMode of int
@@ -156,6 +157,7 @@ type Model =
         controllerMode : ControllerMode
         menuLevel : int 
         attribute : RenderValue
+        changeProbeAttribute : bool
 
         //Touchpad
         currTouchPadPos : V2d
