@@ -127,6 +127,21 @@ module AppUpdate =
             if y < 0.0 then angle + 360.0 else angle
         r, theta
 
+    let computeNewAttribute (touchpadPos : V2d) (currAttribute : RenderValue) =
+        let r, theta = convertCartesianToPolar touchpadPos
+        if r >= 0.5 then 
+            match theta with 
+            | t when t >= 0.0   && t < 60.0  -> RenderValue.Energy
+            | t when t >= 60.0  && t < 120.0 -> RenderValue.CubicRoot
+            | t when t >= 120.0 && t < 180.0 -> RenderValue.Strain
+            | t when t >= 180.0 && t < 240.0 -> RenderValue.AlphaJutzi
+            | t when t >= 240.0 && t < 300.0 -> RenderValue.Pressure
+            | t when t >= 300.0 && t < 360.0 -> RenderValue.Density
+            | _ -> currAttribute
+        else 
+            currAttribute
+
+
     let initialScalingHera = 0.05
 
     let initial runtime frames = 
@@ -208,6 +223,21 @@ module AppUpdate =
 
         let getTexture tex = Option.defaultValue model.touchpadTexture tex
         let texture tex = allTextures.TryFind(tex) |> getTexture    
+
+        let computeNewAttributeTextures (newAttribute : RenderValue) = 
+            match model.attribute with 
+            | a when a = newAttribute -> model.touchpadTexture, model.contrScreenTexture // if the attribute is the same then texture should not be loaded again   
+            | _ ->
+                let texName, screenTexName = 
+                    match newAttribute with 
+                    | RenderValue.Energy -> "top-right", "energy"
+                    | RenderValue.CubicRoot -> "top-middle", "cubicroot"
+                    | RenderValue.Strain -> "top-left", "strain"
+                    | RenderValue.AlphaJutzi -> "bottom-left", "alphajutzi"
+                    | RenderValue.Pressure -> "bottom-middle", "pressure"
+                    | RenderValue.Density -> "bottom-right", "density"
+                    | _ -> "initial-attributes", "select-attribute"
+                (texture texName), (texture screenTexName)
 
         let callUpdate (msg : Message) = update runtime client histogramClient viewTrafo projTrafo frames state vr model msg
        
@@ -394,9 +424,9 @@ module AppUpdate =
 
             ////SHOW CONTROLLER TEXTURES WHEN INTERSECTING WITH A PROBE
             let tex, screenTex = 
-                if not model.allowHeraScaling && not model.controllerMenuOpen && model.grabberId.IsNone then 
+                if not model.allowHeraScaling && not model.controllerMenuOpen && model.grabberId.IsNone && not model.changeProbeAttribute then 
                     match probeIntersection with
-                    | Some probeId when not model.changeProbeAttribute ->
+                    | Some probeId ->
                         let intersectedProbe = model.allProbes.Item probeId
                         let billboard = intersectedProbe.currBillboard
                         let texName, screenTexName =    
@@ -758,7 +788,7 @@ module AppUpdate =
             let level, isOpen = 
                 let closeMenu = 0, false
                 let goToNextMenu = (model.menuLevel + 1), true
-                if model.probeIntersectionId.IsNone then 
+                if model.probeIntersectionId.IsNone && model.grabberId.IsNone then 
                     match model.menuControllerId with 
                     | Some i when i = id ->
                         match model.menuLevel with
@@ -773,7 +803,7 @@ module AppUpdate =
                 menuLevel = level
                 controllerMenuOpen = isOpen
                 showTexture = isOpen
-                contrScreenTexture = screenTex
+               // contrScreenTexture = screenTex
                 sphereControllerId = None
                 sphereScalerId = None
                 rayDeviceId = None
@@ -782,15 +812,13 @@ module AppUpdate =
             let r, theta = convertCartesianToPolar model.currTouchPadPos
             match model.intersectionControllerId with 
             | Some i when i = id ->
-                let probeAttribute = model.probeIntersectionId.IsSome && theta >= 180.0 && theta < 360.0 && model.menuLevel = 0
+                let probeAttribute = model.probeIntersectionId.IsSome && theta >= 180.0 && theta < 360.0 && model.menuLevel = 0 && not model.changeProbeAttribute
                 {model with 
-                    changeProbeAttribute = probeAttribute
-                    menuLevel = 2
-                    controllerMenuOpen = true}                        
+                    changeProbeAttribute = probeAttribute }                        
             | _ -> model
         | OpenControllerMenu id ->
             let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
-            let r, theta = convertCartesianToPolar model.currTouchPadPos
+           // let r, theta = convertCartesianToPolar model.currTouchPadPos
             let texture, screenTexture =
                 match model.menuLevel with
                 | l when l = 1 -> if model.controllerMode = ControllerMode.NoneMode then (texture "initial"), (texture "select-tool") else model.lastTouchpadModeTexture, model.lastContrScreenModeTexture
@@ -838,7 +866,7 @@ module AppUpdate =
             | _ -> model
         | ChangeBillboard id ->
             match model.probeIntersectionId with
-            | Some probeId ->
+            | Some probeId when not model.changeProbeAttribute && not model.controllerMenuOpen ->
                 match model.intersectionControllerId with 
                 | Some i when i = id && model.touchpadDeviceId.IsSome ->
                     let r, theta = convertCartesianToPolar model.currTouchPadPos
@@ -864,40 +892,23 @@ module AppUpdate =
                         contrScreenTexture = screenTexture
                         showTexture = true}
                 | _ -> model
-            | None -> model
-        | SelectAttribute id ->
+            | _ -> model
+        | SelectGlobalAttribute id ->
             match model.menuControllerId with  
-            | Some i when i = id && model.menuLevel = 2 && not model.allowHeraScaling -> //&& model.probeIntersectionId.IsNone -> 
-                let r, theta = convertCartesianToPolar model.currTouchPadPos
-                let newAttribute = 
-                    if r >= 0.5 then 
-                        match theta with 
-                        | t when t >= 0.0   && t < 60.0  -> RenderValue.Energy
-                        | t when t >= 60.0  && t < 120.0 -> RenderValue.CubicRoot
-                        | t when t >= 120.0 && t < 180.0 -> RenderValue.Strain
-                        | t when t >= 180.0 && t < 240.0 -> RenderValue.AlphaJutzi
-                        | t when t >= 240.0 && t < 300.0 -> RenderValue.Pressure
-                        | t when t >= 300.0 && t < 360.0 -> RenderValue.Density
-                        | _ -> model.attribute
-                    else 
-                        model.attribute
-
-                let texture, screenTexture = 
-                    match model.attribute with 
-                    | a when a = newAttribute -> model.touchpadTexture, model.contrScreenTexture // if the attribute is the same then texture should not be loaded again   
-                    | _ ->
-                        let texName, screenTexName = 
-                            match newAttribute with 
-                            | RenderValue.Energy -> "top-right", "energy"
-                            | RenderValue.CubicRoot -> "top-middle", "cubicroot"
-                            | RenderValue.Strain -> "top-left", "strain"
-                            | RenderValue.AlphaJutzi -> "bottom-left", "alphajutzi"
-                            | RenderValue.Pressure -> "bottom-middle", "pressure"
-                            | RenderValue.Density -> "bottom-right", "density"
-                            | _ -> "initial-attributes", "select-attribute"
-                        (texture texName), (texture screenTexName)
+            | Some i when i = id && model.menuLevel = 2 && not model.allowHeraScaling && model.probeIntersectionId.IsNone -> 
+                let newAttribute = computeNewAttribute model.currTouchPadPos model.attribute 
+                let texture, screenTexture = computeNewAttributeTextures newAttribute
                 {model with 
                     attribute = newAttribute
+                    touchpadTexture = texture
+                    contrScreenTexture = screenTexture}
+            | _ -> model
+        | SelectProbeAttribute id ->
+            match model.intersectionControllerId with 
+            | Some i when i = id && model.changeProbeAttribute ->
+                let newAttribute = computeNewAttribute model.currTouchPadPos model.attribute 
+                let texture, screenTexture = computeNewAttributeTextures newAttribute
+                {model with 
                     touchpadTexture = texture
                     contrScreenTexture = screenTexture}
             | _ -> model

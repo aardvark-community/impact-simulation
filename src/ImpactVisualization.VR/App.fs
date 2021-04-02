@@ -78,7 +78,8 @@ module Demo =
             | 0 ->  [ChangeTouchpadPos (controllerId, value); 
                      ScaleHera (controllerId, value.X); 
                      ChangeControllerMode controllerId; 
-                     SelectAttribute controllerId;
+                     SelectGlobalAttribute controllerId;
+                     SelectProbeAttribute controllerId;
                      ChangeBillboard controllerId
                      ]
             | _ -> []

@@ -71,7 +71,8 @@ type Message =
     | ChangeTouchpadPos of int * V2d
     | ChangeControllerMode of int
     | ChangeBillboard of int
-    | SelectAttribute of int
+    | SelectGlobalAttribute of int
+    | SelectProbeAttribute of int
     | ActivateControllerMode of int
     | CreateProbe of int * Trafo3d
     | CreateRay of int * Trafo3d
