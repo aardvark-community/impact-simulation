@@ -277,17 +277,18 @@ module App =
         let higherOutliersBoundary = quartile3 + 1.5 * IQR
         lowerOutliersBoundary, higherOutliersBoundary
 
-    let computeStatistics (filteredPoints : float[]) (renderValue : RenderValue) = 
-        let renderVal = 
-            match renderValue with 
-            | RenderValue.Energy -> "Energy"
-            | RenderValue.CubicRoot -> "Cubic Root"
-            | RenderValue.Strain -> "Strain"
-            | RenderValue.AlphaJutzi -> "Alpha Jutzi"
-            | RenderValue.Pressure -> "Pressure"
-            | RenderValue.Mass -> "Mass"
-            | RenderValue.Density -> "Density"
-            | _ -> "Energy"
+    let fromRenderValToString (renderValue : RenderValue) = 
+        match renderValue with 
+        | RenderValue.Energy -> "Energy"
+        | RenderValue.CubicRoot -> "Cubic Root"
+        | RenderValue.Strain -> "Strain"
+        | RenderValue.AlphaJutzi -> "Alpha Jutzi"
+        | RenderValue.Pressure -> "Pressure"
+        | RenderValue.Mass -> "Mass"
+        | RenderValue.Density -> "Density"
+        | _ -> "Energy"
+
+    let computeStatistics (filteredPoints : float[]) (renderValue : string) = 
         let numOfPoints = filteredPoints.Length
         let max = roundDecimal (filteredPoints.Max())
         let min = roundDecimal (filteredPoints.Min())
@@ -296,7 +297,7 @@ module App =
         let variance = roundDecimal (filteredPoints.Variance()) 
         let standardDeviation = roundDecimal (filteredPoints.StandardDeviation())
         let statisticsText = 
-            renderVal.Capitalized() + " | " + string numOfPoints + " points \n" + 
+            renderValue.Capitalized() + " | " + string numOfPoints + " points \n" + 
             "Min: " + string min + "\n" +
             "Max: " + string max + "\n" + 
             "Mean: " + string mean + "\n" + 
@@ -304,6 +305,10 @@ module App =
             "Var.: " + string variance + "\n" + 
             "SD: " + string standardDeviation
         statisticsText
+
+    let computeAllAttributesAndStatistics (allAttributes : HashMap<string, float[]>) = 
+        allAttributes |> HashMap.map (fun renderVal array -> (array, computeStatistics array renderVal))
+
 
     let filterDataForOneFrame (chunk : GenericChunk[]) (renderVal : RenderValue) =
         let extract f = chunk |> Array.map f |> Array.concat
@@ -326,13 +331,29 @@ module App =
          filterDataForOneFrame chunk renderVal
         
     //TODO: Connect the two filtering funnctions!!!!!!!!!!!!
-    let filterDataForOneFrameSphere (frame : Frame) (filter : option<Sphere3d>) (renderVal : RenderValue) (discardProps : DiscardProperties)= 
+    let filterDataForOneFrameSphere (frame : Frame) (filter : option<Sphere3d>) (renderVal : RenderValue) (discardProps : DiscardProperties) = 
          let sphere = filter |> (fun elem -> defaultArg elem Sphere3d.Invalid)
          let chunk = createSphereQuery sphere frame discardProps
          let result = filterDataForOneFrame chunk renderVal 
-         let statistics = computeStatistics result renderVal
+         let renderValString = fromRenderValToString renderVal
+         let statistics = computeStatistics result renderValString
          result, statistics
 
+    let filterAllDataForOneFrameSphere (frame : Frame) (filter : option<Sphere3d>) (discardProps : DiscardProperties) = 
+        let sphere = filter |> (fun elem -> defaultArg elem Sphere3d.Invalid)
+        let chunk = createSphereQuery sphere frame discardProps
+        let extract f = chunk |> Array.map f |> Array.concat
+        let energies = extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
+        let cubicRoots = extract (fun c -> c.Data.[Hera.Defs.CubicRootsOfDamage] :?> float32[]) |> Array.map (fun v -> float v)
+        let strains = extract (fun c -> c.Data.[Hera.Defs.LocalStrains] :?> float32[]) |> Array.map (fun v -> float v)
+        let alphaJutzis = extract (fun c -> c.Data.[Hera.Defs.AlphaJutzi] :?> float32[]) |> Array.map (fun v -> float v)
+        let pressures = extract (fun c -> c.Data.[Hera.Defs.Pressures] :?> float32[]) |> Array.map (fun v -> float v)
+        let masses = extract (fun c -> c.Data.[Hera.Defs.Masses] :?> float32[]) |> Array.map (fun v -> float v)
+        let densities = extract (fun c -> c.Data.[Hera.Defs.Densities] :?> float32[]) |> Array.map (fun v -> float v)
+        let allAttributes = 
+             HashMap.ofList ["Energy", energies; "CubicRoot", cubicRoots; "Strain", strains; "AlhaJutzi", alphaJutzis; "Pressure", pressures; "Mass", masses; "Density", densities]
+        let allAttribsAndStats = computeAllAttributesAndStatistics allAttributes
+        allAttribsAndStats
 
     let filterAllDataForOneFrame (filter : Box3f) (frame : Frame) = 
         let box = filter.BoundingBox3d
@@ -341,9 +362,9 @@ module App =
         let energies =  extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
         let cubicRoots = extract (fun c -> c.Data.[Hera.Defs.CubicRootsOfDamage] :?> float32[]) |> Array.map (fun v -> float v)
         let strain = extract (fun c -> c.Data.[Hera.Defs.LocalStrains] :?> float32[]) |> Array.map (fun v -> float v)
-        let alphaJutzi = extract (fun c -> c.Data.[Hera.Defs.AlphaJutzi] :?> float32[]) |> Array.map (fun v -> float v)
-        let pressure = extract (fun c -> c.Data.[Hera.Defs.Pressures] :?> float32[]) |> Array.map (fun v -> float v)
-        zip5 energies cubicRoots strain alphaJutzi pressure
+        let alphaJutzis = extract (fun c -> c.Data.[Hera.Defs.AlphaJutzi] :?> float32[]) |> Array.map (fun v -> float v)
+        let pressures = extract (fun c -> c.Data.[Hera.Defs.Pressures] :?> float32[]) |> Array.map (fun v -> float v)
+        zip5 energies cubicRoots strain alphaJutzis pressures
 
     let filterDataForAllFramesBox (frames : Frame[]) (filter : option<Box3f>) (renderVal : RenderValue) = 
         frames |> Array.map (fun frame -> filterDataForOneFrameBox frame filter renderVal)
