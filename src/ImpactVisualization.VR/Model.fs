@@ -44,11 +44,13 @@ type Probe = {
     centerRelToHera : V3d
     radiusRelToHera : float
     insideHera      : bool
-    currStatistics  : string
     showStatistics  : bool 
     currHistogram   : Option<PixImage>
     showHistogram   : bool
     currBillboard   : BillboardType
+    currAttribute   : RenderValue
+    allData         : HashMap<RenderValue, (float[] * string)>
+    
 
     [<NonAdaptive>]
     id : string
@@ -159,6 +161,7 @@ type Model =
         menuLevel : int 
         attribute : RenderValue
         changeProbeAttribute : bool
+        lastIntersectedPobe : Option<string>
 
         //Touchpad
         currTouchPadPos : V2d

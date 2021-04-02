@@ -101,7 +101,9 @@ module AppUpdate =
     let sphereIntersection (controllerSphere : Sphere3d) (probe : Sphere3d) = controllerSphere.Intersects(probe)
     
 
-    let createProbe (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) (inside : bool) (statistics : string ) (showStats : bool) (showHisto : bool) : Probe = 
+    let createProbe (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) 
+                    (inside : bool) (allData : HashMap<RenderValue, (float[] * string)>) 
+                    (attribute : RenderValue) (showStats : bool) (showHisto : bool) : Probe = 
         {
             id = Guid.NewGuid().ToString()
             center = pos
@@ -109,7 +111,8 @@ module AppUpdate =
             centerRelToHera = posToHera
             radiusRelToHera = radToHera
             insideHera = inside
-            currStatistics = statistics
+            allData = allData
+            currAttribute = attribute
             showStatistics = showStats
             currHistogram = None
             showHistogram = showHisto
@@ -174,6 +177,7 @@ module AppUpdate =
             deletionControllerId = None
             lastFilterProbe = None
             lastFilterProbeId = None
+            lastIntersectedPobe = None
             statistics = ""
             rayDeviceId = None
             ray = Ray3d.Invalid
@@ -224,20 +228,20 @@ module AppUpdate =
         let getTexture tex = Option.defaultValue model.touchpadTexture tex
         let texture tex = allTextures.TryFind(tex) |> getTexture    
 
-        let computeNewAttributeTextures (newAttribute : RenderValue) = 
-            match model.attribute with 
-            | a when a = newAttribute -> model.touchpadTexture, model.contrScreenTexture // if the attribute is the same then texture should not be loaded again   
-            | _ ->
-                let texName, screenTexName = 
-                    match newAttribute with 
-                    | RenderValue.Energy -> "top-right", "energy"
-                    | RenderValue.CubicRoot -> "top-middle", "cubicroot"
-                    | RenderValue.Strain -> "top-left", "strain"
-                    | RenderValue.AlphaJutzi -> "bottom-left", "alphajutzi"
-                    | RenderValue.Pressure -> "bottom-middle", "pressure"
-                    | RenderValue.Density -> "bottom-right", "density"
-                    | _ -> "initial-attributes", "select-attribute"
-                (texture texName), (texture screenTexName)
+        let computeNewAttributeTextures (newAttribute : RenderValue) (currAttribute : RenderValue) = 
+            //match currAttribute with 
+            //| a when a = newAttribute && newAttribute <> RenderValue.Energy -> model.touchpadTexture, model.contrScreenTexture // if the attribute is the same then texture should not be loaded again   
+            //| _ ->
+            let texName, screenTexName = 
+                match newAttribute with 
+                | RenderValue.Energy -> "top-right", "energy"
+                | RenderValue.CubicRoot -> "top-middle", "cubicroot"
+                | RenderValue.Strain -> "top-left", "strain"
+                | RenderValue.AlphaJutzi -> "bottom-left", "alphajutzi"
+                | RenderValue.Pressure -> "bottom-middle", "pressure"
+                | RenderValue.Density -> "bottom-right", "density"
+                | _ -> "initial-attributes", "select-attribute"
+            (texture texName), (texture screenTexName)
 
         let callUpdate (msg : Message) = update runtime client histogramClient viewTrafo projTrafo frames state vr model msg
        
@@ -525,7 +529,7 @@ module AppUpdate =
                 if probeIntersection.IsSome then 
                     true
                 else 
-                    model.allowHeraScaling || model.controllerMenuOpen
+                    model.allowHeraScaling || model.controllerMenuOpen || model.changeProbeAttribute
         
             {model with 
                 controllerTrafo = heraContrTrafo
@@ -710,8 +714,11 @@ module AppUpdate =
                                 controllerPlane = clippingPlane
                             }
 
-                        let array, stats = filterDataForOneFrameSphere frames.[mTwoD.frame] (Some sphereTransformed) model.attribute discardProperties
-                        let probe = createProbe spherePos sphereRadius spherePosTransformed radiusTransformed intersection stats true true
+                        let allData = filterAllDataForOneFrameSphere frames.[mTwoD.frame] (Some sphereTransformed) discardProperties
+                        let attrib = if model.attribute = RenderValue.NoValue then RenderValue.Energy else model.attribute
+                        let array, stats = allData.Item attrib
+
+                        let probe = createProbe spherePos sphereRadius spherePosTransformed radiusTransformed intersection allData attrib true true
 
                         // printf "Statistics: \n %A" stats
                         let filteredData = if intersection then array else mTwoD.data.arr
@@ -788,7 +795,7 @@ module AppUpdate =
             let level, isOpen = 
                 let closeMenu = 0, false
                 let goToNextMenu = (model.menuLevel + 1), true
-                if model.probeIntersectionId.IsNone && model.grabberId.IsNone then 
+                if model.probeIntersectionId.IsNone && model.grabberId.IsNone && not model.changeProbeAttribute then 
                     match model.menuControllerId with 
                     | Some i when i = id ->
                         match model.menuLevel with
@@ -812,9 +819,10 @@ module AppUpdate =
             let r, theta = convertCartesianToPolar model.currTouchPadPos
             match model.intersectionControllerId with 
             | Some i when i = id ->
-                let probeAttribute = model.probeIntersectionId.IsSome && theta >= 180.0 && theta < 360.0 && model.menuLevel = 0 && not model.changeProbeAttribute
+                let probeAttribute = model.probeIntersectionId.IsSome && theta >= 180.0 && theta < 360.0 && model.menuLevel = 0 && not model.changeProbeAttribute                        
                 {model with 
-                    changeProbeAttribute = probeAttribute }                        
+                    changeProbeAttribute = probeAttribute 
+                    lastIntersectedPobe = model.probeIntersectionId}                        
             | _ -> model
         | OpenControllerMenu id ->
             let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
@@ -897,7 +905,7 @@ module AppUpdate =
             match model.menuControllerId with  
             | Some i when i = id && model.menuLevel = 2 && not model.allowHeraScaling && model.probeIntersectionId.IsNone -> 
                 let newAttribute = computeNewAttribute model.currTouchPadPos model.attribute 
-                let texture, screenTexture = computeNewAttributeTextures newAttribute
+                let texture, screenTexture = computeNewAttributeTextures newAttribute model.attribute
                 {model with 
                     attribute = newAttribute
                     touchpadTexture = texture
@@ -906,11 +914,19 @@ module AppUpdate =
         | SelectProbeAttribute id ->
             match model.intersectionControllerId with 
             | Some i when i = id && model.changeProbeAttribute ->
-                let newAttribute = computeNewAttribute model.currTouchPadPos model.attribute 
-                let texture, screenTexture = computeNewAttributeTextures newAttribute
-                {model with 
-                    touchpadTexture = texture
-                    contrScreenTexture = screenTexture}
+                match model.lastIntersectedPobe with
+                | Some probeId ->
+                    let intersectedProbe = model.allProbes.Item probeId
+                    let newAttribute = computeNewAttribute model.currTouchPadPos intersectedProbe.currAttribute
+                    let texture, screenTexture = computeNewAttributeTextures newAttribute intersectedProbe.currAttribute
+                    let updatedProbe = {intersectedProbe with currAttribute = newAttribute}
+                    let update (pr : Option<Probe>) = updatedProbe 
+                    let allProbesUpdated = model.allProbes |> HashMap.update probeId update
+                    {model with 
+                        allProbes = allProbesUpdated
+                        touchpadTexture = texture
+                        contrScreenTexture = screenTexture}
+                | None -> model
             | _ -> model
         | ChangeTouchpadPos (id, pos) -> 
            // printf "CHANGE TOUCHPAD POS %A \n" pos

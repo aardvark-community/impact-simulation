@@ -238,7 +238,11 @@ module Demo =
         let probeHistogramPositions = AVal.constant  [|V3f(-1.75, -1.0, 0.0); V3f(1.75, -1.0, 0.0); V3f(1.75, 1.0, 0.0); V3f(-1.75, 1.0, 0.0)|]
 
         let createStatisticsSg (p : AdaptiveProbe) = 
-            let text = p.currStatistics
+            let text = 
+                 let allData = p.allData |> AMap.toAVal
+                 (allData, p.currAttribute) ||> AVal.map2 (fun data attrib -> 
+                    let array, stats = data.Item attrib
+                    stats)
             let statisticsScaleTrafo = 
                 (m.sphereRadius, p.radius) ||> AVal.map2 (fun r radius -> 
                     let sphereScale = radius / r
