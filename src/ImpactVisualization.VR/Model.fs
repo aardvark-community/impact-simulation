@@ -92,6 +92,7 @@ type Model =
         text : string
         twoDModel : AardVolume.Model.Model
         threads : ThreadPool<Message>
+        firstHistogram : bool
 
         //Controllers
         devicesTrafos : HashMap<int, Trafo3d>
@@ -147,7 +148,7 @@ type Model =
         newProbePlaced : bool
 
         statistics : string
-        
+                
         //Controller clipping plane
         clippingPlaneDeviceTrafo : Trafo3d
         clippingPlaneDeviceId : Option<int>

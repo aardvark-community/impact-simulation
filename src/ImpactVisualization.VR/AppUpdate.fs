@@ -152,6 +152,7 @@ module AppUpdate =
             twoDModel = AardVolume.App.initial frames
             text = "hello" 
             threads = ThreadPool.Empty
+            firstHistogram = true
             devicesTrafos = HashMap.Empty
             controllerTrafo = Trafo3d.Identity
             heraTrafo = Trafo3d.Identity
@@ -436,7 +437,7 @@ module AppUpdate =
                         let texName, screenTexName =    
                             match billboard with
                             | BillboardType.Histogram -> "histogram-selected", "histogram"
-                            | BillboardType.Statistic -> "statistics-selcted", "statistics"
+                            | BillboardType.Statistic -> "statistics-selected", "statistics"
                             | _ -> "histogram-selected", "histogram"
                         (texture texName), (texture screenTexName)
                     | _ -> model.touchpadTexture, model.lastContrScreenModeTexture
@@ -734,7 +735,7 @@ module AppUpdate =
                             match dataSize with 
                             | d when d >= 800000 -> 2000
                             | d when d >= 500000 -> 1500
-                            | d when d >= 100000 -> 800
+                            | d when d >= 100000 || model.firstHistogram -> 800
                             | d when d >= 50000  -> 300
                             | d when d >= 10000  -> 200
                             | d when d >= 100    -> 130
@@ -756,6 +757,7 @@ module AppUpdate =
                             lastFilterProbe = Some probe
                             lastFilterProbeId = Some probe.id
                             newProbePlaced = true
+                            firstHistogram = false
                             statistics = stats
                             sphereScale = 1.0
                             sphereControllerId = None
