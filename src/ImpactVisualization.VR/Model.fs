@@ -146,6 +146,7 @@ type Model =
         lastFilterProbe : Option<Probe>
         lastFilterProbeId : Option<string>
         newProbePlaced : bool
+        existingProbeModified : bool
 
         statistics : string
                 

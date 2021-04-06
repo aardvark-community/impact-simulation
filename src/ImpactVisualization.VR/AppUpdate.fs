@@ -103,7 +103,8 @@ module AppUpdate =
 
     let createProbe (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) 
                     (inside : bool) (allData : HashMap<RenderValue, (float[] * string)>) 
-                    (attribute : RenderValue) (showStats : bool) (showHisto : bool) : Probe = 
+                    (attribute : RenderValue) (showStats : bool) (showHisto : bool) 
+                    (billboardType : BillboardType) : Probe = 
         {
             id = Guid.NewGuid().ToString()
             center = pos
@@ -116,7 +117,7 @@ module AppUpdate =
             showStatistics = showStats
             currHistogram = None
             showHistogram = showHisto
-            currBillboard = BillboardType.Histogram
+            currBillboard = billboardType
         }
     
     let convertCartesianToPolar (cartCoords : V2d) = 
@@ -171,6 +172,7 @@ module AppUpdate =
             sphereColor = C4b(1.0,1.0,1.0,0.4)
             currentProbeManipulated = false
             newProbePlaced = false
+            existingProbeModified = false
             currentProbe = None
             allProbes = HashMap.Empty
             probeIntersectionId = None
@@ -208,10 +210,10 @@ module AppUpdate =
             touchpadDeviceId = None
             touchpadDeviceTrafo = Trafo3d.Identity
             changeProbeAttribute = false
-            touchpadTexture = FileTexture(texturesPath + "initial.png", true) :> ITexture
-            lastTouchpadModeTexture = FileTexture(texturesPath + "initial.png", true) :> ITexture
-            contrScreenTexture = FileTexture(texturesPath + "empty.png", true) :> ITexture
-            lastContrScreenModeTexture = FileTexture(texturesPath + "empty.png", true) :> ITexture
+            touchpadTexture = allTextures.Item "initial"
+            lastTouchpadModeTexture = allTextures.Item "initial"
+            contrScreenTexture = allTextures.Item "empty"
+            lastContrScreenModeTexture = allTextures.Item "empty"
             textureDeviceTrafo = Trafo3d.Identity
             showTexture = false
             heraBox = Box3d.Infinite
@@ -304,7 +306,7 @@ module AppUpdate =
                     textureDeviceTrafo = controlT
                     touchpadTexture = texture "initial-scaling"
                     contrScreenTexture = texture "empty"
-                    showTexture = true
+                    //showTexture = true
                     menuLevel = 0
                     controllerMenuOpen = false}
         | UngrabHera id -> 
@@ -317,7 +319,7 @@ module AppUpdate =
                     grabberId = None
                     heraTrafo = heraT
                     allowHeraScaling = false
-                    showTexture = false
+                    //showTexture = false
                     contrScreenTexture = texture "empty"}
             | _ -> model
         | ScaleHera (id, f) ->
@@ -325,7 +327,7 @@ module AppUpdate =
             match model.grabberId with 
             | Some i when i = id && model.allowHeraScaling ->
                 if model.touchpadDeviceId.IsSome then
-                    printf "SCALE HERA \n"
+                   // printf "SCALE HERA \n"
                     if f >= 0.0 then
                         let maxScale = 1.0
                         let currScale = model.scalingFactorHera * (f*f/5.0 + 1.0)
@@ -392,7 +394,7 @@ module AppUpdate =
 
             let newHeraScaleTrafo = 
                 if model.grabberId.IsSome && model.touchpadDeviceId.IsSome then
-                    printf "UPDATE SCALING \n"
+                    //printf "UPDATE SCALING \n"
                     Trafo3d(Scale3d(model.scalingFactorHera))
                 else 
                     model.lastHeraScaleTrafo
@@ -621,13 +623,14 @@ module AppUpdate =
                             lastFilterProbeId = probeId
                             currentProbeManipulated = true
                             newProbePlaced = false
+                            existingProbeModified = true
                             sphereControllerTrafo = trafo
                             sphereControllerId = Some id
                             sphereScale = currScale
                             probeIntersectionId = None}
                 | None -> {model with deletionControllerId = None} // if no controller is intersectiong, then the probe cannot be deleted
                 | _ -> {model with deletionControllerId = Some id} // if probe is interseecting but current controller is not the same as intersection controller -> set deletion controller
-            | None -> // controller is not intersecting with a probe
+            | None -> // controller is not intersecting with a probe -> new probe should be created!!!
                 match model.sphereControllerId with // is the id of the controller creating spheres set 
                 | Some i when i <> id -> 
                     {model with // if not the same id -> sphere shold be scaled 
@@ -716,10 +719,19 @@ module AppUpdate =
                             }
 
                         let allData = filterAllDataForOneFrameSphere frames.[mTwoD.frame] (Some sphereTransformed) discardProperties
-                        let attrib = if model.attribute = RenderValue.NoValue then RenderValue.Energy else model.attribute
+                        let attrib, billboardType = 
+                            if model.existingProbeModified then 
+                                let lastProbe = model.lastFilterProbe.Value
+                                let lastAttrib =  lastProbe.currAttribute
+                                let lastBillboardType = lastProbe.currBillboard
+                                lastAttrib, lastBillboardType
+                            else 
+                                let att = if model.attribute = RenderValue.NoValue then RenderValue.Energy else model.attribute
+                                att, BillboardType.Histogram
+
                         let array, stats = allData.Item attrib
 
-                        let probe = createProbe spherePos sphereRadius spherePosTransformed radiusTransformed intersection allData attrib true true
+                        let probe = createProbe spherePos sphereRadius spherePosTransformed radiusTransformed intersection allData attrib true true billboardType
 
                         // printf "Statistics: \n %A" stats
                         let filteredData = if intersection then array else mTwoD.data.arr
@@ -758,6 +770,7 @@ module AppUpdate =
                             lastFilterProbeId = Some probe.id
                             newProbePlaced = true
                             firstHistogram = false
+                            existingProbeModified = false
                             statistics = stats
                             sphereScale = 1.0
                             sphereControllerId = None
@@ -811,7 +824,7 @@ module AppUpdate =
             {model with 
                 menuLevel = level
                 controllerMenuOpen = isOpen
-                showTexture = isOpen
+                //showTexture = isOpen
                // contrScreenTexture = screenTex
                 sphereControllerId = None
                 sphereScalerId = None
@@ -899,8 +912,8 @@ module AppUpdate =
                     {model with 
                         allProbes = allProbesUpdated
                         touchpadTexture = texture
-                        contrScreenTexture = screenTexture
-                        showTexture = true}
+                        contrScreenTexture = screenTexture}
+                        //showTexture = true}
                 | _ -> model
             | _ -> model
         | SelectGlobalAttribute id ->
@@ -941,7 +954,7 @@ module AppUpdate =
             //when both X and Y are equal to 0.0 it means we are currently not touching the touchpad
             let newId = 
                 if pos.X = 0.0 && pos.Y = 0.0 then
-                    printf "UNTOUCH \n"
+                    //printf "UNTOUCH \n"
                     None 
                 else 
                     Some id
