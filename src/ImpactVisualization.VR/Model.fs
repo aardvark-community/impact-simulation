@@ -163,7 +163,7 @@ type Model =
         menuLevel : int 
         attribute : RenderValue
         changeProbeAttribute : bool
-        lastIntersectedPobe : Option<string>
+        lastIntersectedProbe : Option<string>
 
         //Touchpad
         currTouchPadPos : V2d

@@ -180,7 +180,7 @@ module AppUpdate =
             deletionControllerId = None
             lastFilterProbe = None
             lastFilterProbeId = None
-            lastIntersectedPobe = None
+            lastIntersectedProbe = None
             statistics = ""
             rayDeviceId = None
             ray = Ray3d.Invalid
@@ -282,6 +282,17 @@ module AppUpdate =
             let radius_screen = center_screen.Distance(pointOnSphere_screen)
             center_screen, radius_screen
 
+        let computeSleepTime (dataSize : int) = 
+            match dataSize with 
+            | d when 800000 <= d -> 1800
+            | d when (500000 <= d && d < 800000) || model.firstHistogram -> 1400
+            | d when 100000 <= d && d < 500000 -> 800
+            | d when 50000 <= d && d < 100000 -> 300
+            | d when 10000 <= d && d < 50000 -> 200
+            | d when 100 <= d && d < 10000 -> 130
+            | _ -> 100
+            
+
 
         match msg with
         | ThreeD _ -> model
@@ -291,24 +302,25 @@ module AppUpdate =
             { model with twoDModel = sup }
         | StartVr -> vr.start(); model
         | GrabHera id ->
-            match model.grabberId with 
-            | Some i -> model
-            | None -> 
-                let currentContrTr = model.devicesTrafos.TryFind(id)
-                let controlT = trafoOrIdentity currentContrTr
-                let heraT = model.heraTrafo
-                let controlHeraT = heraT * controlT.Inverse
-                {model with 
-                    grabberId = Some id
-                    controllerTrafo = controlT
-                    heraToControllerTrafo = controlHeraT
-                    allowHeraScaling = true
-                    textureDeviceTrafo = controlT
-                    touchpadTexture = texture "initial-scaling"
-                    contrScreenTexture = texture "empty"
-                    //showTexture = true
-                    menuLevel = 0
-                    controllerMenuOpen = false}
+            if model.changeProbeAttribute then model else 
+                match model.grabberId with 
+                | Some i -> model
+                | None -> 
+                    let currentContrTr = model.devicesTrafos.TryFind(id)
+                    let controlT = trafoOrIdentity currentContrTr
+                    let heraT = model.heraTrafo
+                    let controlHeraT = heraT * controlT.Inverse
+                    {model with 
+                        grabberId = Some id
+                        controllerTrafo = controlT
+                        heraToControllerTrafo = controlHeraT
+                        allowHeraScaling = true
+                        textureDeviceTrafo = controlT
+                        touchpadTexture = texture "initial-scaling"
+                        contrScreenTexture = texture "empty"
+                        //showTexture = true
+                        menuLevel = 0
+                        controllerMenuOpen = false}
         | UngrabHera id -> 
             let controlT = model.controllerTrafo
             let heraToControlT = model.heraToControllerTrafo
@@ -742,16 +754,7 @@ module AppUpdate =
                                 data = { version = mTwoD.data.version + 1; arr = filteredData}
                             }
 
-                        let sleepTime = 
-                            let dataSize = filteredData.Length
-                            match dataSize with 
-                            | d when d >= 800000 -> 2000
-                            | d when d >= 500000 -> 1500
-                            | d when d >= 100000 || model.firstHistogram -> 800
-                            | d when d >= 50000  -> 300
-                            | d when d >= 10000  -> 200
-                            | d when d >= 100    -> 130
-                            | _ -> 100
+                        let sleepTime = computeSleepTime filteredData.Length
 
                         let threadsVr = 
                             proclist { 
@@ -837,7 +840,7 @@ module AppUpdate =
                 let probeAttribute = model.probeIntersectionId.IsSome && theta >= 180.0 && theta < 360.0 && model.menuLevel = 0 && not model.changeProbeAttribute                        
                 {model with 
                     changeProbeAttribute = probeAttribute 
-                    lastIntersectedPobe = model.probeIntersectionId}                        
+                    lastIntersectedProbe = model.probeIntersectionId}                        
             | _ -> model
         | OpenControllerMenu id ->
             let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
@@ -889,7 +892,7 @@ module AppUpdate =
             | _ -> model
         | ChangeBillboard id ->
             match model.probeIntersectionId with
-            | Some probeId when not model.changeProbeAttribute && not model.controllerMenuOpen ->
+            | Some probeId when not model.changeProbeAttribute && not model.controllerMenuOpen && not model.allowHeraScaling ->
                 match model.intersectionControllerId with 
                 | Some i when i = id && model.touchpadDeviceId.IsSome ->
                     let r, theta = convertCartesianToPolar model.currTouchPadPos
@@ -929,18 +932,39 @@ module AppUpdate =
         | SelectProbeAttribute id ->
             match model.intersectionControllerId with 
             | Some i when i = id && model.changeProbeAttribute ->
-                match model.lastIntersectedPobe with
+                match model.lastIntersectedProbe with
                 | Some probeId ->
-                    let intersectedProbe = model.allProbes.Item probeId
-                    let newAttribute = computeNewAttribute model.currTouchPadPos intersectedProbe.currAttribute
-                    let texture, screenTexture = computeNewAttributeTextures newAttribute intersectedProbe.currAttribute
-                    let updatedProbe = {intersectedProbe with currAttribute = newAttribute}
-                    let update (pr : Option<Probe>) = updatedProbe 
-                    let allProbesUpdated = model.allProbes |> HashMap.update probeId update
-                    {model with 
-                        allProbes = allProbesUpdated
-                        touchpadTexture = texture
-                        contrScreenTexture = screenTexture}
+                    let intersectedProbe = model.allProbes.TryFind(probeId)
+                    if intersectedProbe.IsSome then 
+                        let probe = intersectedProbe.Value
+                        let newAttribute = computeNewAttribute model.currTouchPadPos probe.currAttribute
+                        let texture, screenTexture = computeNewAttributeTextures newAttribute probe.currAttribute
+                        let updatedProbe = {probe with currAttribute = newAttribute}
+                        let update (pr : Option<Probe>) = updatedProbe 
+                        let allProbesUpdated = model.allProbes |> HashMap.update probeId update
+                        let filteredData, stats = probe.allData.Item newAttribute
+
+                        let updatedTwoDmodel = { mTwoD with data = {version = mTwoD.data.version + 1; arr = filteredData}}
+
+                        let sleepTime = computeSleepTime filteredData.Length
+
+                        let threadsVr = 
+                            proclist { 
+                                do! Async.SwitchToThreadPool()
+                                do! Async.Sleep sleepTime
+                                // perform readback
+                                let t = getScreenshot histogramClient
+                                yield SetTexture(t, updatedProbe)
+                            }
+
+                        {model with 
+                            allProbes = allProbesUpdated
+                            touchpadTexture = texture
+                            contrScreenTexture = screenTexture
+                            twoDModel = updatedTwoDmodel
+                            threads = ThreadPool.start threadsVr ThreadPool.empty}
+                    else 
+                        model
                 | None -> model
             | _ -> model
         | ChangeTouchpadPos (id, pos) -> 
