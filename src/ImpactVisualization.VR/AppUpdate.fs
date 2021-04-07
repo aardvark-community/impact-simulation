@@ -76,6 +76,12 @@ module AppUpdate =
                         "pressure", fromStreamToTexture "pressure.png";
                         "density", fromStreamToTexture "density.png";
                         "probe", fromStreamToTexture "probe.png";
+                        "probe-alphajutzi", fromStreamToTexture "probe-alphajutzi.png";
+                        "probe-cubicroot", fromStreamToTexture "probe-cubicroot.png";
+                        "probe-density", fromStreamToTexture "probe-density.png";
+                        "probe-energy", fromStreamToTexture "probe-energy.png";
+                        "probe-pressure", fromStreamToTexture "probe-pressure.png";
+                        "probe-strain", fromStreamToTexture "probe-strain.png";
                         "ray", fromStreamToTexture "ray.png";
                         "clipping", fromStreamToTexture "clipping.png";
                         "select-attribute", fromStreamToTexture "select-attribute.png";
@@ -455,7 +461,20 @@ module AppUpdate =
                             | BillboardType.Statistic -> "statistics-selected", "statistics"
                             | _ -> "histogram-selected", "histogram"
                         (texture texName), (texture screenTexName)
-                    | _ -> model.touchpadTexture, model.lastContrScreenModeTexture
+                    | _ ->
+                        if model.controllerMode = ControllerMode.Probe then
+                            let newContrScreenTexture = 
+                                match model.attribute with 
+                                | RenderValue.Energy -> texture "probe-energy"
+                                | RenderValue.CubicRoot -> texture "probe-cubicroot"
+                                | RenderValue.Strain -> texture "probe-strain"
+                                | RenderValue.AlphaJutzi -> texture "probe-alphajutzi"
+                                | RenderValue.Pressure -> texture "probe-pressure"
+                                | RenderValue.Density -> texture "probe-density"
+                                | _ -> model.contrScreenTexture
+                            model.touchpadTexture, newContrScreenTexture
+                        else 
+                            model.touchpadTexture, model.lastContrScreenModeTexture
                 else 
                     model.touchpadTexture, model.contrScreenTexture
 
