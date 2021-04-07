@@ -164,6 +164,7 @@ type Model =
         attribute : RenderValue
         changeProbeAttribute : bool
         lastIntersectedProbe : Option<string>
+        probeAttributeSelected : bool
 
         //Touchpad
         currTouchPadPos : V2d

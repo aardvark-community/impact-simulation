@@ -210,6 +210,7 @@ module AppUpdate =
             touchpadDeviceId = None
             touchpadDeviceTrafo = Trafo3d.Identity
             changeProbeAttribute = false
+            probeAttributeSelected = false
             touchpadTexture = allTextures.Item "initial"
             lastTouchpadModeTexture = allTextures.Item "initial"
             contrScreenTexture = allTextures.Item "empty"
@@ -892,7 +893,7 @@ module AppUpdate =
             | _ -> model
         | ChangeBillboard id ->
             match model.probeIntersectionId with
-            | Some probeId when not model.changeProbeAttribute && not model.controllerMenuOpen && not model.allowHeraScaling ->
+            | Some probeId when not model.changeProbeAttribute && not model.controllerMenuOpen && not model.allowHeraScaling && not model.probeAttributeSelected ->
                 match model.intersectionControllerId with 
                 | Some i when i = id && model.touchpadDeviceId.IsSome ->
                     let r, theta = convertCartesianToPolar model.currTouchPadPos
@@ -959,6 +960,7 @@ module AppUpdate =
 
                         {model with 
                             allProbes = allProbesUpdated
+                            probeAttributeSelected = true
                             touchpadTexture = texture
                             contrScreenTexture = screenTexture
                             twoDModel = updatedTwoDmodel
@@ -976,16 +978,17 @@ module AppUpdate =
                 client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
             | _ -> ()
             //when both X and Y are equal to 0.0 it means we are currently not touching the touchpad
-            let newId = 
+            let newId, probeAttribSelected = 
                 if pos.X = 0.0 && pos.Y = 0.0 then
                     //printf "UNTOUCH \n"
-                    None 
+                    None, false 
                 else 
-                    Some id
+                    Some id, model.probeAttributeSelected
 
             {model with 
                 currTouchPadPos = pos
-                touchpadDeviceId = newId }
+                touchpadDeviceId = newId 
+                probeAttributeSelected = probeAttribSelected}
         | SetTexture (t, p) ->
             let probeHistogramsUpdated = 
                 model.allProbes 
