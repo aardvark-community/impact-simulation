@@ -235,7 +235,7 @@ module Demo =
                 renderStyle       = RenderStyle.Normal
         }
         
-        let probeHistogramPositions = AVal.constant  [|V3f(-1.75, -1.0, 0.0); V3f(1.75, -1.0, 0.0); V3f(1.75, 1.0, 0.0); V3f(-1.75, 1.0, 0.0)|]
+        let probeHistogramPositions = AVal.constant  [|V3f(-1.77, -1.0, 0.0); V3f(1.77, -1.0, 0.0); V3f(1.77, 1.0, 0.0); V3f(-1.77, 1.0, 0.0)|]
 
         let createStatisticsSg (p : AdaptiveProbe) = 
             let text = 

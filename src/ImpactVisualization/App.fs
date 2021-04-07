@@ -133,6 +133,7 @@ module App =
                 max = infinity
             }
             renderValue = RenderValue.Energy
+            attributeText = ""
             colorValue = { c = C4b.Gray}
             colorMaps = listWithValues
             currentMap = @"..\..\..\src\ImpactVisualization\resources\transfer\transfer.jpg"
@@ -277,9 +278,8 @@ module App =
         let higherOutliersBoundary = quartile3 + 1.5 * IQR
         lowerOutliersBoundary, higherOutliersBoundary
 
-    let computeStatistics (filteredPoints : float[]) (renderValue : RenderValue) = 
-        let renderVal = 
-            match renderValue with 
+    let renderValueToString (renderValue : RenderValue) = 
+        match renderValue with 
             | RenderValue.Energy -> "Energy"
             | RenderValue.CubicRoot -> "Cubic Root"
             | RenderValue.Strain -> "Strain"
@@ -288,6 +288,9 @@ module App =
             | RenderValue.Mass -> "Mass"
             | RenderValue.Density -> "Density"
             | _ -> "Energy"
+
+    let computeStatistics (filteredPoints : float[]) (renderValue : RenderValue) = 
+        let renderVal = renderValueToString renderValue
         let numOfPoints = filteredPoints.Length
         let max = roundDecimal (filteredPoints.Max())
         let min = roundDecimal (filteredPoints.Min())
@@ -1089,16 +1092,20 @@ module App =
                         
                                 let histogram = 
                                         onBoot' [("data", dataChannel); ("transition", transitionChannel)] updateChart ( // when div [histogram etc] is constructed updateChart is called.
-                                                    div [onBrushed; clazz "histogram"; style "position: fixed; bottom: 20px; right: 20px; width:400px; height: 230px; z-index: 1000"] []          
+                                                    div [onBrushed; clazz "histogram"; 
+                                                        style "position: fixed; bottom: 20px; right: 20px; width:400px; height: 260px; text-align: center; background-color: white; z-index: 1000"] [
+                                                        span [style "padding: 2px; display: inline-block; font-size: x-large; color: black"] [
+                                                            Incremental.text m.attributeText] 
+                                                    ]          
                                         )
                             
 
                                 let parallCoords = 
                                             onBoot' [("dataPath", pathChannel)] updateParallCoords (
-                                                    div [onParallCoordsBrushed; clazz "parallCoords"; style "position: fixed; bottom: 20px; right: 20px; width:400px; height: 230px; z-index: 1000"] []          
+                                                    div [onParallCoordsBrushed; clazz "parallCoords"; style "position: fixed; bottom: 20px; right: 20px; width:400px; height: 260px; z-index: 1000"] []          
                                             )
 
-                                Html.SemUi.tabbed [clazz "temp"; style "position: fixed; bottom: 220px; right: 20px" ] [
+                                Html.SemUi.tabbed [clazz "temp"; style "position: fixed; bottom: 250px; right: 20px" ] [
                                     ("Histogram", histogram)
                                     ("ParallCoords", parallCoords)
                                 ] "Histogram"
@@ -1111,11 +1118,13 @@ module App =
                     DomNode.Text ("style", Option.None, AttributeMap.Empty, (AVal.constant "
                         #histogramSvg {
                             width: 100%;
-                            height: 100%;
+                            height: 90%;
                             }"))
                     require dependencies (
                         onBoot' [("data", dataChannel); ("transition", transitionChannel)] updateChart1 ( // when div [histogram etc] is constructed updateChart is called.
-                            div [onBrushed; clazz "histogram"; style "width: 100%; height: 100%"] [] 
+                            div [onBrushed; clazz "histogram"; style "width: 100%; height: 100%; text-align: center; background-color: white; z-index: 1000"] [
+                                span [style "padding: 2px; display: inline-block; font-size: 80px; color: black"] [ Incremental.text m.attributeText] 
+                            ] 
                         )
                     )
                 ]

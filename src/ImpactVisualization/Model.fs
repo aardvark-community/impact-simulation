@@ -169,6 +169,8 @@ type Model =
         discardPoints : bool
         transition : bool
 
+        attributeText : string
+
         normalizeData : bool
 
         enableShading : bool

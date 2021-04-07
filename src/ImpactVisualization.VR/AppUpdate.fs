@@ -768,10 +768,13 @@ module AppUpdate =
                         // printf "Statistics: \n %A" stats
                         let filteredData = if intersection then array else mTwoD.data.arr
 
+                        let attributeAsString = renderValueToString attrib
+
                         let updatedTwoDmodel = 
                             { mTwoD with
                                 sphereFilter = Some sphereTransformed
                                 data = { version = mTwoD.data.version + 1; arr = filteredData}
+                                attributeText = attributeAsString
                             }
 
                         let sleepTime = computeSleepTime filteredData.Length
@@ -964,7 +967,13 @@ module AppUpdate =
                         let allProbesUpdated = model.allProbes |> HashMap.update probeId update
                         let filteredData, stats = probe.allData.Item newAttribute
 
-                        let updatedTwoDmodel = { mTwoD with data = {version = mTwoD.data.version + 1; arr = filteredData}}
+                        let attributeAsText = renderValueToString newAttribute
+
+                        let updatedTwoDmodel = 
+                            { mTwoD with 
+                                data = {version = mTwoD.data.version + 1; arr = filteredData}
+                                attributeText = attributeAsText
+                                }
 
                         let sleepTime = computeSleepTime filteredData.Length
 
