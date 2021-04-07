@@ -84,7 +84,7 @@ function initHisto(id) {
 
     container = d3.select(id).append("div")
         .style("background-color", "#ffffff")
-        .style("border", "3px solid #ffffff")
+        .style("border", "3px solid #ffffff");
 
     svg = container.append("svg")
         .attr("id","histogramSvg")

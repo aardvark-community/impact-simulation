@@ -183,6 +183,7 @@ type Model =
 
         data : VersionedArray
         values : VersionedArray
+        boxPlotData : VersionedArray
 
         currFilter : option<Probe>
         boxFilter : option<Box3f>

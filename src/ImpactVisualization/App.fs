@@ -159,6 +159,7 @@ module App =
             currFilters = filters
             values = VersionedArray.ofArray initValues
             data = VersionedArray.ofArray [||]
+            boxPlotData = VersionedArray.ofArray [||]
             currFilter = None
             boxFilter = None
             sphereFilter = None 
@@ -799,6 +800,7 @@ module App =
                 { kind = Script; name = "histogramScript"; url = "Histogram.js" }
                 { kind = Stylesheet; name = "parallCoordStyle"; url = "ParallCoords.css" }
                 { kind = Script; name = "parallCoordScript"; url = "ParallCoords.js" }
+                { kind = Script; name = "boxPlotScript"; url = "BoxPlot.js" }
             ]
 
        // let a = m.data | AVal.map (fun data -> encodeToJSONData)
@@ -818,6 +820,9 @@ module App =
         let updateParallCoords = 
             "initParallCoords(__ID__); dataPath.onmessage = function (path) { if (path != null) refreshPar(path); };"
 
+        let boxPlotChannel = m.boxPlotData.arr.Channel
+        let updateBoxPlot =
+            "initBoxPlot(__ID__); boxPlotData.onmessage = function (data) { refreshBoxPlot(data); }"
 
         let onBrushed = 
             onEvent ("brushing") [] (( fun args ->
@@ -1125,6 +1130,14 @@ module App =
                             div [onBrushed; clazz "histogram"; style "width: 100%; height: 100%; text-align: center; background-color: white; z-index: 1000"] [
                                 span [style "padding: 2px; display: inline-block; font-size: 80px; color: black"] [ Incremental.text m.attributeText] 
                             ] 
+                        )
+                    )
+                ]
+            | Some "boxPlotPage" ->
+                body [] [
+                    require dependencies (
+                        onBoot' [("boxPlotData", boxPlotChannel)] updateBoxPlot (
+                            div [clazz "boxPlot"; style "width: 100%; height: 100%"] [] 
                         )
                     )
                 ]
