@@ -14,28 +14,31 @@
     <RunWorkingDirectory>$(OutputPath)\netcoreapp2.1</RunWorkingDirectory>
   </PropertyGroup>
   <ItemGroup>
-	<None Include="resources\csv\dataFilter1.csv" />
-	<EmbeddedResource Include="resources\csv\data.csv">
-		<CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  <None Include="resources\csv\dataFilter1.csv" />
+	  <EmbeddedResource Include="resources\csv\data.csv">
+		  <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      </EmbeddedResource>
+	  <EmbeddedResource Include="resources\csv\dataFilter1.csv">
+		  <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </EmbeddedResource>
+	  <EmbeddedResource Include="resources\csv\dataFilter2.csv">
+		  <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </EmbeddedResource>
+	  <EmbeddedResource Include="resources\csv\dataFilter3.csv">
+		  <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </EmbeddedResource>
+    <EmbeddedResource Include="resources\BoxPlot.js">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
-	<EmbeddedResource Include="resources\csv\dataFilter1.csv">
-		<CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	</EmbeddedResource>
-	<EmbeddedResource Include="resources\csv\dataFilter2.csv">
-		<CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	</EmbeddedResource>
-	<EmbeddedResource Include="resources\csv\dataFilter3.csv">
-		<CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	</EmbeddedResource>
-  <EmbeddedResource Include="resources\BoxPlot.js">
-    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-  </EmbeddedResource>
-	<EmbeddedResource Include="resources\ParallCoords.css">
-		<CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	</EmbeddedResource>
-	<EmbeddedResource Include="resources\ParallCoords.js">
-		<CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	</EmbeddedResource>
+    <EmbeddedResource Include="resources\BoxPlot1.js">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+	  <EmbeddedResource Include="resources\ParallCoords.css">
+		  <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </EmbeddedResource>
+	  <EmbeddedResource Include="resources\ParallCoords.js">
+		  <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </EmbeddedResource>
     <EmbeddedResource Include="resources\Histogram.css">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>

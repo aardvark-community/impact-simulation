@@ -2,6 +2,7 @@
 
 open System
 open System.IO
+open System.Text.Json
 open Aardvark.Base
 open Aardvark.Base.Rendering
 open Aardvark.Vr
@@ -15,12 +16,14 @@ open AardVolume.Model
 open AardVolume.App
 open ImpactVisualization
 open Aardvark.Cef
-
-
+open MBrace.FsPickler
+open MBrace.FsPickler.Json
 
 module AppUpdate =
     open Aardvark.UI.Primitives
     open Aardvark.Base.Rendering
+
+    let jsonSerializer = FsPickler.CreateJsonSerializer(indent=true)
 
     let quadRightUp   = V3d(0.732, 0.432, -0.013)
     let quadLeftUp    = V3d(-0.732, 0.432, -0.013)
@@ -604,7 +607,6 @@ module AppUpdate =
             //    printfn "vibrate: %A" id
             //    d.startVibrate (MicroTime.FromSeconds 0.1)
             //| _ -> ()
-            
             let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
             if not model.controllerMenuOpen then 
                 match model.controllerMode with

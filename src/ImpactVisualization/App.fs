@@ -160,6 +160,7 @@ module App =
             values = VersionedArray.ofArray initValues
             data = VersionedArray.ofArray [||]
             boxPlotData = VersionedArray.ofArray [||]
+            boxPlotData1 = String.Empty
             currFilter = None
             boxFilter = None
             sphereFilter = None 
@@ -801,6 +802,7 @@ module App =
                 { kind = Stylesheet; name = "parallCoordStyle"; url = "ParallCoords.css" }
                 { kind = Script; name = "parallCoordScript"; url = "ParallCoords.js" }
                 { kind = Script; name = "boxPlotScript"; url = "BoxPlot.js" }
+                { kind = Script; name = "boxPlotScript1"; url = "BoxPlot1.js" }
             ]
 
        // let a = m.data | AVal.map (fun data -> encodeToJSONData)
@@ -823,6 +825,10 @@ module App =
         let boxPlotChannel = m.boxPlotData.arr.Channel
         let updateBoxPlot =
             "initBoxPlot(__ID__); boxPlotData.onmessage = function (data) { refreshBoxPlot(data); }"
+
+        let boxPlotChannel1 = m.boxPlotData1.Channel
+        let updateBoxPlot1 =
+            "boxPlotData1.onmessage = function (data) { if (data != null) refreshBoxPlot1(data); }"
 
         let onBrushed = 
             onEvent ("brushing") [] (( fun args ->
@@ -1138,6 +1144,14 @@ module App =
                     require dependencies (
                         onBoot' [("boxPlotData", boxPlotChannel)] updateBoxPlot (
                             div [clazz "boxPlot"; style "width: 100%; height: 100%"] [] 
+                        )
+                    )
+                ]
+            | Some "boxPlotPage1" ->
+                body [] [
+                    require dependencies (
+                        onBoot' [("boxPlotData1", boxPlotChannel1)] updateBoxPlot1 (
+                            div [clazz "boxPlot1"; style "width: 100%; height: 100%"] [] 
                         )
                     )
                 ]
