@@ -160,7 +160,7 @@ module App =
             values = VersionedArray.ofArray initValues
             data = VersionedArray.ofArray [||]
             boxPlotData = VersionedArray.ofArray [||]
-            boxPlotData1 = String.Empty
+            boxPlotData1 = Array.empty
             currFilter = None
             boxFilter = None
             sphereFilter = None 
@@ -826,9 +826,10 @@ module App =
         let updateBoxPlot =
             "initBoxPlot(__ID__); boxPlotData.onmessage = function (data) { refreshBoxPlot(data); }"
 
+        //let boxplotData = m.boxPlotData1 |> AMap.toAVal
         let boxPlotChannel1 = m.boxPlotData1.Channel
         let updateBoxPlot1 =
-            "boxPlotData1.onmessage = function (data) { if (data != null) refreshBoxPlot1(data); }"
+            "boxPlotData1.onmessage = function (data) { refreshBoxPlot1(data); }"
 
         let onBrushed = 
             onEvent ("brushing") [] (( fun args ->

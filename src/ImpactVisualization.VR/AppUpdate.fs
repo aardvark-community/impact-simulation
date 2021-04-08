@@ -770,6 +770,9 @@ module AppUpdate =
                         // printf "Statistics: \n %A" stats
                         let filteredData = if intersection then array else mTwoD.data.arr
 
+                        let hashMap = [|array; [|5.0; 2.0; 3.0|] |]
+                        //let hashMapInJson = jsonSerializer.PickleToString hashMap
+
                         let attributeAsString = renderValueToString attrib
 
                         let updatedTwoDmodel = 
@@ -777,6 +780,7 @@ module AppUpdate =
                                 sphereFilter = Some sphereTransformed
                                 data = { version = mTwoD.data.version + 1; arr = filteredData}
                                 attributeText = attributeAsString
+                                boxPlotData1 = hashMap
                             }
 
                         let sleepTime = computeSleepTime filteredData.Length

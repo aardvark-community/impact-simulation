@@ -1,4 +1,3 @@
-{
 var width_b = 900; 
 var height_b = 400;
 var barWidth = 30;
@@ -15,6 +14,8 @@ var groupCounts = {}; //this will come from the program with all necessary data!
 var globalCounts = [];
 
 function refreshBoxPlot1(data){
+
+    groupCounts = data
 
     // Sort group counts so quantile methods work
     for(var key in groupCounts) {
@@ -56,9 +57,9 @@ function refreshBoxPlot1(data){
 	    .range([0, height_b]);
 
     // Setup the svg and group we will draw the box plot in
-    var svg = d3.select("body").append("svg")
+    var svg = d3.select(".boxPlot1").append("svg")
 	    .attr("width", totalWidth)
-	    .attr("height", totalheight)
+	    .attr("height", totalHeight)
 	    .append("g")
 	    .attr("transform", "translate(" + margin_b.left + "," + margin_b.top + ")");
 
@@ -159,4 +160,4 @@ function boxQuartiles(d) {
 function sortNumber(a,b) {
 	return a - b;
 }
-}
+

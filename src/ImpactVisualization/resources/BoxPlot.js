@@ -1,4 +1,4 @@
-//let width = undefined;
+/*//let width = undefined;
 //let height = undefined;
 //let svg = undefined; 
 //let g = undefined;
@@ -109,4 +109,4 @@ function refreshBoxPlot(data){
         .attr("stroke", "black")
 }
 
-
+*/
