@@ -2,7 +2,7 @@ var width_b = 900;
 var height_b = 400;
 var barWidth = 30;
 
-var margin_b = {top: 20, right: 10, bottom: 20, left: 10};
+var margin_b = {top: 20, right: 10, bottom: 30, left: 10};
 
 var width_b = width_b - margin_b.left - margin_b.right;
 var height_b = height_b - margin_b.top - margin_b.bottom;
@@ -28,7 +28,7 @@ function initBoxPlot(id) {
 
     // Move the left axis over 25 pixels, and the top axis over 35 pixels
     axisG = svg_b.append("g").attr("transform", "translate(45,0)");
-    axisTopG = svg_b.append("g").attr("transform", "translate(55,0)");
+    axisTopG = svg_b.append("g").attr("transform", "translate(50," + (height_b + margin_b.top - 10) + ")");
 
     // Setup the group the box plot elements will render in
     g_b = svg_b.append("g")
@@ -79,7 +79,7 @@ function refreshBoxPlot(data){
     var globalMax = d3.max(globalCounts);
     var yScale = d3.scaleLinear()
 	    .domain([globalMin, globalMax])
-	    .range([0, height_b]);
+	    .range([height_b, 0]);
 
       // Draw the box plot vertical lines
     var verticalLines = g_b.selectAll(".verticalLines")
@@ -100,9 +100,9 @@ function refreshBoxPlot(data){
         .enter()
         .append("rect")
         .attr("width", barWidth)
-        .attr("height", d =>  yScale(d.quartile[2]) - yScale(d.quartile[0]))
+        .attr("height", d =>  yScale(d.quartile[0]) - yScale(d.quartile[2]))
         .attr("x", d => xScale(d.key))
-        .attr("y", d => yScale(d.quartile[0]))
+        .attr("y", d => yScale(d.quartile[2]))
         .attr("fill", d => d.color)
         .attr("stroke", "#000")
         .attr("stroke-width", 1);
@@ -112,9 +112,9 @@ function refreshBoxPlot(data){
         // Top whisker
         {
           x1: d => xScale(d.key),
-          y1: d => yScale(d.whiskers[0]),
+          y1: d => yScale(d.whiskers[1]),
           x2: d => xScale(d.key) + barWidth,
-          y2: d => yScale(d.whiskers[0])
+          y2: d => yScale(d.whiskers[1])
         },
         // Median line
         {
@@ -126,9 +126,9 @@ function refreshBoxPlot(data){
         // Bottom whisker
         {
           x1: d => xScale(d.key),
-          y1: d => yScale(d.whiskers[1]),
+          y1: d => yScale(d.whiskers[0]),
           x2: d => xScale(d.key) + barWidth,
-          y2: d => yScale(d.whiskers[1])
+          y2: d => yScale(d.whiskers[0])
         }
     ];
 
@@ -155,9 +155,9 @@ function refreshBoxPlot(data){
     axisG.append("g").call(axisLeft);
 
     // Setup a series axis on the top
-    var axisTop = d3.axisTop(xScale)
+    var axisBottom = d3.axisBottom(xScale)
         .tickFormat(d => "Probe " + d);
-    axisTopG.append("g").call(axisTop);
+    axisTopG.append("g").call(axisBottom);
 }
 
 function resetContainers(){
