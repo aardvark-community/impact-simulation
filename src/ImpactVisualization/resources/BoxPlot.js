@@ -86,10 +86,10 @@ function refreshBoxPlot(data){
 	    .data(boxPlotData)
 	    .enter()
 	    .append("line")
-	    .attr("x1", function(d) {return xScale(d.key) + barWidth/2;})
-	    .attr("y1", function(d) {return yScale(d.whiskers[0]);})
-	    .attr("x2", function(d) {return xScale(d.key) + barWidth/2;})
-	    .attr("y2", function(d) {return yScale(d.whiskers[1]);})
+	    .attr("x1", d => xScale(d.key) + barWidth/2)
+	    .attr("y1", d => yScale(d.whiskers[0]))
+	    .attr("x2", d => xScale(d.key) + barWidth/2)
+	    .attr("y2", d => yScale(d.whiskers[1]))
 	    .attr("stroke", "#000")
 	    .attr("stroke-width", 1)
 	    .attr("fill", "none");
@@ -100,10 +100,10 @@ function refreshBoxPlot(data){
         .enter()
         .append("rect")
         .attr("width", barWidth)
-        .attr("height", function(d) {return yScale(d.quartile[2]) - yScale(d.quartile[0]);})
-        .attr("x", function(d) {return xScale(d.key);})
-        .attr("y", function(d) {return yScale(d.quartile[0]);})
-        .attr("fill", function(d) {return d.color;})
+        .attr("height", d =>  yScale(d.quartile[2]) - yScale(d.quartile[0]))
+        .attr("x", d => xScale(d.key))
+        .attr("y", d => yScale(d.quartile[0]))
+        .attr("fill", d => d.color)
         .attr("stroke", "#000")
         .attr("stroke-width", 1);
 
@@ -111,24 +111,24 @@ function refreshBoxPlot(data){
     var horizontalLineConfigs = [
         // Top whisker
         {
-          x1: function(d) { return xScale(d.key) },
-          y1: function(d) { return yScale(d.whiskers[0]) },
-          x2: function(d) { return xScale(d.key) + barWidth },
-          y2: function(d) { return yScale(d.whiskers[0]) }
+          x1: d => xScale(d.key),
+          y1: d => yScale(d.whiskers[0]),
+          x2: d => xScale(d.key) + barWidth,
+          y2: d => yScale(d.whiskers[0])
         },
         // Median line
         {
-          x1: function(d) { return xScale(d.key) },
-          y1: function(d) { return yScale(d.quartile[1]) },
-          x2: function(d) { return xScale(d.key) + barWidth },
-          y2: function(d) { return yScale(d.quartile[1]) }
+          x1: d => xScale(d.key),
+          y1: d => yScale(d.quartile[1]),
+          x2: d => xScale(d.key) + barWidth,
+          y2: d => yScale(d.quartile[1])
         },
         // Bottom whisker
         {
-          x1: function(d) { return xScale(d.key) },
-          y1: function(d) { return yScale(d.whiskers[1]) },
-          x2: function(d) { return xScale(d.key) + barWidth },
-          y2: function(d) { return yScale(d.whiskers[1]) }
+          x1: d => xScale(d.key),
+          y1: d => yScale(d.whiskers[1]),
+          x2: d => xScale(d.key) + barWidth,
+          y2: d => yScale(d.whiskers[1])
         }
     ];
 
@@ -156,7 +156,7 @@ function refreshBoxPlot(data){
 
     // Setup a series axis on the top
     var axisTop = d3.axisTop(xScale)
-        .tickFormat(function(d) {return "Probe " + d});
+        .tickFormat(d => "Probe " + d);
     axisTopG.append("g").call(axisTop);
 }
 
