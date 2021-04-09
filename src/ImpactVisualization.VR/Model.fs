@@ -8,6 +8,7 @@ open Aardvark.Base
 open System.IO
 
 open FSharp.Data.Adaptive
+open FSharpx.Collections
 
 open AardVolume.Model
 open Aardvark.Cef
@@ -147,6 +148,7 @@ type Model =
         lastFilterProbeId : Option<string>
         newProbePlaced : bool
         existingProbeModified : bool
+        boxPlotProbes : PersistentHashMap<string, float[]>
 
         statistics : string
                 

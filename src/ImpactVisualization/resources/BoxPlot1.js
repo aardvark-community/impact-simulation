@@ -10,21 +10,46 @@ var height_b = height_b - margin_b.top - margin_b.bottom;
 var totalWidth = width_b + margin_b.left + margin_b.right;
 var totalHeight = height_b + margin_b.top + margin_b.bottom;
 
-var groupCounts = {}; //this will come from the program with all necessary data!!
-var globalCounts = [];
+let groupCounts = {}; //this will come from the program with all necessary data!!
+let globalCounts = [];
+
+let svg_b = undefined;
+let axisG = undefined;
+let axisTopG = undefined;
+let g_b = undefined;
+
+function initBoxPlot1(id) {
+    // Setup the svg and group we will draw the box plot in
+    svg_b = d3.select(".boxPlot1").append("svg")
+	    .attr("width", totalWidth)
+	    .attr("height", totalHeight)
+	    .append("g")
+	    .attr("transform", "translate(" + margin_b.left + "," + margin_b.top + ")");
+
+    // Move the left axis over 25 pixels, and the top axis over 35 pixels
+    axisG = svg_b.append("g").attr("transform", "translate(45,0)");
+    axisTopG = svg_b.append("g").attr("transform", "translate(55,0)");
+
+    // Setup the group the box plot elements will render in
+    g_b = svg_b.append("g")
+	    .attr("transform", "translate(40,5)");
+}
 
 function refreshBoxPlot1(data){
 
+    resetContainers();
+   
     groupCounts = data
 
     // Sort group counts so quantile methods work
     for(var key in groupCounts) {
 	    var groupCount = groupCounts[key];
 	    groupCounts[key] = groupCount.sort(sortNumber);
+        globalCounts = globalCounts.concat(groupCount);
     }
 
     // Setup a color scale for filling each box
-    var colorScale = d3.scaleOrdinal(d3.schemeSet1)
+    var colorScale = d3.scaleOrdinal(d3.schemeCategory10)
 	    .domain(Object.keys(groupCounts));
 
     var boxPlotData = [];
@@ -56,23 +81,8 @@ function refreshBoxPlot1(data){
 	    .domain([globalMin, globalMax])
 	    .range([0, height_b]);
 
-    // Setup the svg and group we will draw the box plot in
-    var svg = d3.select(".boxPlot1").append("svg")
-	    .attr("width", totalWidth)
-	    .attr("height", totalHeight)
-	    .append("g")
-	    .attr("transform", "translate(" + margin_b.left + "," + margin_b.top + ")");
-
-    // Move the left axis over 25 pixels, and the top axis over 35 pixels
-    var axisG = svg.append("g").attr("transform", "translate(25,0)");
-    var axisTopG = svg.append("g").attr("transform", "translate(35,0)");
-
-    // Setup the group the box plot elements will render in
-    var g = svg.append("g")
-	    .attr("transform", "translate(20,5)");
-
       // Draw the box plot vertical lines
-    var verticalLines = g.selectAll(".verticalLines")
+    var verticalLines = g_b.selectAll(".verticalLines")
 	    .data(boxPlotData)
 	    .enter()
 	    .append("line")
@@ -85,7 +95,7 @@ function refreshBoxPlot1(data){
 	    .attr("fill", "none");
 
     // Draw the boxes of the box plot, filled in white and on top of vertical lines
-    var rects = g.selectAll("rect")
+    var rects = g_b.selectAll("rect")
         .data(boxPlotData)
         .enter()
         .append("rect")
@@ -126,7 +136,7 @@ function refreshBoxPlot1(data){
         var lineConfig = horizontalLineConfigs[i];
 
         // Draw the whiskers at the min for this series
-        var horizontalLine = g.selectAll(".whiskers")
+        var horizontalLine = g_b.selectAll(".whiskers")
           .data(boxPlotData)
           .enter()
           .append("line")
@@ -140,12 +150,22 @@ function refreshBoxPlot1(data){
     }
 
     // Setup a scale on the left
-    var axisLeft = d3.axisLeft(yScale);
+    var axisLeft = d3.axisLeft(yScale)
+        .tickFormat(d3.format(".2s"));;
     axisG.append("g").call(axisLeft);
 
     // Setup a series axis on the top
-    var axisTop = d3.axisTop(xScale);
+    var axisTop = d3.axisTop(xScale)
+        .tickFormat(function(d) {return "Probe " + d});
     axisTopG.append("g").call(axisTop);
+}
+
+function resetContainers(){
+    groupCounts = {};
+    globalCounts = [];
+    g_b.selectAll("*").remove()
+    axisG.selectAll("*").remove()
+    axisTopG.selectAll("*").remove()
 }
 
 function boxQuartiles(d) {

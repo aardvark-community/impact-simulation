@@ -203,5 +203,8 @@
     <Compile Include="Program.fs" />
     <None Include="paket.references" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FSharpx.Collections" Version="2.1.3" />
+  </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

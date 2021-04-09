@@ -11,19 +11,16 @@ open Aardvark.Rendering.GL
 
 
 open FSharp.Data.Adaptive
+open FSharpx.Collections
 
 open AardVolume.Model
 open AardVolume.App
 open ImpactVisualization
 open Aardvark.Cef
-open MBrace.FsPickler
-open MBrace.FsPickler.Json
 
 module AppUpdate =
     open Aardvark.UI.Primitives
     open Aardvark.Base.Rendering
-
-    let jsonSerializer = FsPickler.CreateJsonSerializer(indent=true)
 
     let quadRightUp   = V3d(0.732, 0.432, -0.013)
     let quadLeftUp    = V3d(-0.732, 0.432, -0.013)
@@ -190,6 +187,7 @@ module AppUpdate =
             lastFilterProbe = None
             lastFilterProbeId = None
             lastIntersectedProbe = None
+            boxPlotProbes = PersistentHashMap.empty
             statistics = ""
             rayDeviceId = None
             ray = Ray3d.Invalid
@@ -640,6 +638,7 @@ module AppUpdate =
                             }
                         {model with 
                             allProbes = model.allProbes.Remove(probe)
+                            boxPlotProbes = model.boxPlotProbes.Remove(probe)
                             lastFilterProbe = filterProbe
                             lastFilterProbeId = probeId
                             twoDModel = updatedTwoDmodel
@@ -653,6 +652,7 @@ module AppUpdate =
                             | None -> model.sphereScale, None
                         {model with 
                             allProbes = model.allProbes.Remove(probe)
+                            boxPlotProbes = model.boxPlotProbes.Remove(probe)
                             lastFilterProbe = currProbe
                             lastFilterProbeId = probeId
                             currentProbeManipulated = true
@@ -770,8 +770,8 @@ module AppUpdate =
                         // printf "Statistics: \n %A" stats
                         let filteredData = if intersection then array else mTwoD.data.arr
 
-                        let hashMap = [|array; [|5.0; 2.0; 3.0|] |]
-                        //let hashMapInJson = jsonSerializer.PickleToString hashMap
+                        let newHashmap = model.boxPlotProbes.Add(probe.id, array) 
+                        let dataForBoxPlot = newHashmap |> PersistentHashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
 
                         let attributeAsString = renderValueToString attrib
 
@@ -780,7 +780,7 @@ module AppUpdate =
                                 sphereFilter = Some sphereTransformed
                                 data = { version = mTwoD.data.version + 1; arr = filteredData}
                                 attributeText = attributeAsString
-                                boxPlotData1 = hashMap
+                                boxPlotData1 = dataForBoxPlot
                             }
 
                         let sleepTime = computeSleepTime filteredData.Length
@@ -808,6 +808,7 @@ module AppUpdate =
                             sphereControllerId = None
                             sphereScalerId = None
                             deletionControllerId = delControllerId
+                            boxPlotProbes = newHashmap
                             twoDModel = updatedTwoDmodel
                             threads = ThreadPool.start threadsVr ThreadPool.empty}
                     | _ -> {model with 

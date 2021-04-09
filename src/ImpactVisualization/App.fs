@@ -829,7 +829,7 @@ module App =
         //let boxplotData = m.boxPlotData1 |> AMap.toAVal
         let boxPlotChannel1 = m.boxPlotData1.Channel
         let updateBoxPlot1 =
-            "boxPlotData1.onmessage = function (data) { refreshBoxPlot1(data); }"
+            "initBoxPlot1(__ID__); boxPlotData1.onmessage = function (data) { refreshBoxPlot1(data); }"
 
         let onBrushed = 
             onEvent ("brushing") [] (( fun args ->
