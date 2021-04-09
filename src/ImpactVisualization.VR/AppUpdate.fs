@@ -780,7 +780,7 @@ module AppUpdate =
                                 sphereFilter = Some sphereTransformed
                                 data = { version = mTwoD.data.version + 1; arr = filteredData}
                                 attributeText = attributeAsString
-                                boxPlotData1 = dataForBoxPlot
+                                boxPlotData = dataForBoxPlot
                             }
 
                         let sleepTime = computeSleepTime filteredData.Length

@@ -1,112 +1,183 @@
-/*//let width = undefined;
-//let height = undefined;
-//let svg = undefined; 
-//let g = undefined;
-let data_sorted = undefined; 
-let q1 = undefined;
-let median = undefined;
-let q3 = undefined;
-let interQuantileRange = undefined;
-//let min = undefined;
-//let max = undefined;
-//let y = undefined;
-//let container = undefined;
+var width_b = 900; 
+var height_b = 400;
+var barWidth = 30;
 
-// set the dimensions and margins of the graph
-svg_margin = {top: 10, right: 30, bottom: 30, left: 40};
-svg_width = 400
-svg_height = 400 
+var margin_b = {top: 20, right: 10, bottom: 20, left: 10};
 
-// a few features for the box
-let box_center = 200
-let box_width = 100
+var width_b = width_b - margin_b.left - margin_b.right;
+var height_b = height_b - margin_b.top - margin_b.bottom;
 
-function initBoxPlot(id){
-    width = svg_width - svg_margin.left - svg_margin.right;
-    height = svg_height - svg_margin.top - svg_margin.bottom;
+var totalWidth = width_b + margin_b.left + margin_b.right;
+var totalHeight = height_b + margin_b.top + margin_b.bottom;
 
-    // Show the Y scale
-    y = d3.scaleLinear()
-        .domain([0,24])
-        .range([height, 0]);
+let groupCounts = {}; //this will come from the program with all necessary data!!
+let globalCounts = [];
 
-    container = d3.select(id).append("div")
-        .style("background-color", "#ffffff")
-        .style("border", "3px solid #ffffff");
+let svg_b = undefined;
+let axisG = undefined;
+let axisTopG = undefined;
+let g_b = undefined;
 
-    // append the svg object to the body of the page
-    svg = container.append("svg")
-        .attr("width", width + svg_margin.left + svg_margin.right)
-        .attr("height", height + svg_margin.top + svg_margin.bottom);
+function initBoxPlot(id) {
+    // Setup the svg and group we will draw the box plot in
+    svg_b = d3.select(".boxPlot").append("svg")
+	    .attr("width", totalWidth)
+	    .attr("height", totalHeight)
+	    .append("g")
+	    .attr("transform", "translate(" + margin_b.left + "," + margin_b.top + ")");
 
-    g = svg 
-        .append("g")
-        .attr("transform", "translate(" + svg_margin.left + "," + svg_margin.top + ")");
+    // Move the left axis over 25 pixels, and the top axis over 35 pixels
+    axisG = svg_b.append("g").attr("transform", "translate(45,0)");
+    axisTopG = svg_b.append("g").attr("transform", "translate(55,0)");
 
-    svg.call(d3.axisRight(y))
-
-        // create dummy data
-
-    //refreshBoxPlot(data)
+    // Setup the group the box plot elements will render in
+    g_b = svg_b.append("g")
+	    .attr("transform", "translate(40,5)");
 }
-
-
-function computeStatistics(data){
-    // Compute summary statistics used for the box:
-    data_sorted = data.sort(d3.ascending)
-    q1 = d3.quantile(data_sorted, .25)
-    median = d3.quantile(data_sorted, .5)
-    q3 = d3.quantile(data_sorted, .75)
-    interQuantileRange = q3 - q1
-    min = q1 - 1.5 * interQuantileRange
-    max = q1 + 1.5 * interQuantileRange
-}
-
 
 function refreshBoxPlot(data){
 
-    //computeStatistics(data)
+    resetContainers();
+   
+    groupCounts = data
 
-    data = [12,19,11,13,12,22,13,4,15,16,18,19,20,12,11,9]
+    // Sort group counts so quantile methods work
+    for(var key in groupCounts) {
+	    var groupCount = groupCounts[key];
+	    groupCounts[key] = groupCount.sort(sortNumber);
+        globalCounts = globalCounts.concat(groupCount);
+    }
 
-    data_sorted = data.sort(d3.ascending)
-    q1 = d3.quantile(data_sorted, .25)
-    median = d3.quantile(data_sorted, .5)
-    q3 = d3.quantile(data_sorted, .75)
-    interQuantileRange = q3 - q1
-    min = q1 - 1.5 * interQuantileRange
-    max = q1 + 1.5 * interQuantileRange
+    // Setup a color scale for filling each box
+    var colorScale = d3.scaleOrdinal(d3.schemeCategory10)
+	    .domain(Object.keys(groupCounts));
 
-    // Show the main vertical line
-    svg
-    .append("line")
-        .attr("x1", box_center)
-        .attr("x2", box_center)
-        .attr("y1", y(min) )
-        .attr("y2", y(max) )
-        .attr("stroke", "black")
+    var boxPlotData = [];
+    for (var [key, groupCount] of Object.entries(groupCounts)) {
 
-    // Show the box
-    svg
-    .append("rect")
-        .attr("x", box_center - box_width/2)
-        .attr("y", y(q3) )
-        .attr("height", (y(q1)-y(q3)) )
-        .attr("width", box_width )
-        .attr("stroke", "black")
-        .style("fill", "#69b3a2")
+	    var record = {};
+	    var localMin = d3.min(groupCount);
+	    var localMax = d3.max(groupCount);
 
-    // show median, min and max horizontal lines
-    svg
-    .selectAll("toto")
-    .data([min, median, max])
-    .enter()
-    .append("line")
-        .attr("x1", box_center - box_width/2)
-        .attr("x2", box_center + box_width/2)
-        .attr("y1", function(d){ return(y(d))} )
-        .attr("y2", function(d){ return(y(d))} )
-        .attr("stroke", "black")
+	    record["key"] = key;
+	    record["counts"] = groupCount;
+	    record["quartile"] = boxQuartiles(groupCount);
+	    record["whiskers"] = [localMin, localMax];
+	    record["color"] = colorScale(key);
+
+	    boxPlotData.push(record);
+    }
+
+    // Compute an ordinal xScale for the keys in boxPlotData
+    var xScale = d3.scalePoint()
+	    .domain(Object.keys(groupCounts))
+	    .rangeRound([0, width_b])
+	    .padding([0.5]);
+
+    // Compute a global y scale based on the global counts
+    var globalMin = d3.min(globalCounts);
+    var globalMax = d3.max(globalCounts);
+    var yScale = d3.scaleLinear()
+	    .domain([globalMin, globalMax])
+	    .range([0, height_b]);
+
+      // Draw the box plot vertical lines
+    var verticalLines = g_b.selectAll(".verticalLines")
+	    .data(boxPlotData)
+	    .enter()
+	    .append("line")
+	    .attr("x1", function(d) {return xScale(d.key) + barWidth/2;})
+	    .attr("y1", function(d) {return yScale(d.whiskers[0]);})
+	    .attr("x2", function(d) {return xScale(d.key) + barWidth/2;})
+	    .attr("y2", function(d) {return yScale(d.whiskers[1]);})
+	    .attr("stroke", "#000")
+	    .attr("stroke-width", 1)
+	    .attr("fill", "none");
+
+    // Draw the boxes of the box plot, filled in white and on top of vertical lines
+    var rects = g_b.selectAll("rect")
+        .data(boxPlotData)
+        .enter()
+        .append("rect")
+        .attr("width", barWidth)
+        .attr("height", function(d) {return yScale(d.quartile[2]) - yScale(d.quartile[0]);})
+        .attr("x", function(d) {return xScale(d.key);})
+        .attr("y", function(d) {return yScale(d.quartile[0]);})
+        .attr("fill", function(d) {return d.color;})
+        .attr("stroke", "#000")
+        .attr("stroke-width", 1);
+
+     // Now render all the horizontal lines at once - the whiskers and the median
+    var horizontalLineConfigs = [
+        // Top whisker
+        {
+          x1: function(d) { return xScale(d.key) },
+          y1: function(d) { return yScale(d.whiskers[0]) },
+          x2: function(d) { return xScale(d.key) + barWidth },
+          y2: function(d) { return yScale(d.whiskers[0]) }
+        },
+        // Median line
+        {
+          x1: function(d) { return xScale(d.key) },
+          y1: function(d) { return yScale(d.quartile[1]) },
+          x2: function(d) { return xScale(d.key) + barWidth },
+          y2: function(d) { return yScale(d.quartile[1]) }
+        },
+        // Bottom whisker
+        {
+          x1: function(d) { return xScale(d.key) },
+          y1: function(d) { return yScale(d.whiskers[1]) },
+          x2: function(d) { return xScale(d.key) + barWidth },
+          y2: function(d) { return yScale(d.whiskers[1]) }
+        }
+    ];
+
+    for(var i=0; i < horizontalLineConfigs.length; i++) {
+        var lineConfig = horizontalLineConfigs[i];
+
+        // Draw the whiskers at the min for this series
+        var horizontalLine = g_b.selectAll(".whiskers")
+          .data(boxPlotData)
+          .enter()
+          .append("line")
+          .attr("x1", lineConfig.x1)
+          .attr("y1", lineConfig.y1)
+          .attr("x2", lineConfig.x2)
+          .attr("y2", lineConfig.y2)
+          .attr("stroke", "#000")
+          .attr("stroke-width", 1)
+          .attr("fill", "none");
+    }
+
+    // Setup a scale on the left
+    var axisLeft = d3.axisLeft(yScale)
+        .tickFormat(d3.format(".2s"));;
+    axisG.append("g").call(axisLeft);
+
+    // Setup a series axis on the top
+    var axisTop = d3.axisTop(xScale)
+        .tickFormat(function(d) {return "Probe " + d});
+    axisTopG.append("g").call(axisTop);
 }
 
-*/
+function resetContainers(){
+    groupCounts = {};
+    globalCounts = [];
+    g_b.selectAll("*").remove()
+    axisG.selectAll("*").remove()
+    axisTopG.selectAll("*").remove()
+}
+
+function boxQuartiles(d) {
+  	return [
+    	d3.quantile(d, .25),
+    	d3.quantile(d, .5),
+    	d3.quantile(d, .75)
+  	];
+}
+
+// Perform a numeric sort on an array
+function sortNumber(a,b) {
+	return a - b;
+}
+

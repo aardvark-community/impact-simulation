@@ -30,9 +30,6 @@
     <EmbeddedResource Include="resources\BoxPlot.js">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
-    <EmbeddedResource Include="resources\BoxPlot1.js">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
 	  <EmbeddedResource Include="resources\ParallCoords.css">
 		  <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </EmbeddedResource>

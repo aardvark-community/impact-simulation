@@ -183,8 +183,7 @@ type Model =
 
         data : VersionedArray
         values : VersionedArray
-        boxPlotData : VersionedArray
-        boxPlotData1 : float [] []
+        boxPlotData : float [] []
 
         currFilter : option<Probe>
         boxFilter : option<Box3f>

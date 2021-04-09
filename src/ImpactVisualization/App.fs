@@ -159,8 +159,7 @@ module App =
             currFilters = filters
             values = VersionedArray.ofArray initValues
             data = VersionedArray.ofArray [||]
-            boxPlotData = VersionedArray.ofArray [||]
-            boxPlotData1 = Array.empty
+            boxPlotData = Array.empty
             currFilter = None
             boxFilter = None
             sphereFilter = None 
@@ -802,7 +801,6 @@ module App =
                 { kind = Stylesheet; name = "parallCoordStyle"; url = "ParallCoords.css" }
                 { kind = Script; name = "parallCoordScript"; url = "ParallCoords.js" }
                 { kind = Script; name = "boxPlotScript"; url = "BoxPlot.js" }
-                { kind = Script; name = "boxPlotScript1"; url = "BoxPlot1.js" }
             ]
 
        // let a = m.data | AVal.map (fun data -> encodeToJSONData)
@@ -822,14 +820,10 @@ module App =
         let updateParallCoords = 
             "initParallCoords(__ID__); dataPath.onmessage = function (path) { if (path != null) refreshPar(path); };"
 
-        let boxPlotChannel = m.boxPlotData.arr.Channel
+        //let boxplotData = m.boxPlotData1 |> AMap.toAVal
+        let boxPlotChannel = m.boxPlotData.Channel
         let updateBoxPlot =
             "initBoxPlot(__ID__); boxPlotData.onmessage = function (data) { refreshBoxPlot(data); }"
-
-        //let boxplotData = m.boxPlotData1 |> AMap.toAVal
-        let boxPlotChannel1 = m.boxPlotData1.Channel
-        let updateBoxPlot1 =
-            "initBoxPlot1(__ID__); boxPlotData1.onmessage = function (data) { refreshBoxPlot1(data); }"
 
         let onBrushed = 
             onEvent ("brushing") [] (( fun args ->
@@ -1140,19 +1134,11 @@ module App =
                         )
                     )
                 ]
-            | Some "boxPlotPage" ->
+            | Some "boxPlotPage1" ->
                 body [] [
                     require dependencies (
                         onBoot' [("boxPlotData", boxPlotChannel)] updateBoxPlot (
                             div [clazz "boxPlot"; style "width: 100%; height: 100%"] [] 
-                        )
-                    )
-                ]
-            | Some "boxPlotPage1" ->
-                body [] [
-                    require dependencies (
-                        onBoot' [("boxPlotData1", boxPlotChannel1)] updateBoxPlot1 (
-                            div [clazz "boxPlot1"; style "width: 100%; height: 100%"] [] 
                         )
                     )
                 ]
