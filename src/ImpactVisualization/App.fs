@@ -159,7 +159,8 @@ module App =
             currFilters = filters
             values = VersionedArray.ofArray initValues
             data = VersionedArray.ofArray [||]
-            boxPlotData = Array.empty
+            boxPlotData = [| [|2.0; 4.0; 1.0; 3.5; 7.0; 10.0; 11.0; 6.0; 6.5; 2.7; 19.0; 0.0|] |]
+            boxPlotAttribute = ""
             currFilter = None
             boxFilter = None
             sphereFilter = None 
@@ -822,8 +823,9 @@ module App =
 
         //let boxplotData = m.boxPlotData1 |> AMap.toAVal
         let boxPlotChannel = m.boxPlotData.Channel
+        let attributeChannel = m.boxPlotAttribute.Channel
         let updateBoxPlot =
-            "initBoxPlot(__ID__); boxPlotData.onmessage = function (data) { refreshBoxPlot(data); }"
+            "initBoxPlot(__ID__); boxPlotAttribute.onmessage = function (a) { attribute = a }; boxPlotData.onmessage = function (data) { refreshBoxPlot(data); }"
 
         let onBrushed = 
             onEvent ("brushing") [] (( fun args ->
@@ -1134,10 +1136,10 @@ module App =
                         )
                     )
                 ]
-            | Some "boxPlotPage1" ->
+            | Some "boxPlotPage" ->
                 body [] [
                     require dependencies (
-                        onBoot' [("boxPlotData", boxPlotChannel)] updateBoxPlot (
+                        onBoot' [("boxPlotAttribute", attributeChannel); ("boxPlotData", boxPlotChannel)] updateBoxPlot (
                             div [clazz "boxPlot"; style "width: 100%; height: 100%"] [] 
                         )
                     )

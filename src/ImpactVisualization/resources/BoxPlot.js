@@ -1,8 +1,8 @@
 var width_b = 900; 
-var height_b = 400;
+var height_b = 420;
 var barWidth = 30;
 
-var margin_b = {top: 20, right: 10, bottom: 30, left: 10};
+var margin_b = {top: 20, right: 10, bottom: 40, left: 10};
 
 var width_b = width_b - margin_b.left - margin_b.right;
 var height_b = height_b - margin_b.top - margin_b.bottom;
@@ -15,8 +15,9 @@ let globalCounts = [];
 
 let svg_b = undefined;
 let axisG = undefined;
-let axisTopG = undefined;
+let axisBottomG = undefined;
 let g_b = undefined;
+let attribute = undefined;
 
 function initBoxPlot(id) {
     // Setup the svg and group we will draw the box plot in
@@ -26,13 +27,24 @@ function initBoxPlot(id) {
 	    .append("g")
 	    .attr("transform", "translate(" + margin_b.left + "," + margin_b.top + ")");
 
+    	// add a title
+	svg_b.append("g")
+        .attr("transform", "translate("  + ((totalWidth + margin_b.left + margin_b.right) / 2) + ",0)")
+        .append("text")
+        .attr("id","mainText")
+        //.attr("x", ((totalWidth + margin_b.left + margin_b.right) / 2))             
+       // .attr("y", 0)
+        .attr("text-anchor", "middle")  
+        .style("font-size", "24px") 
+        .text("Attribute");
+
     // Move the left axis over 25 pixels, and the top axis over 35 pixels
-    axisG = svg_b.append("g").attr("transform", "translate(45,0)");
-    axisTopG = svg_b.append("g").attr("transform", "translate(50," + (height_b + margin_b.top - 10) + ")");
+    axisG = svg_b.append("g").attr("transform", "translate(45,10)");
+    axisBottomG = svg_b.append("g").attr("transform", "translate(50," + (height_b + margin_b.top) + ")");
 
     // Setup the group the box plot elements will render in
     g_b = svg_b.append("g")
-	    .attr("transform", "translate(40,5)");
+	    .attr("transform", "translate(35,10)");
 }
 
 function refreshBoxPlot(data){
@@ -40,6 +52,9 @@ function refreshBoxPlot(data){
     resetContainers();
    
     groupCounts = data
+
+    svg_b.select("#mainText")
+        .text(attribute)
 
     // Sort group counts so quantile methods work
     for(var key in groupCounts) {
@@ -157,7 +172,7 @@ function refreshBoxPlot(data){
     // Setup a series axis on the top
     var axisBottom = d3.axisBottom(xScale)
         .tickFormat(d => "Probe " + d);
-    axisTopG.append("g").call(axisBottom);
+    axisBottomG.append("g").call(axisBottom);
 }
 
 function resetContainers(){
@@ -165,7 +180,7 @@ function resetContainers(){
     globalCounts = [];
     g_b.selectAll("*").remove()
     axisG.selectAll("*").remove()
-    axisTopG.selectAll("*").remove()
+    axisBottomG.selectAll("*").remove()
 }
 
 function boxQuartiles(d) {

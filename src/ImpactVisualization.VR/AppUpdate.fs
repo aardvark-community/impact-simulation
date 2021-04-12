@@ -188,6 +188,7 @@ module AppUpdate =
             lastFilterProbeId = None
             lastIntersectedProbe = None
             boxPlotProbes = PersistentHashMap.empty
+            currBoxPlotAttribSet = false
             statistics = ""
             rayDeviceId = None
             ray = Ray3d.Invalid
@@ -783,6 +784,12 @@ module AppUpdate =
                                 boxPlotData = dataForBoxPlot
                             }
 
+                        let setBoxPlotAttrib = 
+                            if not model.currBoxPlotAttribSet then
+                                {updatedTwoDmodel with boxPlotAttribute = attributeAsString}
+                            else    
+                                updatedTwoDmodel
+
                         let sleepTime = computeSleepTime filteredData.Length
 
                         let threadsVr = 
@@ -809,7 +816,8 @@ module AppUpdate =
                             sphereScalerId = None
                             deletionControllerId = delControllerId
                             boxPlotProbes = newHashmap
-                            twoDModel = updatedTwoDmodel
+                            currBoxPlotAttribSet = true
+                            twoDModel = setBoxPlotAttrib
                             threads = ThreadPool.start threadsVr ThreadPool.empty}
                     | _ -> {model with 
                                     sphereScalerId = None

@@ -148,7 +148,9 @@ type Model =
         lastFilterProbeId : Option<string>
         newProbePlaced : bool
         existingProbeModified : bool
+
         boxPlotProbes : PersistentHashMap<string, float[]>
+        currBoxPlotAttribSet : bool
 
         statistics : string
                 
