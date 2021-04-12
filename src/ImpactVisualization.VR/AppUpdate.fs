@@ -189,6 +189,7 @@ module AppUpdate =
             lastIntersectedProbe = None
             boxPlotProbes = PersistentHashMap.empty
             currBoxPlotAttribSet = false
+            currBoxPlotAttrib = RenderValue.NoValue
             statistics = ""
             rayDeviceId = None
             ray = Ray3d.Invalid
@@ -770,11 +771,12 @@ module AppUpdate =
 
                         // printf "Statistics: \n %A" stats
                         let filteredData = if intersection then array else mTwoD.data.arr
-
-                        let newHashmap = model.boxPlotProbes.Add(probe.id, array) 
-                        let dataForBoxPlot = newHashmap |> PersistentHashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
-
                         let attributeAsString = renderValueToString attrib
+
+                        let newCurrBoxPlotAttrib = if not model.currBoxPlotAttribSet then attrib else model.currBoxPlotAttrib
+                        let arrayBoxPlot, statsBoxPlot = allData.Item newCurrBoxPlotAttrib
+                        let newHashmap = model.boxPlotProbes.Add(probe.id, arrayBoxPlot) 
+                        let dataForBoxPlot = newHashmap |> PersistentHashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
 
                         let updatedTwoDmodel = 
                             { mTwoD with
@@ -782,13 +784,8 @@ module AppUpdate =
                                 data = { version = mTwoD.data.version + 1; arr = filteredData}
                                 attributeText = attributeAsString
                                 boxPlotData = dataForBoxPlot
+                                boxPlotAttribute = renderValueToString newCurrBoxPlotAttrib
                             }
-
-                        let setBoxPlotAttrib = 
-                            if not model.currBoxPlotAttribSet then
-                                {updatedTwoDmodel with boxPlotAttribute = attributeAsString}
-                            else    
-                                updatedTwoDmodel
 
                         let sleepTime = computeSleepTime filteredData.Length
 
@@ -817,7 +814,8 @@ module AppUpdate =
                             deletionControllerId = delControllerId
                             boxPlotProbes = newHashmap
                             currBoxPlotAttribSet = true
-                            twoDModel = setBoxPlotAttrib
+                            currBoxPlotAttrib = newCurrBoxPlotAttrib
+                            twoDModel = updatedTwoDmodel
                             threads = ThreadPool.start threadsVr ThreadPool.empty}
                     | _ -> {model with 
                                     sphereScalerId = None

@@ -151,6 +151,7 @@ type Model =
 
         boxPlotProbes : PersistentHashMap<string, float[]>
         currBoxPlotAttribSet : bool
+        currBoxPlotAttrib : RenderValue
 
         statistics : string
                 
