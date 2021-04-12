@@ -1138,6 +1138,11 @@ module App =
                 ]
             | Some "boxPlotPage" ->
                 body [] [
+                    DomNode.Text ("style", Option.None, AttributeMap.Empty, (AVal.constant "
+                    #boxPlotSvg {
+                        width: 96%;
+                        height: 100%;
+                        }"))
                     require dependencies (
                         onBoot' [("boxPlotAttribute", attributeChannel); ("boxPlotData", boxPlotChannel)] updateBoxPlot (
                             div [clazz "boxPlot"; style "width: 100%; height: 100%"] [] 

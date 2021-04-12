@@ -22,6 +22,8 @@ let attribute = undefined;
 function initBoxPlot(id) {
     // Setup the svg and group we will draw the box plot in
     svg_b = d3.select(".boxPlot").append("svg")
+        .attr("id","boxPlotSvg")
+        .attr("viewBox", "0 0 " + width_b + " " + height_b)
 	    .attr("width", totalWidth)
 	    .attr("height", totalHeight)
 	    .append("g")
