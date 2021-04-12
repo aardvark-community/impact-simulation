@@ -35,7 +35,7 @@ function initBoxPlot(id) {
         //.attr("x", ((totalWidth + margin_b.left + margin_b.right) / 2))             
        // .attr("y", 0)
         .attr("text-anchor", "middle")  
-        .style("font-size", "24px") 
+        .style("font", "24px sans-serif")
         .text("Attribute");
 
     // Move the left axis over 25 pixels, and the top axis over 35 pixels
@@ -107,6 +107,7 @@ function refreshBoxPlot(data){
 	    .attr("y2", d => yScale(d.whiskers[1]))
 	    .attr("stroke", "#000")
 	    .attr("stroke-width", 1)
+        .style("stroke-dasharray","5,5")
 	    .attr("fill", "none");
 
     // Draw the boxes of the box plot, filled in white and on top of vertical lines
@@ -122,6 +123,34 @@ function refreshBoxPlot(data){
         .attr("stroke", "#000")
         .attr("stroke-width", 1);
 
+    var format = d3.format(".2s")
+
+    var rectText1 = g_b.selectAll(".rectText1")
+        .data(boxPlotData)
+        .enter()
+        .append("text")
+        .attr("dy", ".35em")
+        .attr("dx", -3)
+        .attr("x", d => xScale(d.key))
+        .attr("y", d => yScale(d.quartile[0]))
+        .attr("fill", "#000")
+        .attr("text-anchor", "end")
+        .style("font", "11px sans-serif")
+        .text(d => format(d.quartile[0]));
+
+    var rectText2 = g_b.selectAll(".rectText2")
+        .data(boxPlotData)
+        .enter()
+        .append("text")
+        .attr("dy", ".35em")
+        .attr("dx", -3)
+        .attr("x", d => xScale(d.key))
+        .attr("y", d => yScale(d.quartile[2]))
+        .attr("fill", "#000")
+        .attr("text-anchor", "end")
+        .style("font", "11px sans-serif")
+        .text(d => format(d.quartile[2]));
+
      // Now render all the horizontal lines at once - the whiskers and the median
     var horizontalLineConfigs = [
         // Top whisker
@@ -129,21 +158,24 @@ function refreshBoxPlot(data){
           x1: d => xScale(d.key),
           y1: d => yScale(d.whiskers[1]),
           x2: d => xScale(d.key) + barWidth,
-          y2: d => yScale(d.whiskers[1])
+          y2: d => yScale(d.whiskers[1]),
+          text: d => format(d.whiskers[1])
         },
         // Median line
         {
           x1: d => xScale(d.key),
           y1: d => yScale(d.quartile[1]),
           x2: d => xScale(d.key) + barWidth,
-          y2: d => yScale(d.quartile[1])
+          y2: d => yScale(d.quartile[1]),
+          text: d => format(d.quartile[1])
         },
         // Bottom whisker
         {
           x1: d => xScale(d.key),
           y1: d => yScale(d.whiskers[0]),
           x2: d => xScale(d.key) + barWidth,
-          y2: d => yScale(d.whiskers[0])
+          y2: d => yScale(d.whiskers[0]),
+          text: d => format(d.whiskers[0])
         }
     ];
 
@@ -162,6 +194,18 @@ function refreshBoxPlot(data){
           .attr("stroke", "#000")
           .attr("stroke-width", 1)
           .attr("fill", "none");
+
+         var lineTexts = g_b.selectAll(".whiskersText")
+            .data(boxPlotData)
+            .enter()
+            .append("text")
+            .attr("dy", ".3em")
+            .attr("dx", 2)
+            .attr("x", lineConfig.x2)
+            .attr("y", lineConfig.y2)
+            .attr("fill", "#000")
+            .style("font", "11px sans-serif")
+            .text(lineConfig.text);
     }
 
     // Setup a scale on the left
