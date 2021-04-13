@@ -305,7 +305,7 @@ module Demo =
             |> Sg.trafo (p.center |> AVal.map (fun center -> Trafo3d.Translation(center)))
             |> Sg.trafo (p.radius |> AVal.map (fun r -> Trafo3d.Translation(0.0, 0.0, (r * 1.6))))
             |> Sg.onOff showCurrHistogram
-            |> Sg.diffuseTexture DefaultTextures.blackTex
+            |> Sg.diffuseTexture texture
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
