@@ -161,6 +161,9 @@ module AppUpdate =
             threads = ThreadPool.Empty
             firstHistogram = true
             devicesTrafos = HashMap.Empty
+            mainController = -1
+            secondController = -1
+            controllersSet = false
             controllerTrafo = Trafo3d.Identity
             heraTrafo = Trafo3d.Identity
             heraToControllerTrafo = Trafo3d.Identity
@@ -270,6 +273,12 @@ module AppUpdate =
         //let currTexture = runtime.Download currTex
 
         let hmdPos = state.display.pose.deviceToWorld.GetModelOrigin()
+
+        //let controllers = 
+        //    state.devices 
+        //    |> HashMap.filter (fun key deviceType -> deviceType.kind = VrDeviceKind.Controller)
+        //    |> HashMap.toSeq
+        //    |> Seq.map (fun value -> snd value)
 
         let viewProjTrafoAVal = AVal.map2 (fun v p -> v * p) viewTrafo projTrafo
         let viewProj = AVal.force(viewProjTrafoAVal)
