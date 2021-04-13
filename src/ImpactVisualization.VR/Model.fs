@@ -97,6 +97,9 @@ type Model =
 
         //Controllers
         devicesTrafos : HashMap<int, Trafo3d>
+        mainController : int 
+        secondController : int
+        controllersSet : bool
 
         //Hera
         controllerTrafo : Trafo3d
