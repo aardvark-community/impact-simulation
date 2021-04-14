@@ -165,15 +165,17 @@ module AppUpdate =
             secondControllerId = None
             mainControllerTrafo = Trafo3d.Identity
             secondControllerTrafo = Trafo3d.Identity
-            controllerTrafo = Trafo3d.Identity
+            //controllerTrafo = Trafo3d.Identity
             heraTrafo = Trafo3d.Identity
             heraToControllerTrafo = Trafo3d.Identity
             //grabberId = None
-            allowHeraScaling = false
-            sphereControllerTrafo = Trafo3d.Identity
-            sphereControllerId = None
-            sphereScalerTrafo = Trafo3d.Identity
-            sphereScalerId = None
+            grabbingHera = false
+            //sphereControllerTrafo = Trafo3d.Identity
+            //sphereControllerId = None
+            //sphereScalerTrafo = Trafo3d.Identity
+            //sphereScalerId = None
+            holdingSphere = false
+            scalingSphere = false
             scalingFactorHera = initialScalingHera
             lastHeraScaleTrafo = Trafo3d(Scale3d(initialScalingHera))
             sphereScale = 1.0
@@ -185,9 +187,11 @@ module AppUpdate =
             existingProbeModified = false
             currentProbe = None
             allProbes = HashMap.Empty
-            probeIntersectionId = None
-            intersectionControllerId = None
-            deletionControllerId = None
+            //probeIntersectionId = None
+            mainContrProbeIntersectionId = None
+            secondContrProbeIntersectionId = None
+            //intersectionControllerId = None
+            //deletionControllerId = None
             lastFilterProbe = None
             lastFilterProbeId = None
             lastIntersectedProbe = None
@@ -342,9 +346,9 @@ module AppUpdate =
                     let controlHeraT = heraT * controlT.Inverse
                     {model with 
                         //grabberId = Some id
-                        controllerTrafo = controlT
+                        //controllerTrafo = controlT
                         heraToControllerTrafo = controlHeraT
-                        allowHeraScaling = true
+                        grabbingHera = true
                         textureDeviceTrafo = controlT
                         touchpadTexture = texture "initial-scaling"
                         contrScreenTexture = texture "empty"
@@ -355,20 +359,20 @@ module AppUpdate =
         | UngrabHera id -> 
             match model.mainControllerId with 
             | Some i when i = id -> 
-                let controlT = model.controllerTrafo
+                let controlT = model.mainControllerTrafo
                 let heraToControlT = model.heraToControllerTrafo
                 let heraT = heraToControlT * controlT
                 {model with 
                     //grabberId = None
                     heraTrafo = heraT
-                    allowHeraScaling = false
+                    grabbingHera = false
                     //showTexture = false
                     contrScreenTexture = texture "empty"}
             | _ -> model
         | ScaleHera (id, f) ->
            // printf "SCALE HERA \n"
             match model.mainControllerId with 
-            | Some i when i = id && model.allowHeraScaling ->
+            | Some i when i = id && model.grabbingHera ->
                 if model.touchpadDeviceId.IsSome then
                    // printf "SCALE HERA \n"
                     if f >= 0.0 then
@@ -398,17 +402,17 @@ module AppUpdate =
             let secondContrTrafo = newOrOldTrafo id trafo model.secondControllerId model.secondControllerTrafo
 
             //CURRENT SPHERE UPDATE
-            let sphereContrTrafo = newOrOldTrafo id trafo model.sphereControllerId model.sphereControllerTrafo
-            let sphereScTrafo = 
-                match model.sphereScalerId with 
-                | Some i when i = id && model.sphereControllerId.IsSome -> trafo 
-                | _ -> model.sphereScalerTrafo
+            //let sphereContrTrafo = newOrOldTrafo id trafo model.sphereControllerId model.sphereControllerTrafo
+            //let sphereScTrafo = 
+            //    match model.secondControllerId with 
+            //    | Some i when i = id && model.mainControllerId.IsSome -> trafo 
+            //    | _ -> model.secondControllerTrafo
             let scalingFactor = 
-                if not (idIsSet model.sphereControllerId && idIsSet model.sphereScalerId) then
+                if not model.scalingSphere then
                     model.sphereScale
                 else 
-                    let mainContrTrafo = model.sphereControllerTrafo 
-                    let scaleContrTrafo = model.sphereScalerTrafo
+                    let mainContrTrafo = model.mainControllerTrafo 
+                    let scaleContrTrafo = model.secondControllerTrafo
                     let contrPos = mainContrTrafo.Forward.TransformPos(V3d.OOO)
                     let scalerPos = scaleContrTrafo.Forward.TransformPos(V3d.OOO)
                     let distance = contrPos.Distance(scalerPos)
@@ -438,17 +442,17 @@ module AppUpdate =
                     initRay, C4b.Red, PixelPosition()
 
             let newHeraScaleTrafo = 
-                if model.allowHeraScaling && model.touchpadDeviceId.IsSome then
+                if model.grabbingHera && model.touchpadDeviceId.IsSome then
                     //printf "UPDATE SCALING \n"
                     Trafo3d(Scale3d(model.scalingFactorHera))
                 else 
                     model.lastHeraScaleTrafo
     
             //HERA TRANSFORMATIONS UPDATE
-            let heraContrTrafo = newOrOldTrafo id trafo model.mainControllerId model.controllerTrafo
+            //let heraContrTrafo = newOrOldTrafo id trafo model.mainControllerId model.controllerTrafo
             let heraTrafos = 
-                if model.allowHeraScaling then
-                    let heraTrafo = model.heraToControllerTrafo * heraContrTrafo
+                if model.grabbingHera then
+                    let heraTrafo = model.heraToControllerTrafo * mainContrTrafo
                     //let heraScaleTrafo = Trafo3d(Scale3d(model.scalingFactorHera))
                     let heraTranslation = Trafo3d.Translation(0.0, 0.0, 0.7)
                     newHeraScaleTrafo * heraTranslation * heraTrafo
@@ -456,29 +460,61 @@ module AppUpdate =
                     model.heraTransformations
             let heraBBox = model.twoDModel.currHeraBBox.Transformed(heraTrafos)
 
-            //INTERSECTION OF CONTROLLER WITH A PROBE
-            let probeIntersection = 
-                match model.intersectionControllerId with 
-                | Some i when i = id && not model.currentProbeManipulated && not model.allowHeraScaling -> 
-                        let intersectionContrTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(i))
-                        let intersectionContrTrafoPos = intersectionContrTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
-                        let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
-                        model.allProbes
-                        |> HashMap.filter (fun key probe ->
-                            let sphere = Sphere3d(probe.center, probe.radius)
-                            sphereIntersection controllerSphere sphere)
-                        |> HashMap.toSeq
-                        |> Seq.map (fun (key, probe) -> key)
-                        |> Seq.tryLast    
+            let mainContrProbeIntersection = 
+                match model.mainControllerId with 
+                | Some i when i = id && not model.currentProbeManipulated && not model.grabbingHera ->
+                    let intersectionContrTrafoPos = model.mainControllerTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
+                    let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
+                    model.allProbes
+                    |> HashMap.filter (fun key probe ->
+                        let sphere = Sphere3d(probe.center, probe.radius)
+                        sphereIntersection controllerSphere sphere)
+                    |> HashMap.toSeq
+                    |> Seq.map (fun (key, probe) -> key)
+                    |> Seq.tryLast    
                 | None -> None
-                | _ -> model.probeIntersectionId
+                | _ -> model.mainContrProbeIntersectionId
+
+            let secondContrProbeIntersection = 
+                match model.secondControllerId with 
+                | Some i when i = id && not model.currentProbeManipulated && not model.grabbingHera ->
+                    let intersectionContrTrafoPos = model.secondControllerTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
+                    let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
+                    model.allProbes
+                    |> HashMap.filter (fun key probe ->
+                        let sphere = Sphere3d(probe.center, probe.radius)
+                        sphereIntersection controllerSphere sphere)
+                    |> HashMap.toSeq
+                    |> Seq.map (fun (key, probe) -> key)
+                    |> Seq.tryLast    
+                | None -> None
+                | _ -> model.secondContrProbeIntersectionId
+
+
+
+            //INTERSECTION OF CONTROLLER WITH A PROBE
+            //let probeIntersection = 
+            //    match model.intersectionControllerId with 
+            //    | Some i when i = id && not model.currentProbeManipulated && not model.grabbingHera -> 
+            //            let intersectionContrTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(i))
+            //            let intersectionContrTrafoPos = intersectionContrTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
+            //            let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
+            //            model.allProbes
+            //            |> HashMap.filter (fun key probe ->
+            //                let sphere = Sphere3d(probe.center, probe.radius)
+            //                sphereIntersection controllerSphere sphere)
+            //            |> HashMap.toSeq
+            //            |> Seq.map (fun (key, probe) -> key)
+            //            |> Seq.tryLast    
+            //    | None -> None
+            //    | _ -> model.secondContrProbeIntersectionId
 
 
             ////SHOW CONTROLLER TEXTURES WHEN INTERSECTING WITH A PROBE
             let tex, screenTex = 
-                if not model.allowHeraScaling && not model.controllerMenuOpen && not model.allowHeraScaling && not model.changeProbeAttribute then 
-                    match probeIntersection with
-                    | Some probeId ->
+                if not model.grabbingHera && not model.controllerMenuOpen && not model.changeProbeAttribute then 
+                    match mainContrProbeIntersection with
+                    | Some probeId when model.allProbes.TryFind(probeId).IsSome ->
                         let intersectedProbe = model.allProbes.Item probeId
                         let billboard = intersectedProbe.currBillboard
                         let texName, screenTexName =    
@@ -520,7 +556,7 @@ module AppUpdate =
 
             //PROBES UPDATE WHEN HERA GRABBED
             let probesUpdate =
-                if model.allowHeraScaling && not model.allProbes.IsEmpty then 
+                if model.grabbingHera && not model.allProbes.IsEmpty then 
                     model.allProbes
                     |> HashMap.map (fun key probe -> 
                         let newCenter = heraTrafos.Forward.TransformPos(probe.centerRelToHera)
@@ -538,11 +574,11 @@ module AppUpdate =
 
             // UPDATE VISIBILITY OF THE BILLBOARDS ABOVE PROBES
             let allProbesUpdated = 
-                if model.allProbes.Count >= 2 && not model.allowHeraScaling then
+                if model.allProbes.Count >= 2 && not model.grabbingHera then
                     probesUpdate
                     |> HashMap.map (fun key probe -> 
                         let currProbeIntersected = 
-                            match probeIntersection with 
+                            match mainContrProbeIntersection with 
                             | Some prKey when prKey = key -> true
                             | _ -> false
                         let allProbesWithoutCurrent = probesUpdate.Remove(key)
@@ -562,7 +598,7 @@ module AppUpdate =
                                     //let allowedMinDistanceHisto = 0.85 * (probeRadius + pRadius)
                                     if (distance < allowedMinDistance) then // checks if the two probes intersect
                                         if probePos.Z < pPos.Z then // checks wether the current probe is closer to the screen
-                                            match probeIntersection with 
+                                            match mainContrProbeIntersection with 
                                             | Some prKey when prKey = k -> false
                                             | _ -> true
                                         else not p.showStatistics
@@ -579,26 +615,26 @@ module AppUpdate =
             //MENU, TOUCHPAD AND TEXTURES TRAFOS
             let currMenuTrafo = newOrOldTrafo id trafo model.menuControllerId model.menuControllerTrafo
             let newTouchpadDeviceTrafo = newOrOldTrafo id trafo model.touchpadDeviceId model.touchpadDeviceTrafo 
-            let textureContrTrafo = newOrOldTrafo id trafo model.intersectionControllerId model.textureDeviceTrafo
+            let textureContrTrafo = newOrOldTrafo id trafo model.mainControllerId model.textureDeviceTrafo
             let newTextureDeviceTrafo = 
                 if model.controllerMenuOpen then currMenuTrafo
-                else if model.allowHeraScaling then heraContrTrafo
-                else if probeIntersection.IsSome then textureContrTrafo
+                else if model.grabbingHera then mainContrTrafo
+                else if mainContrProbeIntersection.IsSome then textureContrTrafo
                 else model.textureDeviceTrafo
 
             let showTexture = 
-                if probeIntersection.IsSome then 
+                if mainContrProbeIntersection.IsSome then 
                     true
                 else 
-                    model.allowHeraScaling || model.controllerMenuOpen || model.changeProbeAttribute
+                    model.grabbingHera || model.controllerMenuOpen || model.changeProbeAttribute
         
             {model with 
                 devicesTrafos = newInput
                 mainControllerTrafo = mainContrTrafo
                 secondControllerTrafo = secondContrTrafo
-                controllerTrafo = heraContrTrafo
-                sphereControllerTrafo = sphereContrTrafo
-                sphereScalerTrafo = sphereScTrafo
+                //controllerTrafo = heraContrTrafo
+                //sphereControllerTrafo = sphereContrTrafo
+                //sphereScalerTrafo = sphereScTrafo
                 sphereScale = scalingFactor
                 ray = currRay
                 clippingPlaneDeviceTrafo = clippingContrTrafo
@@ -609,7 +645,9 @@ module AppUpdate =
                 hitPoint = hit.Point
                 screenHitPoint = hit.Coord
                 screenCoordsHitPos = screenCoordsHitPos
-                probeIntersectionId = probeIntersection
+                //probeIntersectionId = probeIntersection
+                mainContrProbeIntersectionId = mainContrProbeIntersection
+                secondContrProbeIntersectionId = secondContrProbeIntersection
                 touchpadTexture = tex
                 contrScreenTexture = screenTex
                 showTexture = showTexture
@@ -632,123 +670,196 @@ module AppUpdate =
             //    printfn "vibrate: %A" id
             //    d.startVibrate (MicroTime.FromSeconds 0.1)
             //| _ -> ()
-            let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
-            if not model.controllerMenuOpen then 
-                match model.controllerMode with
-                | ControllerMode.Probe -> callUpdate (CreateProbe (id, currDeviceTrafo))
-                | ControllerMode.Ray -> callUpdate (CreateRay (id, currDeviceTrafo))
-                | ControllerMode.Clipping -> callUpdate (CreateClipping (id, currDeviceTrafo))
-                | _ -> model
-            else 
-                { model with 
-                    sphereControllerId = None
-                    sphereScalerId = None
-                    rayDeviceId = None
-                    clippingPlaneDeviceId = None 
-                }
-        | CreateProbe (id, trafo) ->
-            match model.probeIntersectionId with // is the controller currently intersecting a probe (id of probe is a string)
+            //let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
+            match model.mainControllerId with 
+            | Some i when i = id -> 
+                if not model.controllerMenuOpen then 
+                    match model.controllerMode with
+                    | ControllerMode.Probe -> callUpdate (CreateProbe id)
+                    | ControllerMode.Ray -> callUpdate (CreateRay id)
+                    | ControllerMode.Clipping -> callUpdate (CreateClipping id)
+                    | _ -> model
+                else 
+                    model
+                    //{ model with 
+                    //    sphereControllerId = None
+                    //    sphereScalerId = None
+                    //    rayDeviceId = None
+                    //    clippingPlaneDeviceId = None 
+                    //}
+            | _ -> model
+        | CreateProbe id ->
+            match model.mainContrProbeIntersectionId with // is the controller currently intersecting a probe (id of probe is a string)
             | Some probe -> 
-                match model.intersectionControllerId with // id of the controller intersecting with sphere
-                | Some i when i = id -> 
-                    if model.deletionControllerId.IsSome then // if deletion controller is set then DELETE current probe with main controller 
-                        //TODO: Check if the deleted probe is the last one used for filtering
-                        let filterProbe, probeId = 
-                            match model.lastFilterProbe with 
-                                | Some pr when pr.id <> probe -> model.lastFilterProbe, Some pr.id
-                                | _ -> None, None
-                        let updatedTwoDmodel = 
-                            { mTwoD with
-                                sphereFilter = None
-                                data = VersionedArray.ofArray [||] 
-                                dataRange = mTwoD.initDataRange
-                            }
-                        {model with 
-                            allProbes = model.allProbes.Remove(probe)
-                            boxPlotProbes = model.boxPlotProbes.Remove(probe)
-                            lastFilterProbe = filterProbe
-                            lastFilterProbeId = probeId
-                            twoDModel = updatedTwoDmodel
-                            } 
-                    else // if deletion controller is not set -> MANIPULATE probe
-                        let currProbe = model.allProbes.TryFind(probe)
+                let currProbe = model.allProbes.TryFind(probe)
+                let currScale, probeId = 
+                    match currProbe with
+                    | Some pr -> (pr.radius / model.sphereRadius), Some pr.id
+                    | None -> model.sphereScale, None
+                {model with 
+                    allProbes = model.allProbes.Remove(probe)
+                    boxPlotProbes = model.boxPlotProbes.Remove(probe)
+                    lastFilterProbe = currProbe
+                    lastFilterProbeId = probeId
+                    currentProbeManipulated = true
+                    newProbePlaced = false
+                    existingProbeModified = true
+                    holdingSphere = true
+                    //sphereControllerTrafo = trafo
+                    //sphereControllerId = Some id
+                    sphereScale = currScale
+                    mainContrProbeIntersectionId = None}
+
+
+                //match model.intersectionControllerId with // id of the controller intersecting with sphere
+                //| Some i when i = model.mainControllerId.Value -> 
+                //    if model.deletionControllerId.IsSome then // if deletion controller is set then DELETE current probe with main controller 
+                //        //TODO: Check if the deleted probe is the last one used for filtering
+                //        let filterProbe, probeId = 
+                //            match model.lastFilterProbe with 
+                //                | Some pr when pr.id <> probe -> model.lastFilterProbe, Some pr.id
+                //                | _ -> None, None
+                //        let updatedTwoDmodel = 
+                //            { mTwoD with
+                //                sphereFilter = None
+                //                data = VersionedArray.ofArray [||] 
+                //                dataRange = mTwoD.initDataRange
+                //            }
+                //        {model with 
+                //            allProbes = model.allProbes.Remove(probe)
+                //            boxPlotProbes = model.boxPlotProbes.Remove(probe)
+                //            lastFilterProbe = filterProbe
+                //            lastFilterProbeId = probeId
+                //            twoDModel = updatedTwoDmodel
+                //            } 
+                //    else // if deletion controller is not set -> MANIPULATE probe
+                //        let currProbe = model.allProbes.TryFind(probe)
                         
-                        let currScale, probeId = 
-                            match currProbe with
-                            | Some pr -> (pr.radius / model.sphereRadius), Some pr.id
-                            | None -> model.sphereScale, None
-                        {model with 
-                            allProbes = model.allProbes.Remove(probe)
-                            boxPlotProbes = model.boxPlotProbes.Remove(probe)
-                            lastFilterProbe = currProbe
-                            lastFilterProbeId = probeId
-                            currentProbeManipulated = true
-                            newProbePlaced = false
-                            existingProbeModified = true
-                            sphereControllerTrafo = trafo
-                            sphereControllerId = Some id
-                            sphereScale = currScale
-                            probeIntersectionId = None}
-                | None -> {model with deletionControllerId = None} // if no controller is intersectiong, then the probe cannot be deleted
-                | _ -> {model with deletionControllerId = Some id} // if probe is interseecting but current controller is not the same as intersection controller -> set deletion controller
+                //        let currScale, probeId = 
+                //            match currProbe with
+                //            | Some pr -> (pr.radius / model.sphereRadius), Some pr.id
+                //            | None -> model.sphereScale, None
+                //        {model with 
+                //            allProbes = model.allProbes.Remove(probe)
+                //            boxPlotProbes = model.boxPlotProbes.Remove(probe)
+                //            lastFilterProbe = currProbe
+                //            lastFilterProbeId = probeId
+                //            currentProbeManipulated = true
+                //            newProbePlaced = false
+                //            existingProbeModified = true
+                //            //sphereControllerTrafo = trafo
+                //            //sphereControllerId = Some id
+                //            sphereScale = currScale
+                //            probeIntersectionId = None}
+                //| None -> {model with deletionControllerId = None} // if no controller is intersectiong, then the probe cannot be deleted
+                //| _ -> {model with deletionControllerId = model.secondControllerId} // if probe is interseecting but current controller is not the same as intersection controller -> set deletion controller
             | None -> // controller is not intersecting with a probe -> new probe should be created!!!
-                match model.sphereControllerId with // is the id of the controller creating spheres set 
-                | Some i when i <> id -> 
-                    {model with // if not the same id -> sphere shold be scaled 
-                        currentProbeManipulated = true
-                        newProbePlaced = false
-                        sphereScalerId = Some id
-                        sphereScalerTrafo = trafo} 
-                | _ -> // if the current id is the same as the previous -> set new trafos for the sphere
+                {model with 
+                    currentProbeManipulated = true
+                    newProbePlaced = false
+                    holdingSphere = true}
+                    //sphereScalerId = model.secondControllerId
+                    //sphereScalerTrafo = model.secondControllerTrafo}
+                //match model.sphereControllerId with // is the id of the controller creating spheres set 
+                //| Some i when i <> id -> 
+                //    {model with // if not the same id -> sphere shold be scaled 
+                //        currentProbeManipulated = true
+                //        newProbePlaced = false
+                //        sphereScalerId = Some id
+                //        sphereScalerTrafo = trafo} 
+                //| _ -> // if the current id is the same as the previous -> set new trafos for the sphere
+                //    {model with 
+                //        currentProbeManipulated = true
+                //        newProbePlaced = false
+                //        //sphereControllerTrafo = trafo
+                //        //sphereControllerId = Some id
+                //        intersectionControllerId = Some id}
+        | CreateRay id ->
+            let origin = model.mainControllerTrafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
+            let direction = model.mainControllerTrafo.Forward.TransformPos(V3d.OIO * 1000.0) 
+            client.Mouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
+            {model with
+                ray = Ray3d(origin, direction)
+                rayTriggerClicked = true
+                clickPosition = Some model.screenHitPoint}
+            //match model.rayDeviceId with 
+            //| Some i when i = id -> 
+            //    //printf "client Mouse DOWN" 
+            //    client.Mouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
+            //   // if model.screenIntersection then client.SetFocus true
+            //    {model with 
+            //        rayTriggerClicked = true
+            //        clickPosition = Some model.screenHitPoint}
+            //| None ->
+            //    let origin = trafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
+            //    let direction = trafo.Forward.TransformPos(V3d.OIO * 1000.0) 
+            //    {model with 
+            //        //rayDeviceId = Some id
+            //        ray = Ray3d(origin, direction)}
+            //| _ -> model
+        | CreateClipping id ->
+            let p0 = model.mainControllerTrafo.Forward.TransformPos(planePos0)
+            let p1 = model.mainControllerTrafo.Forward.TransformPos(planePos1)
+            let p2 = model.mainControllerTrafo.Forward.TransformPos(planePos2)
+            let p3 = model.mainControllerTrafo.Forward.TransformPos(planePos3)
+            //match model.clippingPlaneDeviceId with 
+            //| Some i when i = id -> 
+            //    {model with 
+            //        clippingPlaneDeviceTrafo = trafo
+            //        clippingPlaneDeviceId = Some id}
+            //| None -> 
+            {model with 
+                planeCorners = Quad3d(p0, p1, p2, p3)}
+            //        clippingPlaneDeviceTrafo = trafo
+            //        clippingPlaneDeviceId = Some id}
+            //| _ -> model
+        | ScaleProbe id ->
+            match model.secondControllerId with 
+            | Some i when i = id -> 
+                let scaling = model.holdingSphere
+                {model with scalingSphere = scaling}
+            | _ -> {model with scalingSphere = false}
+        | StopProbeScale id ->
+            match model.secondControllerId with 
+            | Some i when i = id -> 
+                let scaling =  model.holdingSphere && model.scalingSphere
+                {model with scalingSphere = if scaling then false else model.scalingSphere}
+            | _ -> model
+        | DeleteProbe id ->
+            match model.secondContrProbeIntersectionId with // is the controller currently intersecting a probe (id of probe is a string)
+            | Some probe -> 
+                match model.secondControllerId with
+                | Some i when i = id && not model.holdingSphere -> 
+                    let filterProbe, probeId = 
+                        match model.lastFilterProbe with 
+                            | Some pr when pr.id <> probe -> model.lastFilterProbe, Some pr.id
+                            | _ -> None, None
+                    let updatedTwoDmodel = 
+                        { mTwoD with
+                            sphereFilter = None
+                            data = VersionedArray.ofArray [||] 
+                            dataRange = mTwoD.initDataRange
+                        }
                     {model with 
-                        currentProbeManipulated = true
-                        newProbePlaced = false
-                        sphereControllerTrafo = trafo
-                        sphereControllerId = Some id
-                        intersectionControllerId = Some id}
-        | CreateRay (id, trafo) ->
-            match model.rayDeviceId with 
-            | Some i when i = id -> 
-                //printf "client Mouse DOWN" 
-                client.Mouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
-               // if model.screenIntersection then client.SetFocus true
-                {model with 
-                    rayTriggerClicked = true
-                    clickPosition = Some model.screenHitPoint}
-            | None ->
-                let origin = trafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
-                let direction = trafo.Forward.TransformPos(V3d.OIO * 1000.0) 
-                {model with 
-                    rayDeviceId = Some id
-                    ray = Ray3d(origin, direction)}
-            | _ -> model
-        | CreateClipping (id, trafo) ->
-            let p0 = trafo.Forward.TransformPos(planePos0)
-            let p1 = trafo.Forward.TransformPos(planePos1)
-            let p2 = trafo.Forward.TransformPos(planePos2)
-            let p3 = trafo.Forward.TransformPos(planePos3)
-            match model.clippingPlaneDeviceId with 
-            | Some i when i = id -> 
-                {model with 
-                    clippingPlaneDeviceTrafo = trafo
-                    clippingPlaneDeviceId = Some id}
-            | None -> 
-                {model with 
-                    planeCorners = Quad3d(p0, p1, p2, p3)
-                    clippingPlaneDeviceTrafo = trafo
-                    clippingPlaneDeviceId = Some id}
-            | _ -> model
+                        allProbes = model.allProbes.Remove(probe)
+                        boxPlotProbes = model.boxPlotProbes.Remove(probe)
+                        lastFilterProbe = filterProbe
+                        lastFilterProbeId = probeId
+                        twoDModel = updatedTwoDmodel
+                        secondContrProbeIntersectionId = None} 
+                | _ -> model
+            | None -> model
         | DeactivateControllerMode id ->
             if not model.controllerMenuOpen then 
                 match model.controllerMode with 
                 | ControllerMode.Probe -> 
-                    let delControllerId = 
-                        match model.deletionControllerId with 
-                        | Some i -> if i = id then None else model.deletionControllerId
-                        | None -> None
-                    match model.sphereControllerId with
+                    //let delControllerId = 
+                    //    match model.deletionControllerId with 
+                    //    | Some i -> if i = id then None else model.deletionControllerId
+                    //    | None -> None
+                    match model.mainControllerId with
                     | Some i when i = id -> 
-                        let t = model.sphereControllerTrafo
+                        let t = model.mainControllerTrafo
                         let heraInvMatrix = model.heraTransformations.Backward
 
                         let spherePos = t.Forward.TransformPos(V3d.OOO)
@@ -832,19 +943,20 @@ module AppUpdate =
                             newProbePlaced = true
                             firstHistogram = false
                             existingProbeModified = false
+                            holdingSphere = false
                             statistics = stats
                             sphereScale = 1.0
-                            sphereControllerId = None
-                            sphereScalerId = None
-                            deletionControllerId = delControllerId
+                            //sphereControllerId = None
+                            //sphereScalerId = None
+                            //deletionControllerId = delControllerId
                             boxPlotProbes = newHashmap
                             currBoxPlotAttribSet = true
                             currBoxPlotAttrib = newCurrBoxPlotAttrib
                             twoDModel = updatedTwoDmodel
                             threads = ThreadPool.start threadsVr ThreadPool.empty}
-                    | _ -> {model with 
-                                    sphereScalerId = None
-                                    deletionControllerId = delControllerId}
+                    | _ -> model //{model with 
+                                    //sphereScalerId = None
+                                    //deletionControllerId = delControllerId}
                 | ControllerMode.Ray ->     
                     match model.rayDeviceId with
                     | Some i when i = id ->
@@ -864,8 +976,8 @@ module AppUpdate =
                 | _ -> model
             else 
                 { model with 
-                    sphereControllerId = None
-                    sphereScalerId = None
+                    //sphereControllerId = None
+                    //sphereScalerId = None
                     rayDeviceId = None
                     clippingPlaneDeviceId = None 
                 }
@@ -874,7 +986,7 @@ module AppUpdate =
             let level, isOpen = 
                 let closeMenu = 0, false
                 let goToNextMenu = (model.menuLevel + 1), true
-                if model.probeIntersectionId.IsNone && not model.allowHeraScaling && not model.changeProbeAttribute then 
+                if model.mainContrProbeIntersectionId.IsNone && not model.grabbingHera && not model.changeProbeAttribute then 
                     match model.menuControllerId with 
                     | Some i when i = id ->
                         match model.menuLevel with
@@ -890,18 +1002,18 @@ module AppUpdate =
                 controllerMenuOpen = isOpen
                 //showTexture = isOpen
                // contrScreenTexture = screenTex
-                sphereControllerId = None
-                sphereScalerId = None
+                //sphereControllerId = None
+                //sphereScalerId = None
                 rayDeviceId = None
                 clippingPlaneDeviceId = None }
         | OpenProbeAttributeMenu id ->
             let r, theta = convertCartesianToPolar model.currTouchPadPos
-            match model.intersectionControllerId with 
+            match model.mainControllerId with 
             | Some i when i = id ->
-                let probeAttribute = model.probeIntersectionId.IsSome && theta >= 180.0 && theta < 360.0 && model.menuLevel = 0 && not model.changeProbeAttribute                        
+                let probeAttribute = model.mainContrProbeIntersectionId.IsSome && theta >= 180.0 && theta < 360.0 && model.menuLevel = 0 && not model.changeProbeAttribute                        
                 {model with 
                     changeProbeAttribute = probeAttribute 
-                    lastIntersectedProbe = model.probeIntersectionId}                        
+                    lastIntersectedProbe = model.mainContrProbeIntersectionId}                        
             | _ -> model
         | OpenControllerMenu id ->
             let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
@@ -922,7 +1034,7 @@ module AppUpdate =
                 {model with menuControllerId = None}
         | ChangeControllerMode id -> 
             match model.menuControllerId with  
-            | Some i when i = id && model.menuLevel = 1 && not model.allowHeraScaling && model.probeIntersectionId.IsNone -> 
+            | Some i when i = id && model.menuLevel = 1 && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone -> 
                 let r, theta = convertCartesianToPolar model.currTouchPadPos
                 let newContrlMode = 
                     if r >= 0.5 then 
@@ -952,9 +1064,9 @@ module AppUpdate =
                     lastContrScreenModeTexture = screenTexture}
             | _ -> model
         | ChangeBillboard id ->
-            match model.probeIntersectionId with
-            | Some probeId when not model.changeProbeAttribute && not model.controllerMenuOpen && not model.allowHeraScaling && not model.probeAttributeSelected ->
-                match model.intersectionControllerId with 
+            match model.mainContrProbeIntersectionId with
+            | Some probeId when not model.changeProbeAttribute && not model.controllerMenuOpen && not model.grabbingHera && not model.probeAttributeSelected ->
+                match model.mainControllerId with 
                 | Some i when i = id && model.touchpadDeviceId.IsSome ->
                     let r, theta = convertCartesianToPolar model.currTouchPadPos
                     let intersectedProbe = model.allProbes.Item probeId
@@ -982,7 +1094,7 @@ module AppUpdate =
             | _ -> model
         | SelectGlobalAttribute id ->
             match model.menuControllerId with  
-            | Some i when i = id && model.menuLevel = 2 && not model.allowHeraScaling && model.probeIntersectionId.IsNone -> 
+            | Some i when i = id && model.menuLevel = 2 && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone -> 
                 let newAttribute = computeNewAttribute model.currTouchPadPos model.attribute 
                 let texture, screenTexture = computeNewAttributeTextures newAttribute model.attribute
                 {model with 
@@ -991,7 +1103,7 @@ module AppUpdate =
                     contrScreenTexture = screenTexture}
             | _ -> model
         | SelectProbeAttribute id ->
-            match model.intersectionControllerId with 
+            match model.mainControllerId with 
             | Some i when i = id && model.changeProbeAttribute ->
                 match model.lastIntersectedProbe with
                 | Some probeId ->

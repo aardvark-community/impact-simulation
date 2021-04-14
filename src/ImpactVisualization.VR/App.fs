@@ -57,11 +57,11 @@ module Demo =
         | VrMessage.Press(controllerId, buttonId) ->
             match buttonId with 
             | 0 -> [ToggleControllerMenu controllerId; OpenProbeAttributeMenu controllerId; OpenControllerMenu controllerId]
-            | 1 -> [ActivateControllerMode controllerId]
+            | 1 -> [ActivateControllerMode controllerId; ScaleProbe controllerId; DeleteProbe controllerId]
             | _ -> []
         | VrMessage.Unpress(controllerId, buttonId) ->
             match buttonId with 
-            | 1 ->  [DeactivateControllerMode controllerId]
+            | 1 ->  [DeactivateControllerMode controllerId; StopProbeScale controllerId]
             | _ -> []
         | VrMessage.Touch(controllerId, buttonId) ->
             //match buttonId with 
@@ -214,7 +214,7 @@ module Demo =
         let sphereTrafo = 
             AVal.map2 (fun sphereContrTrafo (sphereScale : float) -> 
                 Trafo3d(Scale3d(sphereScale)) * sphereContrTrafo
-                ) m.sphereControllerTrafo m.sphereScale
+                ) m.mainControllerTrafo m.sphereScale
 
         let currentSphereProbeSg = 
             Sg.sphere 6 m.sphereColor m.sphereRadius
@@ -314,26 +314,35 @@ module Demo =
             |> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass2
 
-        //let showBillboard = m.grabberId |> AVal.map (fun grabber -> grabber.IsNone)
+        let showBillboard = m.grabbingHera |> AVal.map (fun grabbing -> not grabbing)
 
         //TODO: Probably causing overhead due to the complexity, especially when grabbing hera
         let probesSgs = 
             m.allProbes |> AMap.toASet |> ASet.choose (fun (key, probe) ->
                 let color =
-                    AVal.map3 (fun probeIntId delId probeIsInsideHera ->
-                        match probeIntId with 
-                        | Some i when i = key -> 
-                            match delId with 
-                            | Some dId -> C4b(1.0,0.0,0.0,1.0) 
-                            | None -> C4b(0.0,1.0,0.0,1.0) 
-                        | _ -> if probeIsInsideHera then C4b(0.0,0.0,1.0,1.0)  else C4b(1.0,1.0,1.0,1.0)
-                    ) m.probeIntersectionId m.deletionControllerId probe.insideHera
+                    AVal.map3 (fun mainId secondId probeIsInsideHera ->
+                        //let green = C4b(0.0,1.0,0.0,1.0)
+                        //let red = C4b(1.0,0.0,0.0,1.0) 
+                        //let otherColor = if probeIsInsideHera then C4b(0.0,0.0,1.0,1.0)  else C4b(1.0,1.0,1.0,1.0)
+                        match secondId with 
+                        | Some i when i = key -> C4b.Red
+                        | _ ->
+                            match mainId with 
+                            | Some i when i = key -> C4b.LightGreen
+                            | _ -> if probeIsInsideHera then C4b.Blue else C4b.White
+                        //match probeIntId with 
+                        //| Some i when i = key -> 
+                        //    match delId with 
+                        //    | Some dId -> C4b(1.0,0.0,0.0,1.0) 
+                        //    | None -> C4b(0.0,1.0,0.0,1.0) 
+                        //| _ -> if probeIsInsideHera then C4b(0.0,0.0,1.0,1.0)  else C4b(1.0,1.0,1.0,1.0)
+                    ) m.mainContrProbeIntersectionId m.secondContrProbeIntersectionId probe.insideHera
                 let statisticsSg = createStatisticsSg probe
                 let probeHistogramSg = createHistogramSg probe
                 let billboardSg = 
                     statisticsSg
                     |> Sg.andAlso probeHistogramSg
-                    |> Sg.onOff m.allowHeraScaling
+                    |> Sg.onOff showBillboard
                 Sg.sphere 6 color probe.radiusRelToHera
                 |> Sg.noEvents
                 |> Sg.trafo (probe.centerRelToHera |> AVal.map (fun center -> Trafo3d.Translation(center)))
@@ -374,7 +383,7 @@ module Demo =
                     let spherePos = trafo.Forward.TransformPos(V3d.OOO)
                     let sphereRadius : float = initRadius * scale 
                     Sphere3d(spherePos, sphereRadius)
-                ) m.currentProbeManipulated m.sphereControllerTrafo sphereScaleAndRadius
+                ) m.currentProbeManipulated m.mainControllerTrafo sphereScaleAndRadius
 
         let allPlacedSpheres = 
             m.allProbes

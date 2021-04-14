@@ -78,9 +78,12 @@ type Message =
     | SelectGlobalAttribute of int
     | SelectProbeAttribute of int
     | ActivateControllerMode of int
-    | CreateProbe of int * Trafo3d
-    | CreateRay of int * Trafo3d
-    | CreateClipping of int * Trafo3d
+    | CreateProbe of int // of int * Trafo3d
+    | CreateRay of int //of int * Trafo3d
+    | CreateClipping of int //of int * Trafo3d
+    | ScaleProbe of int
+    | StopProbeScale of int 
+    | DeleteProbe of int 
     | DeactivateControllerMode of int
     | TouchDevice of int
     | UntouchDevice of int 
@@ -105,20 +108,22 @@ type Model =
         secondControllerTrafo : Trafo3d
 
         //Hera
-        controllerTrafo : Trafo3d
+        //controllerTrafo : Trafo3d
         heraTrafo : Trafo3d
         heraToControllerTrafo : Trafo3d
         lastHeraScaleTrafo : Trafo3d
         //grabberId : Option<int>
-        allowHeraScaling : bool
+        grabbingHera : bool
         heraBox : Box3d
         heraTransformations : Trafo3d
 
         //Sphere translation and scaling
-        sphereControllerTrafo: Trafo3d
-        sphereControllerId: Option<int>
-        sphereScalerTrafo : Trafo3d
-        sphereScalerId : Option<int>
+        //sphereControllerTrafo: Trafo3d
+        //sphereControllerId: Option<int>
+        //sphereScalerTrafo : Trafo3d
+        //sphereScalerId : Option<int>
+        holdingSphere : bool 
+        scalingSphere : bool
 
         //Scaling factors
         scalingFactorHera : float
@@ -147,9 +152,15 @@ type Model =
         currentProbe : Option<Probe>
         currentProbeManipulated : bool 
         allProbes : HashMap<string, Probe>
-        intersectionControllerId : Option<int>
-        deletionControllerId : Option<int>
-        probeIntersectionId : Option<string>
+        //intersectionControllerId : Option<int>
+
+        //deletionControllerId : Option<int>
+
+        //probeIntersectionId : Option<string>
+
+        mainContrProbeIntersectionId : Option<string> 
+        secondContrProbeIntersectionId : Option<string>
+
         lastFilterProbe : Option<Probe>
         lastFilterProbeId : Option<string>
         newProbePlaced : bool
