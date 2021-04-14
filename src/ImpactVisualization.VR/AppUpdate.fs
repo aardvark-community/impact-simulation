@@ -161,13 +161,14 @@ module AppUpdate =
             threads = ThreadPool.Empty
             firstHistogram = true
             devicesTrafos = HashMap.Empty
-            mainController = -1
-            secondController = -1
-            controllersSet = false
+            mainControllerId = None
+            secondControllerId = None
+            mainControllerTrafo = Trafo3d.Identity
+            secondControllerTrafo = Trafo3d.Identity
             controllerTrafo = Trafo3d.Identity
             heraTrafo = Trafo3d.Identity
             heraToControllerTrafo = Trafo3d.Identity
-            grabberId = None
+            //grabberId = None
             allowHeraScaling = false
             sphereControllerTrafo = Trafo3d.Identity
             sphereControllerId = None
@@ -274,11 +275,12 @@ module AppUpdate =
 
         let hmdPos = state.display.pose.deviceToWorld.GetModelOrigin()
 
-        //let controllers = 
-        //    state.devices 
-        //    |> HashMap.filter (fun key deviceType -> deviceType.kind = VrDeviceKind.Controller)
-        //    |> HashMap.toSeq
-        //    |> Seq.map (fun value -> snd value)
+        let controllersIds = 
+            state.devices 
+            |> HashMap.filter (fun key deviceType -> deviceType.kind = VrDeviceKind.Controller)
+            |> HashMap.toSeq
+            |> Seq.map (fun value -> fst value)
+            |> Seq.toArray
 
         let viewProjTrafoAVal = AVal.map2 (fun v p -> v * p) viewTrafo projTrafo
         let viewProj = AVal.force(viewProjTrafoAVal)
@@ -310,8 +312,6 @@ module AppUpdate =
             | d when 10000 <= d && d < 50000 -> 200
             | d when 100 <= d && d < 10000 -> 130
             | _ -> 100
-            
-
 
         match msg with
         | ThreeD _ -> model
@@ -320,17 +320,28 @@ module AppUpdate =
             let sup = AardVolume.App.update frames model.twoDModel msg
             { model with twoDModel = sup }
         | StartVr -> vr.start(); model
+        | SetController id ->
+            if (model.mainControllerId.IsNone || model.secondControllerId.IsNone) && controllersIds.Length = 2 then
+                let fstId = controllersIds.[0]
+                let sndId = controllersIds.[1]
+                {model with
+                    mainControllerId = Some fstId
+                    secondControllerId = Some sndId}
+            else
+                model
         | GrabHera id ->
-            if model.changeProbeAttribute then model else 
-                match model.grabberId with 
-                | Some i -> model
-                | None -> 
+            //if model.changeProbeAttribute then model else 
+            //    match model.grabberId with 
+            //    | Some i -> model
+            //    | None -> 
+                match model.mainControllerId with
+                | Some i when i = id ->
                     let currentContrTr = model.devicesTrafos.TryFind(id)
                     let controlT = trafoOrIdentity currentContrTr
                     let heraT = model.heraTrafo
                     let controlHeraT = heraT * controlT.Inverse
                     {model with 
-                        grabberId = Some id
+                        //grabberId = Some id
                         controllerTrafo = controlT
                         heraToControllerTrafo = controlHeraT
                         allowHeraScaling = true
@@ -340,14 +351,15 @@ module AppUpdate =
                         //showTexture = true
                         menuLevel = 0
                         controllerMenuOpen = false}
+                | _ -> model
         | UngrabHera id -> 
-            let controlT = model.controllerTrafo
-            let heraToControlT = model.heraToControllerTrafo
-            let heraT = heraToControlT * controlT
-            match model.grabberId with 
+            match model.mainControllerId with 
             | Some i when i = id -> 
+                let controlT = model.controllerTrafo
+                let heraToControlT = model.heraToControllerTrafo
+                let heraT = heraToControlT * controlT
                 {model with 
-                    grabberId = None
+                    //grabberId = None
                     heraTrafo = heraT
                     allowHeraScaling = false
                     //showTexture = false
@@ -355,7 +367,7 @@ module AppUpdate =
             | _ -> model
         | ScaleHera (id, f) ->
            // printf "SCALE HERA \n"
-            match model.grabberId with 
+            match model.mainControllerId with 
             | Some i when i = id && model.allowHeraScaling ->
                 if model.touchpadDeviceId.IsSome then
                    // printf "SCALE HERA \n"
@@ -382,6 +394,8 @@ module AppUpdate =
             | _ -> model
         | MoveController (id, (trafo : Trafo3d)) -> 
             let newInput = model.devicesTrafos.Add(id, trafo)
+            let mainContrTrafo = newOrOldTrafo id trafo model.mainControllerId model.mainControllerTrafo
+            let secondContrTrafo = newOrOldTrafo id trafo model.secondControllerId model.secondControllerTrafo
 
             //CURRENT SPHERE UPDATE
             let sphereContrTrafo = newOrOldTrafo id trafo model.sphereControllerId model.sphereControllerTrafo
@@ -424,16 +438,16 @@ module AppUpdate =
                     initRay, C4b.Red, PixelPosition()
 
             let newHeraScaleTrafo = 
-                if model.grabberId.IsSome && model.touchpadDeviceId.IsSome then
+                if model.allowHeraScaling && model.touchpadDeviceId.IsSome then
                     //printf "UPDATE SCALING \n"
                     Trafo3d(Scale3d(model.scalingFactorHera))
                 else 
                     model.lastHeraScaleTrafo
     
             //HERA TRANSFORMATIONS UPDATE
-            let heraContrTrafo = newOrOldTrafo id trafo model.grabberId model.controllerTrafo
+            let heraContrTrafo = newOrOldTrafo id trafo model.mainControllerId model.controllerTrafo
             let heraTrafos = 
-                if model.grabberId.IsSome then
+                if model.allowHeraScaling then
                     let heraTrafo = model.heraToControllerTrafo * heraContrTrafo
                     //let heraScaleTrafo = Trafo3d(Scale3d(model.scalingFactorHera))
                     let heraTranslation = Trafo3d.Translation(0.0, 0.0, 0.7)
@@ -445,7 +459,7 @@ module AppUpdate =
             //INTERSECTION OF CONTROLLER WITH A PROBE
             let probeIntersection = 
                 match model.intersectionControllerId with 
-                | Some i when i = id && not model.currentProbeManipulated && model.grabberId.IsNone -> 
+                | Some i when i = id && not model.currentProbeManipulated && not model.allowHeraScaling -> 
                         let intersectionContrTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(i))
                         let intersectionContrTrafoPos = intersectionContrTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
                         let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
@@ -462,7 +476,7 @@ module AppUpdate =
 
             ////SHOW CONTROLLER TEXTURES WHEN INTERSECTING WITH A PROBE
             let tex, screenTex = 
-                if not model.allowHeraScaling && not model.controllerMenuOpen && model.grabberId.IsNone && not model.changeProbeAttribute then 
+                if not model.allowHeraScaling && not model.controllerMenuOpen && not model.allowHeraScaling && not model.changeProbeAttribute then 
                     match probeIntersection with
                     | Some probeId ->
                         let intersectedProbe = model.allProbes.Item probeId
@@ -506,7 +520,7 @@ module AppUpdate =
 
             //PROBES UPDATE WHEN HERA GRABBED
             let probesUpdate =
-                if model.grabberId.IsSome && not model.allProbes.IsEmpty then 
+                if model.allowHeraScaling && not model.allProbes.IsEmpty then 
                     model.allProbes
                     |> HashMap.map (fun key probe -> 
                         let newCenter = heraTrafos.Forward.TransformPos(probe.centerRelToHera)
@@ -524,7 +538,7 @@ module AppUpdate =
 
             // UPDATE VISIBILITY OF THE BILLBOARDS ABOVE PROBES
             let allProbesUpdated = 
-                if model.allProbes.Count >= 2 && model.grabberId.IsNone then
+                if model.allProbes.Count >= 2 && not model.allowHeraScaling then
                     probesUpdate
                     |> HashMap.map (fun key probe -> 
                         let currProbeIntersected = 
@@ -579,11 +593,13 @@ module AppUpdate =
                     model.allowHeraScaling || model.controllerMenuOpen || model.changeProbeAttribute
         
             {model with 
+                devicesTrafos = newInput
+                mainControllerTrafo = mainContrTrafo
+                secondControllerTrafo = secondContrTrafo
                 controllerTrafo = heraContrTrafo
                 sphereControllerTrafo = sphereContrTrafo
                 sphereScalerTrafo = sphereScTrafo
                 sphereScale = scalingFactor
-                devicesTrafos = newInput
                 ray = currRay
                 clippingPlaneDeviceTrafo = clippingContrTrafo
                 planeCorners = currCorners
@@ -858,7 +874,7 @@ module AppUpdate =
             let level, isOpen = 
                 let closeMenu = 0, false
                 let goToNextMenu = (model.menuLevel + 1), true
-                if model.probeIntersectionId.IsNone && model.grabberId.IsNone && not model.changeProbeAttribute then 
+                if model.probeIntersectionId.IsNone && not model.allowHeraScaling && not model.changeProbeAttribute then 
                     match model.menuControllerId with 
                     | Some i when i = id ->
                         match model.menuLevel with

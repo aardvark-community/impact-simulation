@@ -84,7 +84,7 @@ module Demo =
                      ]
             | _ -> []
         | VrMessage.UpdatePose(controllerId, pose) ->
-            if pose.isValid then [MoveController (controllerId, pose.deviceToWorld)] else []
+            if pose.isValid then [MoveController (controllerId, pose.deviceToWorld); SetController controllerId] else []
         | _ -> []
 
     let ui (runtime : IRuntime) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : DomNode<Message> = // 2D UI
@@ -305,7 +305,7 @@ module Demo =
             |> Sg.trafo (p.center |> AVal.map (fun center -> Trafo3d.Translation(center)))
             |> Sg.trafo (p.radius |> AVal.map (fun r -> Trafo3d.Translation(0.0, 0.0, (r * 1.6))))
             |> Sg.onOff showCurrHistogram
-            |> Sg.diffuseTexture DefaultTextures.blackTex
+            |> Sg.diffuseTexture texture
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
@@ -314,7 +314,7 @@ module Demo =
             |> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass2
 
-        let showBillboard = m.grabberId |> AVal.map (fun grabber -> grabber.IsNone)
+        //let showBillboard = m.grabberId |> AVal.map (fun grabber -> grabber.IsNone)
 
         //TODO: Probably causing overhead due to the complexity, especially when grabbing hera
         let probesSgs = 
@@ -333,7 +333,7 @@ module Demo =
                 let billboardSg = 
                     statisticsSg
                     |> Sg.andAlso probeHistogramSg
-                    |> Sg.onOff showBillboard
+                    |> Sg.onOff m.allowHeraScaling
                 Sg.sphere 6 color probe.radiusRelToHera
                 |> Sg.noEvents
                 |> Sg.trafo (probe.centerRelToHera |> AVal.map (fun center -> Trafo3d.Translation(center)))

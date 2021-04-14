@@ -64,6 +64,7 @@ type Message =
     | TwoD of AardVolume.Message 
     | Nop
     | StartVr
+    | SetController of int
     | GrabHera of int
     | UngrabHera of int
     | ScaleHera of int * float
@@ -97,16 +98,18 @@ type Model =
 
         //Controllers
         devicesTrafos : HashMap<int, Trafo3d>
-        mainController : int 
-        secondController : int
-        controllersSet : bool
+        mainControllerId : Option<int> 
+        secondControllerId : Option<int>
+
+        mainControllerTrafo : Trafo3d
+        secondControllerTrafo : Trafo3d
 
         //Hera
         controllerTrafo : Trafo3d
         heraTrafo : Trafo3d
         heraToControllerTrafo : Trafo3d
         lastHeraScaleTrafo : Trafo3d
-        grabberId : Option<int>
+        //grabberId : Option<int>
         allowHeraScaling : bool
         heraBox : Box3d
         heraTransformations : Trafo3d

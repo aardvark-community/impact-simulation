@@ -63,6 +63,7 @@ let main argv =
     let bla = Demo.app client histogramClient viewTrafos projTrafos app.Runtime
     let mapp = ComposedApp.start' app true bla
     
+
     WebPart.startServerLocalhost 4321 [
         MutableApp.toWebPart app.Runtime mapp
         Reflection.assemblyWebPart typeof<AardVolume.EmbeddedRessource>.Assembly
