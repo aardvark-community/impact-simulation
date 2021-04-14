@@ -108,20 +108,14 @@ type Model =
         secondControllerTrafo : Trafo3d
 
         //Hera
-        //controllerTrafo : Trafo3d
         heraTrafo : Trafo3d
         heraToControllerTrafo : Trafo3d
         lastHeraScaleTrafo : Trafo3d
-        //grabberId : Option<int>
         grabbingHera : bool
         heraBox : Box3d
         heraTransformations : Trafo3d
 
-        //Sphere translation and scaling
-        //sphereControllerTrafo: Trafo3d
-        //sphereControllerId: Option<int>
-        //sphereScalerTrafo : Trafo3d
-        //sphereScalerId : Option<int>
+
         holdingSphere : bool 
         scalingSphere : bool
 
@@ -133,8 +127,9 @@ type Model =
         sphereColor : C4b
 
         //Ray
-        rayDeviceId : Option<int>
+        //rayDeviceId : Option<int>
         ray : Ray3d
+        rayActive : bool
         rayColor : C4b
 
         [<NonAdaptive>]
@@ -152,11 +147,6 @@ type Model =
         currentProbe : Option<Probe>
         currentProbeManipulated : bool 
         allProbes : HashMap<string, Probe>
-        //intersectionControllerId : Option<int>
-
-        //deletionControllerId : Option<int>
-
-        //probeIntersectionId : Option<string>
 
         mainContrProbeIntersectionId : Option<string> 
         secondContrProbeIntersectionId : Option<string>
