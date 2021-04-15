@@ -139,7 +139,7 @@ module Demo =
 
         let texturePositions =  AVal.constant  [|V3f(-1.0, -1.0, 0.0); V3f(1.0, -1.0, 0.0); V3f(1.0, 1.0, 0.0); V3f(-1.0, 1.0, 0.0)|]
 
-        let mainTouchpadPlaneSg = 
+        let touchpadPlaneSg showTexture texture =  
             Sg.draw IndexedGeometryMode.TriangleList
             |> Sg.vertexAttribute DefaultSemantic.Positions texturePositions
             |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
@@ -148,31 +148,31 @@ module Demo =
             |> Sg.scale 0.0205
             |> Sg.transform (Trafo3d.RotationXInDegrees(6.5))
             |> Sg.translate 0.0 -0.05 0.0052
-            |> Sg.onOff m.showMainTexture
-            |> Sg.diffuseTexture m.mainTouchpadTexture
+            |> Sg.onOff showTexture
+            |> Sg.diffuseTexture texture
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.diffuseTexture
                 do! TouchpadShaders.fragmentSh
             }
 
+        let mainTouchpadPlaneSg deviceId =
+            let showTexture = 
+                (deviceId, m.mainControllerId, m.showMainTexture) 
+                |||> AVal.map3 (fun currId mainId show -> 
+                    if mainId.IsSome then
+                        if currId = mainId.Value then show else false
+                    else false)
+            touchpadPlaneSg showTexture m.mainTouchpadTexture
 
-        let secondTouchpadPlaneSg = 
-            Sg.draw IndexedGeometryMode.TriangleList
-            |> Sg.vertexAttribute DefaultSemantic.Positions texturePositions
-            |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
-            |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
-            |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
-            |> Sg.scale 0.0205
-            |> Sg.transform (Trafo3d.RotationXInDegrees(6.5))
-            |> Sg.translate 0.0 -0.05 0.0052
-            |> Sg.onOff m.showSecondTexture
-            |> Sg.diffuseTexture m.secondTouchpadTexture
-            |> Sg.shader {
-                do! DefaultSurfaces.trafo
-                do! DefaultSurfaces.diffuseTexture
-                do! TouchpadShaders.fragmentSh
-            }
+        let secondTouchpadPlaneSg deviceId = 
+            let showTexture = 
+                (deviceId, m.secondControllerId, m.showSecondTexture) 
+                |||> AVal.map3 (fun currId secondId show -> 
+                    if secondId.IsSome then
+                        if currId = secondId.Value then show else false
+                    else false)
+            touchpadPlaneSg showTexture m.secondTouchpadTexture
 
         //let touchingMain = m.touchpadDeviceId |> AVal.map (fun id -> id.IsSome)
 
@@ -217,23 +217,18 @@ module Demo =
         let deviceSgs = 
             info.state.devices |> AMap.toASet |> ASet.chooseA (fun (_,d) ->
                 //printf "Device Type: %A, %A \n" d.kind d.id
-                //printf "Device Vibrate: %A \n" d.startVibrate     
-                let touchpadPlaneSg = 
-                    (d.id, m.mainControllerId, m.secondControllerId)
-                    |||> AVal.map3 (fun id mId sId ->
-                        if mId.IsSome && sId.IsSome then
-                            if id = mId.Value then mainTouchpadPlaneSg 
-                            else if id = sId.Value then secondTouchpadPlaneSg
-                            else Sg.empty
-                        else Sg.empty)
-                (d.model, touchpadPlaneSg) ||> AVal.map2 (fun model touchpadSg ->
-                    match model.Value with
+                //printf "Device Vibrate: %A \n" d.startVibrate  
+                let mainTouchpadSg = mainTouchpadPlaneSg d.id
+                let secondTouchpadSg = secondTouchpadPlaneSg d.id
+                d.model |> AVal.map (fun m ->
+                    match m.Value with
                     | Some sg -> 
                         sg 
                         |> Sg.noEvents 
                         |> Sg.andAlso textScreenSg
                         |> Sg.andAlso textPlaneSg
-                        |> Sg.andAlso touchpadSg
+                        |> Sg.andAlso mainTouchpadSg
+                        |> Sg.andAlso secondTouchpadSg
                         |> Sg.trafo d.pose.deviceToWorld
                         |> Sg.onOff d.pose.isValid
                         |> Some
@@ -359,21 +354,12 @@ module Demo =
             m.allProbes |> AMap.toASet |> ASet.choose (fun (key, probe) ->
                 let color =
                     AVal.map3 (fun mainId secondId probeIsInsideHera ->
-                        //let green = C4b(0.0,1.0,0.0,1.0)
-                        //let red = C4b(1.0,0.0,0.0,1.0) 
-                        //let otherColor = if probeIsInsideHera then C4b(0.0,0.0,1.0,1.0)  else C4b(1.0,1.0,1.0,1.0)
                         match secondId with 
                         | Some i when i = key -> C4b.Red
                         | _ ->
                             match mainId with 
                             | Some i when i = key -> C4b.LightGreen
                             | _ -> if probeIsInsideHera then C4b.Blue else C4b.White
-                        //match probeIntId with 
-                        //| Some i when i = key -> 
-                        //    match delId with 
-                        //    | Some dId -> C4b(1.0,0.0,0.0,1.0) 
-                        //    | None -> C4b(0.0,1.0,0.0,1.0) 
-                        //| _ -> if probeIsInsideHera then C4b(0.0,0.0,1.0,1.0)  else C4b(1.0,1.0,1.0,1.0)
                     ) m.mainContrProbeIntersectionId m.secondContrProbeIntersectionId probe.insideHera
                 let statisticsSg = createStatisticsSg probe
                 let probeHistogramSg = createHistogramSg probe

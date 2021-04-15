@@ -278,7 +278,7 @@ module AppUpdate =
         let hmdPos = state.display.pose.deviceToWorld.GetModelOrigin()
 
         let controllersIds = 
-            state.devices 
+            state.devices
             |> HashMap.filter (fun key deviceType -> deviceType.kind = VrDeviceKind.Controller)
             |> HashMap.toSeq
             |> Seq.map (fun value -> fst value)
