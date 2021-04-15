@@ -156,23 +156,9 @@ module Demo =
                 do! TouchpadShaders.fragmentSh
             }
 
-        let mainTouchpadPlaneSg deviceId =
-            let showTexture = 
-                (deviceId, m.mainControllerId, m.showMainTexture) 
-                |||> AVal.map3 (fun currId mainId show -> 
-                    if mainId.IsSome then
-                        if currId = mainId.Value then show else false
-                    else false)
-            touchpadPlaneSg showTexture m.mainTouchpadTexture
+        let mainTouchpadPlaneSg = touchpadPlaneSg m.showMainTexture m.mainTouchpadTexture
 
-        let secondTouchpadPlaneSg deviceId = 
-            let showTexture = 
-                (deviceId, m.secondControllerId, m.showSecondTexture) 
-                |||> AVal.map3 (fun currId secondId show -> 
-                    if secondId.IsSome then
-                        if currId = secondId.Value then show else false
-                    else false)
-            touchpadPlaneSg showTexture m.secondTouchpadTexture
+        let secondTouchpadPlaneSg = touchpadPlaneSg m.showSecondTexture m.secondTouchpadTexture
 
         //let touchingMain = m.touchpadDeviceId |> AVal.map (fun id -> id.IsSome)
 
@@ -218,8 +204,15 @@ module Demo =
             info.state.devices |> AMap.toASet |> ASet.chooseA (fun (_,d) ->
                 //printf "Device Type: %A, %A \n" d.kind d.id
                 //printf "Device Vibrate: %A \n" d.startVibrate  
-                let mainTouchpadSg = mainTouchpadPlaneSg d.id
-                let secondTouchpadSg = secondTouchpadPlaneSg d.id
+                let touchpadSg  = 
+                    (d.id, m.mainControllerId, m.secondControllerId) |||> AVal.map3 (fun id mId sId ->
+                        match mId with
+                        | Some i when i = id -> mainTouchpadPlaneSg
+                        | _ ->
+                            match sId with
+                            | Some i when i = id -> secondTouchpadPlaneSg
+                            | _ -> Sg.empty)
+                    |> Sg.dynamic
                 d.model |> AVal.map (fun m ->
                     match m.Value with
                     | Some sg -> 
@@ -227,8 +220,7 @@ module Demo =
                         |> Sg.noEvents 
                         |> Sg.andAlso textScreenSg
                         |> Sg.andAlso textPlaneSg
-                        |> Sg.andAlso mainTouchpadSg
-                        |> Sg.andAlso secondTouchpadSg
+                        |> Sg.andAlso touchpadSg
                         |> Sg.trafo d.pose.deviceToWorld
                         |> Sg.onOff d.pose.isValid
                         |> Some
