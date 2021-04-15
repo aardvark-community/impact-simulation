@@ -56,7 +56,7 @@ module Demo =
             | _ -> []
         | VrMessage.Press(controllerId, buttonId) ->
             match buttonId with 
-            | 0 -> [ToggleControllerMenu controllerId; OpenProbeAttributeMenu controllerId; OpenControllerMenu controllerId]
+            | 0 -> [ToggleMainMenu controllerId; OpenMainMenu controllerId; OpenProbeAttributeMenu controllerId; ]
             | 1 -> [ActivateControllerMode controllerId; ScaleProbe controllerId; DeleteProbe controllerId]
             | _ -> []
         | VrMessage.Unpress(controllerId, buttonId) ->
@@ -77,7 +77,7 @@ module Demo =
             match buttonId with 
             | 0 ->  [ChangeTouchpadPos (controllerId, value); 
                      ScaleHera (controllerId, value.X); 
-                     ChangeControllerMode controllerId; 
+                     ChangeMainControllerMode controllerId; 
                      SelectGlobalAttribute controllerId;
                      SelectProbeAttribute controllerId;
                      ChangeBillboard controllerId
@@ -139,7 +139,7 @@ module Demo =
 
         let texturePositions =  AVal.constant  [|V3f(-1.0, -1.0, 0.0); V3f(1.0, -1.0, 0.0); V3f(1.0, 1.0, 0.0); V3f(-1.0, 1.0, 0.0)|]
 
-        let touchpadPlaneSg = 
+        let mainTouchpadPlaneSg = 
             Sg.draw IndexedGeometryMode.TriangleList
             |> Sg.vertexAttribute DefaultSemantic.Positions texturePositions
             |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
@@ -148,26 +148,56 @@ module Demo =
             |> Sg.scale 0.0205
             |> Sg.transform (Trafo3d.RotationXInDegrees(6.5))
             |> Sg.translate 0.0 -0.05 0.0052
-            |> Sg.onOff m.showTexture
-            |> Sg.diffuseTexture m.touchpadTexture
+            |> Sg.onOff m.showMainTexture
+            |> Sg.diffuseTexture m.mainTouchpadTexture
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.diffuseTexture
                 do! TouchpadShaders.fragmentSh
             }
 
-        let touching = m.touchpadDeviceId |> AVal.map (fun id -> id.IsSome)
 
-        let touchpadPos = m.currTouchPadPos |> AVal.map (fun pos -> let z = tan (6.5 * (Math.PI / 180.0))
-                                                                    V3d(pos, z * (pos.Y + 1.0)) * 0.019)
+        let secondTouchpadPlaneSg = 
+            Sg.draw IndexedGeometryMode.TriangleList
+            |> Sg.vertexAttribute DefaultSemantic.Positions texturePositions
+            |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
+            |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
+            |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
+            |> Sg.scale 0.0205
+            |> Sg.transform (Trafo3d.RotationXInDegrees(6.5))
+            |> Sg.translate 0.0 -0.05 0.0052
+            |> Sg.onOff m.showSecondTexture
+            |> Sg.diffuseTexture m.secondTouchpadTexture
+            |> Sg.shader {
+                do! DefaultSurfaces.trafo
+                do! DefaultSurfaces.diffuseTexture
+                do! TouchpadShaders.fragmentSh
+            }
+
+        //let touchingMain = m.touchpadDeviceId |> AVal.map (fun id -> id.IsSome)
+
+        let touchpadPosMain = m.currMainTouchPadPos |> AVal.map (fun pos -> let z = tan (6.5 * (Math.PI / 180.0))
+                                                                            V3d(pos, z * (pos.Y + 1.0)) * 0.019)
+
+        let touchpadPosSecond = m.currSecondTouchPadPos |> AVal.map (fun pos -> let z = tan (6.5 * (Math.PI / 180.0))
+                                                                                V3d(pos, z * (pos.Y + 1.0)) * 0.019)
 
         let touchpadSphereSg = 
             Sg.sphere' 9 C4b.LightGreen 0.002
             |> Sg.noEvents
             |> Sg.translate 0.0 -0.05 0.0035 // translation so that it is in the middle of the touchpad
-            |> Sg.translate' touchpadPos
-            |> Sg.trafo m.touchpadDeviceTrafo
-            |> Sg.onOff touching
+
+        let mainTouchpadSphereSg = 
+            touchpadSphereSg
+            |> Sg.translate' touchpadPosMain
+            |> Sg.trafo m.mainControllerTrafo
+            |> Sg.onOff m.mainTouching
+
+        let secondTouchpadSphereSg = 
+            touchpadSphereSg
+            |> Sg.translate' touchpadPosSecond
+            |> Sg.trafo m.secondControllerTrafo
+            |> Sg.onOff m.secondTouching
 
         //let textPlaneSg = 
         //    Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"controllerText";"plane.obj"])
@@ -187,15 +217,23 @@ module Demo =
         let deviceSgs = 
             info.state.devices |> AMap.toASet |> ASet.chooseA (fun (_,d) ->
                 //printf "Device Type: %A, %A \n" d.kind d.id
-                //printf "Device Vibrate: %A \n" d.startVibrate
-                d.model |> AVal.map (fun m ->
-                    match m.Value with
+                //printf "Device Vibrate: %A \n" d.startVibrate     
+                let touchpadPlaneSg = 
+                    (d.id, m.mainControllerId, m.secondControllerId)
+                    |||> AVal.map3 (fun id mId sId ->
+                        if id = mId.Value then mainTouchpadPlaneSg 
+                        else if id = sId.Value then secondTouchpadPlaneSg
+                        else Sg.empty)
+
+                (d.model, touchpadPlaneSg) ||> AVal.map2 (fun model touchpadSg ->
+                    //let touchpadPlaneSg = (m.mainControllerId, m.secondControllerId) ||> AVal.map2 (fun main second -> if id = main.Value then mainTouchpadPlaneSg else secondTouchpadSphereSg)
+                    match model.Value with
                     | Some sg -> 
                         sg 
                         |> Sg.noEvents 
                         |> Sg.andAlso textScreenSg
                         |> Sg.andAlso textPlaneSg
-                        |> Sg.andAlso touchpadPlaneSg
+                        |> Sg.andAlso touchpadSg
                         |> Sg.trafo d.pose.deviceToWorld
                         |> Sg.onOff d.pose.isValid
                         |> Some
@@ -473,8 +511,8 @@ module Demo =
             |> Sg.trafo (Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0) |> AVal.constant)
             |> Sg.translate 2.5 2.0 0.5
 
-        let contrOrientation = m.menuControllerTrafo |> AVal.map (fun t -> t.GetOrthoNormalOrientation()) 
-        let controllerTypeMenuOpen = AVal.map2 (fun menuOpen level -> menuOpen && level = 1) m.controllerMenuOpen m.menuLevel
+        let contrOrientation = m.mainControllerTrafo |> AVal.map (fun t -> t.GetOrthoNormalOrientation()) 
+        let controllerTypeMenuOpen = AVal.map2 (fun menuOpen level -> menuOpen && level = 1) m.mainMenuOpen m.menuLevel
 
         let controllerSg path rotX rotY rotZ scTrafo contrPos = 
             Loader.Assimp.load (Path.combine path)
@@ -492,7 +530,7 @@ module Demo =
             }
             |> Sg.pass pass0
 
-        let controllerPos position = m.menuControllerTrafo |> AVal.map (fun t -> t.Forward.TransformPos(position)) 
+        let controllerPos position = m.mainControllerTrafo |> AVal.map (fun t -> t.Forward.TransformPos(position)) 
 
         let probeContrPos = controllerPos (V3d(-0.12, 0.11, 0.0))
         let rayContrPos = controllerPos (V3d(0.0, 0.15, 0.0))
@@ -632,7 +670,7 @@ module Demo =
         Sg.ofSeq [
             deviceSgs; currentSphereProbeSg; probesSgs; heraSg; clipPlaneSg; tvSg;
             tvPosSphereSg; probeContrSg; laserContrSg; clippingContrSg; raySg;
-            browserSg; boxSg; touchpadSphereSg
+            browserSg; boxSg; mainTouchpadSphereSg; secondTouchpadSphereSg
         ] |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting

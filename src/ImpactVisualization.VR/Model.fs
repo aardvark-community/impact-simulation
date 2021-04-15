@@ -69,11 +69,11 @@ type Message =
     | UngrabHera of int
     | ScaleHera of int * float
     | MoveController of int * Trafo3d
-    | ToggleControllerMenu of int
+    | ToggleMainMenu of int
     | OpenProbeAttributeMenu of int
-    | OpenControllerMenu of int
+    | OpenMainMenu of int
     | ChangeTouchpadPos of int * V2d
-    | ChangeControllerMode of int
+    | ChangeMainControllerMode of int
     | ChangeBillboard of int
     | SelectGlobalAttribute of int
     | SelectProbeAttribute of int
@@ -147,15 +147,14 @@ type Model =
         currentProbe : Option<Probe>
         currentProbeManipulated : bool 
         allProbes : HashMap<string, Probe>
-
         mainContrProbeIntersectionId : Option<string> 
         secondContrProbeIntersectionId : Option<string>
-
         lastFilterProbe : Option<Probe>
         lastFilterProbeId : Option<string>
         newProbePlaced : bool
         existingProbeModified : bool
 
+        //Box Plot
         boxPlotProbes : PersistentHashMap<string, float[]>
         currBoxPlotAttribSet : bool
         currBoxPlotAttrib : RenderValue
@@ -163,31 +162,40 @@ type Model =
         statistics : string
                 
         //Controller clipping plane
-        //clippingPlaneDeviceTrafo : Trafo3d
-        //clippingPlaneDeviceId : Option<int>
         holdClipping : bool
         clippingActive : bool
         planeCorners : Quad3d
 
-        //Controller menu
-        controllerMenuOpen : bool
-        menuControllerTrafo : Trafo3d
-        menuControllerId : Option<int>
+        //Main controller menu
+        mainMenuOpen : bool
+        //menuControllerTrafo : Trafo3d
+        //menuControllerId : Option<int>
         controllerMode : ControllerMode
         menuLevel : int 
+
+        //Second controller menu
+        secondMenuOpen : bool
         attribute : RenderValue
         changeProbeAttribute : bool
         lastIntersectedProbe : Option<string>
         probeAttributeSelected : bool
 
         //Touchpad
-        currTouchPadPos : V2d
-        touchpadDeviceId : Option<int>
-        touchpadDeviceTrafo : Trafo3d
-        touchpadTexture : ITexture 
+        currMainTouchPadPos : V2d
+        currSecondTouchPadPos : V2d
+        mainTouching : bool
+        secondTouching : bool
+        //touchpadDeviceId : Option<int>
+        //touchpadDeviceTrafo : Trafo3d
+        mainTouchpadTexture : ITexture 
+        secondTouchpadTexture : ITexture 
+        showMainTexture : bool
+        showSecondTexture : bool
+
         lastTouchpadModeTexture : ITexture
         textureDeviceTrafo : Trafo3d
-        showTexture : bool
+
+
 
         contrScreenTexture : ITexture
         lastContrScreenModeTexture : ITexture

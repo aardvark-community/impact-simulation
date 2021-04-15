@@ -205,28 +205,32 @@ module AppUpdate =
             hitPoint = V3d.OOO
             screenHitPoint = V2d.OO
             screenCoordsHitPos = PixelPosition()
-            //clippingPlaneDeviceTrafo = Trafo3d.Identity
-            //clippingPlaneDeviceId = None
             holdClipping = false
             clippingActive = false
             planeCorners = Quad3d(V3d(), V3d(), V3d(), V3d())
-            controllerMenuOpen = false
-            menuControllerTrafo = Trafo3d.Identity
-            menuControllerId = None
+            mainMenuOpen = false
+            secondMenuOpen = false
+            //menuControllerTrafo = Trafo3d.Identity
+            //menuControllerId = None
             menuLevel = 0
             controllerMode = ControllerMode.NoneMode
             attribute = RenderValue.NoValue
-            currTouchPadPos = V2d.OO
-            touchpadDeviceId = None
-            touchpadDeviceTrafo = Trafo3d.Identity
+            currMainTouchPadPos = V2d.OO
+            currSecondTouchPadPos = V2d.OO
+            mainTouching = false
+            secondTouching = false
+            //touchpadDeviceId = None
+            //touchpadDeviceTrafo = Trafo3d.Identity
             changeProbeAttribute = false
             probeAttributeSelected = false
-            touchpadTexture = allTextures.Item "initial"
+            mainTouchpadTexture = allTextures.Item "initial"
+            secondTouchpadTexture = allTextures.Item "initial-attributes"
             lastTouchpadModeTexture = allTextures.Item "initial"
             contrScreenTexture = allTextures.Item "empty"
             lastContrScreenModeTexture = allTextures.Item "empty"
             textureDeviceTrafo = Trafo3d.Identity
-            showTexture = false
+            showMainTexture = false
+            showSecondTexture = false
             heraBox = Box3d.Infinite
             heraTransformations = Trafo3d(Scale3d(initialScalingHera)) * Trafo3d.Translation(0.0, 0.0, 0.7)
         }
@@ -239,7 +243,8 @@ module AppUpdate =
     let rec update (runtime : IRuntime) (client : Browser) (histogramClient : Browser) (viewTrafo : aval<Trafo3d>) (projTrafo : aval<Trafo3d>) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
         let mTwoD = model.twoDModel
 
-        let getTexture tex = Option.defaultValue model.touchpadTexture tex
+        let defaultTex = allTextures.Item "empty"
+        let getTexture tex = Option.defaultValue defaultTex tex
         let texture tex = allTextures.TryFind(tex) |> getTexture    
 
         let computeNewAttributeTextures (newAttribute : RenderValue) (currAttribute : RenderValue) = 
@@ -337,10 +342,11 @@ module AppUpdate =
                     heraToControllerTrafo = controlHeraT
                     grabbingHera = true
                     textureDeviceTrafo = controlT
-                    touchpadTexture = texture "initial-scaling"
+                    mainTouchpadTexture = texture "initial-scaling"
                     contrScreenTexture = texture "empty"
                     menuLevel = 0
-                    controllerMenuOpen = false}
+                    mainMenuOpen = false
+                    secondMenuOpen = false}
             | _ -> model
         | UngrabHera id -> 
             match model.mainControllerId with 
@@ -356,14 +362,14 @@ module AppUpdate =
         | ScaleHera (id, f) ->
             match model.mainControllerId with 
             | Some i when i = id && model.grabbingHera ->
-                if model.touchpadDeviceId.IsSome then
+                if model.mainTouching then
                     if f >= 0.0 then
                         let maxScale = 1.0
                         let currScale = model.scalingFactorHera * (f*f/5.0 + 1.0)
                         let newScale = if currScale >= maxScale then maxScale else currScale
                         {model with 
                             scalingFactorHera = newScale
-                            touchpadTexture = texture "scale-up"
+                            mainTouchpadTexture = texture "scale-up"
                             contrScreenTexture = texture "scaling-up"}
                     else
                         let minScale = 0.001
@@ -371,11 +377,11 @@ module AppUpdate =
                         let newScale =  if currScale <= minScale then minScale else currScale
                         {model with 
                             scalingFactorHera = newScale
-                            touchpadTexture = texture "scale-down"
+                            mainTouchpadTexture = texture "scale-down"
                             contrScreenTexture = texture "scaling-down"}
                 else 
                     {model with 
-                        touchpadTexture = texture "initial-scaling"
+                        mainTouchpadTexture = texture "initial-scaling"
                         contrScreenTexture = texture "empty"}
             | _ -> model
         | MoveController (id, (trafo : Trafo3d)) -> 
@@ -417,7 +423,7 @@ module AppUpdate =
                     initRay, C4b.Red, PixelPosition()
 
             let newHeraScaleTrafo = 
-                if model.grabbingHera && model.touchpadDeviceId.IsSome then
+                if model.grabbingHera && model.mainTouching then
                     //printf "UPDATE SCALING \n"
                     Trafo3d(Scale3d(model.scalingFactorHera))
                 else 
@@ -468,7 +474,7 @@ module AppUpdate =
 
             ////SHOW CONTROLLER TEXTURES WHEN INTERSECTING WITH A PROBE
             let tex, screenTex = 
-                if not model.grabbingHera && not model.controllerMenuOpen && not model.changeProbeAttribute then 
+                if not model.grabbingHera && not model.mainMenuOpen && not model.changeProbeAttribute then 
                     match mainContrProbeIntersection with
                     | Some probeId when model.allProbes.TryFind(probeId).IsSome ->
                         let intersectedProbe = model.allProbes.Item probeId
@@ -490,16 +496,15 @@ module AppUpdate =
                                 | RenderValue.Pressure -> texture "probe-pressure"
                                 | RenderValue.Density -> texture "probe-density"
                                 | _ -> model.contrScreenTexture
-                            model.touchpadTexture, newContrScreenTexture
+                            model.mainTouchpadTexture, newContrScreenTexture
                         else 
-                            model.touchpadTexture, model.lastContrScreenModeTexture
+                            model.mainTouchpadTexture, model.lastContrScreenModeTexture
                 else 
-                    model.touchpadTexture, model.contrScreenTexture
+                    model.mainTouchpadTexture, model.contrScreenTexture
 
             //let screenTex = if probeIntersection.IsSome then texture "grab-sphere" else model.contrScreenTexture
 
             //CLIPPING PLANE UPDATE
-            //let clippingContrTrafo = newOrOldTrafo id trafo model.clippingPlaneDeviceId model.clippingPlaneDeviceTrafo
             let currCorners = 
                 if model.holdClipping && model.clippingActive then
                     let p0 = mainContrTrafo.Forward.TransformPos(planePos0)
@@ -568,20 +573,20 @@ module AppUpdate =
 
 
             //MENU, TOUCHPAD AND TEXTURES TRAFOS
-            let currMenuTrafo = newOrOldTrafo id trafo model.menuControllerId model.menuControllerTrafo
-            let newTouchpadDeviceTrafo = newOrOldTrafo id trafo model.touchpadDeviceId model.touchpadDeviceTrafo 
+            let currMenuTrafo = newOrOldTrafo id trafo model.mainControllerId model.mainControllerTrafo
+            //let newTouchpadDeviceTrafo = newOrOldTrafo id trafo model.mainControllerId model.main 
             let textureContrTrafo = newOrOldTrafo id trafo model.mainControllerId model.textureDeviceTrafo
             let newTextureDeviceTrafo = 
-                if model.controllerMenuOpen then currMenuTrafo
+                if model.mainMenuOpen then currMenuTrafo
                 else if model.grabbingHera then mainContrTrafo
                 else if mainContrProbeIntersection.IsSome then textureContrTrafo
                 else model.textureDeviceTrafo
 
-            let showTexture = 
+            let showMainTexture = 
                 if mainContrProbeIntersection.IsSome then 
                     true
                 else 
-                    model.grabbingHera || model.controllerMenuOpen || model.changeProbeAttribute
+                    model.grabbingHera || model.mainMenuOpen //|| model.changeProbeAttribute
         
             {model with 
                 devicesTrafos = newInput
@@ -591,27 +596,27 @@ module AppUpdate =
                 ray = currRay
                 planeCorners = currCorners
                 screenIntersection = intersect
-                menuControllerTrafo = currMenuTrafo
+                //menuControllerTrafo = currMenuTrafo
                 rayColor = rColor
                 hitPoint = hit.Point
                 screenHitPoint = hit.Coord
                 screenCoordsHitPos = screenCoordsHitPos
                 mainContrProbeIntersectionId = mainContrProbeIntersection
                 secondContrProbeIntersectionId = secondContrProbeIntersection
-                touchpadTexture = tex
+                mainTouchpadTexture = tex
                 contrScreenTexture = screenTex
-                showTexture = showTexture
+                showMainTexture = showMainTexture
                 heraBox = heraBBox
                 allProbes = allProbesUpdated
                 heraTransformations = heraTrafos
                 lastHeraScaleTrafo = newHeraScaleTrafo
-                touchpadDeviceTrafo = newTouchpadDeviceTrafo
+                //touchpadDeviceTrafo = newTouchpadDeviceTrafo
                 textureDeviceTrafo = newTextureDeviceTrafo
                 newProbePlaced = (if model.newProbePlaced then false else model.newProbePlaced)}
         | ActivateControllerMode id ->
             match model.mainControllerId with 
             | Some i when i = id  -> 
-                if not model.controllerMenuOpen then 
+                if not model.mainMenuOpen then 
                     match model.controllerMode with
                     | ControllerMode.Probe -> callUpdate (CreateProbe id)
                     | ControllerMode.Ray -> callUpdate (CreateRay id)
@@ -699,7 +704,7 @@ module AppUpdate =
                 | _ -> model
             | None -> model
         | DeactivateControllerMode id ->
-            if not model.controllerMenuOpen then 
+            if not model.mainMenuOpen then 
                 match model.controllerMode with 
                 | ControllerMode.Probe -> 
                     match model.mainControllerId with
@@ -812,27 +817,27 @@ module AppUpdate =
                 | _ -> model
             else 
                 model 
-        | ToggleControllerMenu id -> 
-            let r, theta = convertCartesianToPolar model.currTouchPadPos
+        | ToggleMainMenu id -> 
+            //let r, theta = convertCartesianToPolar model.currTouchPadPos
             let level, isOpen = 
                 let closeMenu = 0, false
                 let goToNextMenu = (model.menuLevel + 1), true
                 if model.mainContrProbeIntersectionId.IsNone && not model.grabbingHera && not model.changeProbeAttribute then 
-                    match model.menuControllerId with 
+                    match model.mainControllerId with 
                     | Some i when i = id ->
                         match model.menuLevel with
                         | 0 -> goToNextMenu
-                        | 1 -> if model.controllerMode = ControllerMode.Probe then goToNextMenu else closeMenu
+                        | 1 -> closeMenu //if model.controllerMode = ControllerMode.Probe then goToNextMenu else closeMenu
                         | _ -> closeMenu
-                    | _ -> 1, true
+                    | _ -> model.menuLevel, model.mainMenuOpen
                 else 
                     closeMenu
             let screenTex = if not isOpen then model.lastContrScreenModeTexture else model.contrScreenTexture
             {model with 
                 menuLevel = level
-                controllerMenuOpen = isOpen}
+                mainMenuOpen = isOpen}
         | OpenProbeAttributeMenu id ->
-            let r, theta = convertCartesianToPolar model.currTouchPadPos
+            let r, theta = convertCartesianToPolar model.currSecondTouchPadPos
             match model.mainControllerId with 
             | Some i when i = id ->
                 let probeAttribute = model.mainContrProbeIntersectionId.IsSome && theta >= 180.0 && theta < 360.0 && model.menuLevel = 0 && not model.changeProbeAttribute                        
@@ -840,26 +845,24 @@ module AppUpdate =
                     changeProbeAttribute = probeAttribute 
                     lastIntersectedProbe = model.mainContrProbeIntersectionId}                        
             | _ -> model
-        | OpenControllerMenu id ->
+        | OpenMainMenu id ->
             let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
             let texture, screenTexture =
                 match model.menuLevel with
                 | l when l = 1 -> if model.controllerMode = ControllerMode.NoneMode then (texture "initial"), (texture "select-tool") else model.lastTouchpadModeTexture, model.lastContrScreenModeTexture
                 | l when l = 2 -> (texture "initial-attributes"), (texture "select-attribute")
-                | _ -> model.touchpadTexture, model.contrScreenTexture
-            if model.controllerMenuOpen then //TODO: Handle the case when opening the menu with the first controller and clicking on the second controller
+                | _ -> model.mainTouchpadTexture, model.contrScreenTexture
+            if model.mainMenuOpen then //TODO: Handle the case when opening the menu with the first controller and clicking on the second controller
                 {model with 
-                    menuControllerTrafo = currDeviceTrafo
-                    menuControllerId = Some id
                     textureDeviceTrafo = currDeviceTrafo
-                    touchpadTexture = texture
+                    mainTouchpadTexture = texture
                     contrScreenTexture = screenTexture}
             else    
-                {model with menuControllerId = None}
-        | ChangeControllerMode id -> 
-            match model.menuControllerId with  
-            | Some i when i = id && model.menuLevel = 1 && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone -> 
-                let r, theta = convertCartesianToPolar model.currTouchPadPos
+                model
+        | ChangeMainControllerMode id -> 
+            match model.mainControllerId with  
+            | Some i when i = id && model.mainMenuOpen && model.menuLevel = 1 && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone -> 
+                let r, theta = convertCartesianToPolar model.currMainTouchPadPos
                 let newContrlMode = 
                     if r >= 0.5 then 
                         match theta with 
@@ -871,7 +874,7 @@ module AppUpdate =
                         model.controllerMode
                 let texture, screenTexture = 
                     match model.controllerMode with 
-                    | m when m = newContrlMode -> model.touchpadTexture, model.contrScreenTexture // if the  controller mode is the same then texture should not be loaded again   
+                    | m when m = newContrlMode -> model.mainTouchpadTexture, model.contrScreenTexture // if the  controller mode is the same then texture should not be loaded again   
                     | _ ->
                         let texName, screenTexName = 
                             match newContrlMode with
@@ -882,7 +885,7 @@ module AppUpdate =
                         (texture texName), (texture screenTexName)
                 {model with 
                     controllerMode = newContrlMode
-                    touchpadTexture = texture
+                    mainTouchpadTexture = texture
                     lastTouchpadModeTexture = texture
                     contrScreenTexture = screenTexture
                     lastContrScreenModeTexture = screenTexture
@@ -891,10 +894,10 @@ module AppUpdate =
             | _ -> model
         | ChangeBillboard id ->
             match model.mainContrProbeIntersectionId with
-            | Some probeId when not model.changeProbeAttribute && not model.controllerMenuOpen && not model.grabbingHera && not model.probeAttributeSelected ->
+            | Some probeId when not model.changeProbeAttribute && not model.mainMenuOpen && not model.grabbingHera && not model.probeAttributeSelected ->
                 match model.mainControllerId with 
-                | Some i when i = id && model.touchpadDeviceId.IsSome ->
-                    let r, theta = convertCartesianToPolar model.currTouchPadPos
+                | Some i when i = id && model.mainTouching ->
+                    let r, theta = convertCartesianToPolar model.currMainTouchPadPos
                     let intersectedProbe = model.allProbes.Item probeId
                     let newBillboardType = 
                         match theta with 
@@ -913,19 +916,19 @@ module AppUpdate =
                         (texture texName), (texture screenTexName)
                     {model with 
                         allProbes = allProbesUpdated
-                        touchpadTexture = texture
+                        mainTouchpadTexture = texture
                         contrScreenTexture = screenTexture}
                         //showTexture = true}
                 | _ -> model
             | _ -> model
         | SelectGlobalAttribute id ->
-            match model.menuControllerId with  
+            match model.mainControllerId with  
             | Some i when i = id && model.menuLevel = 2 && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone -> 
-                let newAttribute = computeNewAttribute model.currTouchPadPos model.attribute 
+                let newAttribute = computeNewAttribute model.currSecondTouchPadPos model.attribute 
                 let texture, screenTexture = computeNewAttributeTextures newAttribute model.attribute
                 {model with 
                     attribute = newAttribute
-                    touchpadTexture = texture
+                    secondTouchpadTexture = texture
                     contrScreenTexture = screenTexture}
             | _ -> model
         | SelectProbeAttribute id ->
@@ -936,7 +939,7 @@ module AppUpdate =
                     let intersectedProbe = model.allProbes.TryFind(probeId)
                     if intersectedProbe.IsSome then 
                         let probe = intersectedProbe.Value
-                        let newAttribute = computeNewAttribute model.currTouchPadPos probe.currAttribute
+                        let newAttribute = computeNewAttribute model.currSecondTouchPadPos probe.currAttribute
                         let texture, screenTexture = computeNewAttributeTextures newAttribute probe.currAttribute
                         let updatedProbe = {probe with currAttribute = newAttribute}
                         let update (pr : Option<Probe>) = updatedProbe 
@@ -965,7 +968,7 @@ module AppUpdate =
                         {model with 
                             allProbes = allProbesUpdated
                             probeAttributeSelected = true
-                            touchpadTexture = texture
+                            secondTouchpadTexture = texture
                             contrScreenTexture = screenTexture
                             twoDModel = updatedTwoDmodel
                             threads = ThreadPool.start threadsVr ThreadPool.empty}
@@ -974,24 +977,31 @@ module AppUpdate =
                 | None -> model
             | _ -> model
         | ChangeTouchpadPos (id, pos) -> 
-           // printf "CHANGE TOUCHPAD POS %A \n" pos
-            //let currTouchDevice = trafoOrIdentity (model.devicesTrafos.TryFind(id))
             match model.mainControllerId with 
             | Some i when i = id && model.rayActive && model.screenIntersection -> 
-               // printf "client SCROLL \n" 
                 client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
             | _ -> ()
+
             //when both X and Y are equal to 0.0 it means we are currently not touching the touchpad
-            let newId, probeAttribSelected = 
-                if pos.X = 0.0 && pos.Y = 0.0 then
-                    //printf "UNTOUCH \n"
-                    None, false 
-                else 
-                    Some id, model.probeAttributeSelected
+            let mainPos, mainTouching =
+                match model.mainControllerId with
+                | Some i when i = id -> pos, pos <> V2d.OO
+                | _ -> model.currMainTouchPadPos, model.mainTouching
+
+            let secondPos, secondTouching =     
+                match model.secondControllerId with
+                | Some i when i = id -> pos, pos <> V2d.OO
+                | _ -> model.currSecondTouchPadPos, model.secondTouching
+
+            //TODO: fix
+            let probeAttribSelected = 
+                if pos.X = 0.0 && pos.Y = 0.0 then false else model.probeAttributeSelected
 
             {model with 
-                currTouchPadPos = pos
-                touchpadDeviceId = newId 
+                currMainTouchPadPos = mainPos
+                currSecondTouchPadPos = secondPos
+                mainTouching = mainTouching
+                secondTouching = secondTouching
                 probeAttributeSelected = probeAttribSelected}
         | SetTexture (t, p) ->
             let probeHistogramsUpdated = 
@@ -1005,12 +1015,12 @@ module AppUpdate =
                     { probe with currHistogram = newHistogramTexture}
                 )
             {model with allProbes = probeHistogramsUpdated}
-        | TouchDevice id ->
-             {model with touchpadDeviceId = Some id} 
-        | UntouchDevice id ->
+        | TouchDevice id -> model
+             //{model with touchpadDeviceId = Some id} 
+        | UntouchDevice id -> model
             //let tex = if model.allowHeraScaling then (texture "initial-scaling") else model.touchpadTexture
-            match model.touchpadDeviceId with 
-            | Some i when i = id -> 
-                {model with touchpadDeviceId = None} 
-            | _ -> model
+            //match model.touchpadDeviceId with 
+            //| Some i when i = id -> 
+            //    {model with touchpadDeviceId = None} 
+            //| _ -> model
         | ResetHera -> initial runtime frames
