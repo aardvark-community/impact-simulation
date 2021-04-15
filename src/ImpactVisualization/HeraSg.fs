@@ -7,6 +7,8 @@ open Aardvark.Base.Rendering
 open FSharp.Data.Adaptive
 open Aardvark.SceneGraph
 open AardVolume.Model
+open System.Runtime.InteropServices
+open System.Threading
 
 module Shaders = 
 
@@ -28,6 +30,9 @@ module Shaders =
 
             [<PointSize>] // gl_PointSize
             pointSize : float
+
+            [<Semantic("linearCoord")>]
+            linearCoord : float
 
             [<PointCoord>] // gl_PointCoord
             pointCoord : V2d
@@ -190,11 +195,15 @@ module Shaders =
                     if (isInAllRanges) then
                         yield  { p.Value with 
                                     pointColor = color
-                                    pointSize = uniform?PointSize}
+                                    pointSize = uniform?PointSize
+                                    linearCoord = linearCoord // give linearCoord to fs or decide alpha here - in fs it might be more flexible - one could fade out points
+                               }
                 else
                     yield { p.Value with 
                                 pointColor = color
-                                pointSize = uniform?PointSize}
+                                pointSize = uniform?PointSize
+                                linearCoord = linearCoord
+                          }
         }
       
     let internal pointSpriteVr (p : Point<Vertex>) = 
@@ -302,7 +311,9 @@ module Shaders =
             if pointInDomainRange && pointInsidePlanes && isOutsideControllerPlane && not discardByRanges then
                 yield  { p.Value with 
                             pointColor = color
-                            pointSize = pSize}
+                            pointSize = pSize;
+                            linearCoord = linearCoord // give linearCoord to fs or decide alpha here - in fs it might be more flexible - one could fade out points
+                       }
         }
         
     let fs (v : Vertex) = 
@@ -369,7 +380,7 @@ module Shaders =
             //return V4d(v.pointColor.XYZ * l, 1.0)
 
             return {v with 
-                        pointColor = c
+                        pointColor = V4d(c.XYZ,0.05 * v.linearCoord) // proper transfer function needed here for transparency
                         depth = dep}
         }
 
@@ -392,6 +403,48 @@ module HeraSg =
                     dst.[id] <- viewPos
             }
 
+    // utilities - for rendering - no outside use.
+    let private composeBackwards =
+        // check composition scheme if this is really smartest
+        let mutable mode = BlendMode(true)
+        mode.Enabled <- true
+        mode.Operation <- BlendOperation.Add
+        mode.AlphaOperation <- BlendOperation.Add
+        mode.SourceFactor <- BlendFactor.SourceAlpha
+        mode.DestinationFactor <- BlendFactor.InvSourceAlpha
+        mode.SourceAlphaFactor <- BlendFactor.One
+        mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
+        mode
+
+
+    let private createIndex (vertexCount : int) (positions : aval<V3f[]>) (cameraLocation : aval<V3d>) = 
+        let currentBuffer = cval (Array.init vertexCount id)
+        let sorter () = 
+            while true do
+                // get current positiosn and camera location
+                let cameraLocation = cameraLocation.GetValue() |> V3f
+                let positions = positions.GetValue()
+
+                // compute distances
+                let distances = positions |> Array.map (fun (p : V3f) -> (cameraLocation - p).LengthSquared)
+                // create permutation array
+                let indices = distances.CreatePermutationQuickSortDescending()
+                // update index buffer
+                transact (fun _ -> currentBuffer.Value <- indices)
+
+        let sortThread = Thread(sorter)
+        // no clean shudown implemented (TODO), thus, we use background thread which goes away on shutdown
+        sortThread.IsBackground <- true
+        sortThread.Priority <- ThreadPriority.Lowest // should not be too invasive
+        sortThread.Start()
+
+        currentBuffer :> aval<_>
+
+    let transparencyModes (transparencyEnabled : aval<bool>) (sg : ISg) =
+        let depthWrite = transparencyEnabled |> AVal.map not // enabled depth write if no transparancy wanted
+        let blendMode = transparencyEnabled |> AVal.map (function true -> composeBackwards | _ -> BlendMode.None) // blending only if transparency enabled
+        sg |> Sg.depthMask depthWrite |> Sg.blendMode blendMode
+
     let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) 
                          (normalizeData : aval<bool>) (enableShading : aval<bool>)
                          (reconstructNormal : aval<bool>) (reconstructDepth : aval<bool>)
@@ -407,15 +460,6 @@ module HeraSg =
 
         let vertexCount = frames.[0].positions.Length       
         let dci = DrawCallInfo(vertexCount, InstanceCount = 1)
-
-        let mutable mode = BlendMode(true)
-        mode.Enabled <- true
-        mode.Operation <- BlendOperation.Add
-        mode.AlphaOperation <- BlendOperation.Add
-        mode.SourceFactor <- BlendFactor.SourceAlpha
-        mode.DestinationFactor <- BlendFactor.InvSourceAlpha
-        mode.SourceAlphaFactor <- BlendFactor.One
-        mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
 
         let viewTrafo = cameraView |> AVal.map (fun cV -> cV.ViewTrafo.Forward)
         let pointRadius = AVal.constant 1.0
@@ -451,7 +495,13 @@ module HeraSg =
         //|> Sg.vertexAttribute (Sym.ofString "Pressure") (currFrame |> AVal.map (fun f -> Array.map float32 f.pressures))
 
 
+        // creating an index does not harm - any ways.
+        let index = createIndex vertexCount (frame |> AVal.map (fun i -> frames.[i].positions)) (cameraView |> AVal.map CameraView.location) 
+        let transparencyEnabled = AVal.constant true
+
+
         Sg.render IndexedGeometryMode.PointList dci 
+        |> Sg.index index
         |> Sg.vertexBuffer DefaultSemantic.Positions (BufferView(positions, typeof<V4f>))
         |> Sg.vertexBuffer DefaultSemantic.Normals (BufferView(normals, typeof<V3f>))
         |> Sg.vertexBuffer (Sym.ofString "Velocity") (BufferView(velocities, typeof<V3f>))
@@ -486,8 +536,7 @@ module HeraSg =
         |> Sg.uniform "DataRange" dataRange
         |> Sg.uniform "Color" color
         |> Sg.uniform "Alpha" ~~0.01
-        //|> Sg.depthTest ~~DepthTestMode.None
-        //|> Sg.blendMode ~~mode
+        |> transparencyModes transparencyEnabled // apply transparency dependent attributes
   
     //TODO: Create a function containing repetitive code
     let createAnimatedVrSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) 
@@ -544,7 +593,12 @@ module HeraSg =
         //|> Sg.vertexAttribute (Sym.ofString "AlphaJutzi") (currFrame |> AVal.map (fun f -> Array.map float32 f.alphaJutzis))
         //|> Sg.vertexAttribute (Sym.ofString "Pressure") (currFrame |> AVal.map (fun f -> Array.map float32 f.pressures))
 
+        // creating an index does not harm - any ways.
+        let index = createIndex vertexCount (frame |> AVal.map (fun i -> frames.[i].positions)) (cameraView |> AVal.map CameraView.location) 
+        let transparencyEnabled = AVal.constant true
+
         Sg.render IndexedGeometryMode.PointList dci 
+        |> Sg.index index
         |> Sg.vertexBuffer DefaultSemantic.Positions (BufferView(positions, typeof<V4f>))
         |> Sg.vertexBuffer DefaultSemantic.Normals (BufferView(normals, typeof<V3f>))
         |> Sg.vertexBuffer (Sym.ofString "Velocity") (BufferView(velocities, typeof<V3f>))
@@ -583,3 +637,5 @@ module HeraSg =
         |> Sg.uniform "SphereProbe" sphereProbe  
         |> Sg.uniform "SpheresInfos" allSpheres
         |> Sg.uniform "SpheresLength" spheresLength
+        |> transparencyModes transparencyEnabled // apply transparency dependent attributes
+  
