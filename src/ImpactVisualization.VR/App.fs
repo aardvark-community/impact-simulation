@@ -123,7 +123,7 @@ module Demo =
 
         let pPositions =  AVal.constant  [|V3f(-1.588, -0.5, 0.31); V3f(1.588, -0.5, 0.31); V3f(1.588, 0.5, 0.31); V3f(-1.588, 0.5, 0.31)|]
 
-        let textPlaneSg = 
+        let textPlaneSg showTexture texture = 
             Sg.draw IndexedGeometryMode.TriangleList
             |> Sg.vertexAttribute DefaultSemantic.Positions pPositions
             |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
@@ -131,11 +131,25 @@ module Demo =
             |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
             |> Sg.translate 0.0 -0.0006 0.0
             |> Sg.scale 0.022
-            |> Sg.diffuseTexture m.contrScreenTexture
+            |> Sg.onOff showTexture
+            |> Sg.diffuseTexture texture
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.diffuseTexture
-            }
+            }     
+            
+        let showTextPlaneTexture deviceId contrId = 
+            (deviceId, contrId) 
+            ||> AVal.map2 (fun (currId : int) (id : Option<int>) -> 
+                match id with 
+                | Some i when i = currId -> true
+                | _ -> false)
+
+        let textPlaneSgs deviceId = 
+            let showMainTexture = showTextPlaneTexture deviceId m.mainControllerId
+            let showSecondTexture = showTextPlaneTexture deviceId m.secondControllerId
+            textPlaneSg showMainTexture m.mainContrScreenTexture
+            |> Sg.andAlso (textPlaneSg showSecondTexture m.secondContrScreenTexture)
 
         let texturePositions =  AVal.constant  [|V3f(-1.0, -1.0, 0.0); V3f(1.0, -1.0, 0.0); V3f(1.0, 1.0, 0.0); V3f(-1.0, 1.0, 0.0)|]
 
@@ -159,9 +173,9 @@ module Demo =
         let showTexture deviceId contrId showTex = 
             (deviceId, contrId, showTex) 
             |||> AVal.map3 (fun (currId : int) (id : Option<int>) show -> 
-                if id.IsSome then 
-                    if currId = id.Value then show else false
-                else false)
+                match id with 
+                | Some i when i = currId -> show
+                | _ -> false)
 
         let touchpadSgs deviceId = 
             let showMainTexture = showTexture deviceId m.mainControllerId m.showMainTexture
@@ -213,7 +227,7 @@ module Demo =
                         sg 
                         |> Sg.noEvents 
                         |> Sg.andAlso textScreenSg
-                        |> Sg.andAlso textPlaneSg
+                        |> Sg.andAlso (textPlaneSgs d.id)
                         |> Sg.andAlso (touchpadSgs d.id)
                         |> Sg.trafo d.pose.deviceToWorld
                         |> Sg.onOff d.pose.isValid

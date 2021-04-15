@@ -193,10 +193,9 @@ type Model =
         showSecondTexture : bool
 
         lastTouchpadModeTexture : ITexture
-        textureDeviceTrafo : Trafo3d
+        //textureDeviceTrafo : Trafo3d
 
-
-
-        contrScreenTexture : ITexture
+        mainContrScreenTexture : ITexture
+        secondContrScreenTexture : ITexture
         lastContrScreenModeTexture : ITexture
 }
