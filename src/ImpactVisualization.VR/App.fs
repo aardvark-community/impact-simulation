@@ -156,9 +156,18 @@ module Demo =
                 do! TouchpadShaders.fragmentSh
             }
 
-        let mainTouchpadPlaneSg = touchpadPlaneSg m.showMainTexture m.mainTouchpadTexture
+        let showTexture deviceId contrId showTex = 
+            (deviceId, contrId, showTex) 
+            |||> AVal.map3 (fun (currId : int) (id : Option<int>) show -> 
+                if id.IsSome then 
+                    if currId = id.Value then show else false
+                else false)
 
-        let secondTouchpadPlaneSg = touchpadPlaneSg m.showSecondTexture m.secondTouchpadTexture
+        let touchpadSgs deviceId = 
+            let showMainTexture = showTexture deviceId m.mainControllerId m.showMainTexture
+            let showSecondTexture = showTexture deviceId m.secondControllerId m.showSecondTexture
+            touchpadPlaneSg showMainTexture m.mainTouchpadTexture
+            |> Sg.andAlso (touchpadPlaneSg showSecondTexture m.secondTouchpadTexture)
 
         //let touchingMain = m.touchpadDeviceId |> AVal.map (fun id -> id.IsSome)
 
@@ -168,22 +177,16 @@ module Demo =
         let touchpadPosSecond = m.currSecondTouchPadPos |> AVal.map (fun pos -> let z = tan (6.5 * (Math.PI / 180.0))
                                                                                 V3d(pos, z * (pos.Y + 1.0)) * 0.019)
 
-        let touchpadSphereSg = 
+        let touchpadSphereSg pos trafo touching = 
             Sg.sphere' 9 C4b.LightGreen 0.002
             |> Sg.noEvents
             |> Sg.translate 0.0 -0.05 0.0035 // translation so that it is in the middle of the touchpad
+            |> Sg.translate' pos
+            |> Sg.trafo trafo
+            |> Sg.onOff touching
 
-        let mainTouchpadSphereSg = 
-            touchpadSphereSg
-            |> Sg.translate' touchpadPosMain
-            |> Sg.trafo m.mainControllerTrafo
-            |> Sg.onOff m.mainTouching
-
-        let secondTouchpadSphereSg = 
-            touchpadSphereSg
-            |> Sg.translate' touchpadPosSecond
-            |> Sg.trafo m.secondControllerTrafo
-            |> Sg.onOff m.secondTouching
+        let mainTouchpadSphereSg = touchpadSphereSg touchpadPosMain m.mainControllerTrafo m.mainTouching
+        let secondTouchpadSphereSg = touchpadSphereSg touchpadPosSecond m.secondControllerTrafo m.secondTouching
 
         //let textPlaneSg = 
         //    Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"controllerText";"plane.obj"])
@@ -204,15 +207,6 @@ module Demo =
             info.state.devices |> AMap.toASet |> ASet.chooseA (fun (_,d) ->
                 //printf "Device Type: %A, %A \n" d.kind d.id
                 //printf "Device Vibrate: %A \n" d.startVibrate  
-                let touchpadSg  = 
-                    (d.id, m.mainControllerId, m.secondControllerId) |||> AVal.map3 (fun id mId sId ->
-                        match mId with
-                        | Some i when i = id -> mainTouchpadPlaneSg
-                        | _ ->
-                            match sId with
-                            | Some i when i = id -> secondTouchpadPlaneSg
-                            | _ -> Sg.empty)
-                    |> Sg.dynamic
                 d.model |> AVal.map (fun m ->
                     match m.Value with
                     | Some sg -> 
@@ -220,7 +214,7 @@ module Demo =
                         |> Sg.noEvents 
                         |> Sg.andAlso textScreenSg
                         |> Sg.andAlso textPlaneSg
-                        |> Sg.andAlso touchpadSg
+                        |> Sg.andAlso (touchpadSgs d.id)
                         |> Sg.trafo d.pose.deviceToWorld
                         |> Sg.onOff d.pose.isValid
                         |> Some
