@@ -163,8 +163,10 @@ type Model =
         statistics : string
                 
         //Controller clipping plane
-        clippingPlaneDeviceTrafo : Trafo3d
-        clippingPlaneDeviceId : Option<int>
+        //clippingPlaneDeviceTrafo : Trafo3d
+        //clippingPlaneDeviceId : Option<int>
+        holdClipping : bool
+        clippingActive : bool
         planeCorners : Quad3d
 
         //Controller menu

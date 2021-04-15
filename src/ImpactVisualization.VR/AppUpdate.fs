@@ -205,8 +205,10 @@ module AppUpdate =
             hitPoint = V3d.OOO
             screenHitPoint = V2d.OO
             screenCoordsHitPos = PixelPosition()
-            clippingPlaneDeviceTrafo = Trafo3d.Identity
-            clippingPlaneDeviceId = None
+            //clippingPlaneDeviceTrafo = Trafo3d.Identity
+            //clippingPlaneDeviceId = None
+            holdClipping = false
+            clippingActive = false
             planeCorners = Quad3d(V3d(), V3d(), V3d(), V3d())
             controllerMenuOpen = false
             menuControllerTrafo = Trafo3d.Identity
@@ -497,16 +499,15 @@ module AppUpdate =
             //let screenTex = if probeIntersection.IsSome then texture "grab-sphere" else model.contrScreenTexture
 
             //CLIPPING PLANE UPDATE
-            let clippingContrTrafo = newOrOldTrafo id trafo model.clippingPlaneDeviceId model.clippingPlaneDeviceTrafo
+            //let clippingContrTrafo = newOrOldTrafo id trafo model.clippingPlaneDeviceId model.clippingPlaneDeviceTrafo
             let currCorners = 
-                match model.clippingPlaneDeviceId with
-                | Some id ->
-                    let p0 = clippingContrTrafo.Forward.TransformPos(planePos0)
-                    let p1 = clippingContrTrafo.Forward.TransformPos(planePos1)
-                    let p2 = clippingContrTrafo.Forward.TransformPos(planePos2)
-                    let p3 = clippingContrTrafo.Forward.TransformPos(planePos3)
+                if model.holdClipping && model.clippingActive then
+                    let p0 = mainContrTrafo.Forward.TransformPos(planePos0)
+                    let p1 = mainContrTrafo.Forward.TransformPos(planePos1)
+                    let p2 = mainContrTrafo.Forward.TransformPos(planePos2)
+                    let p3 = mainContrTrafo.Forward.TransformPos(planePos3)
                     Quad3d(p0, p1, p2, p3)
-                | None -> model.planeCorners
+                else model.planeCorners
 
             //PROBES UPDATE WHEN HERA GRABBED
             let probesUpdate =
@@ -588,7 +589,6 @@ module AppUpdate =
                 secondControllerTrafo = secondContrTrafo
                 sphereScale = scalingFactor
                 ray = currRay
-                clippingPlaneDeviceTrafo = clippingContrTrafo
                 planeCorners = currCorners
                 screenIntersection = intersect
                 menuControllerTrafo = currMenuTrafo
@@ -658,17 +658,10 @@ module AppUpdate =
             let p1 = model.mainControllerTrafo.Forward.TransformPos(planePos1)
             let p2 = model.mainControllerTrafo.Forward.TransformPos(planePos2)
             let p3 = model.mainControllerTrafo.Forward.TransformPos(planePos3)
-            //match model.clippingPlaneDeviceId with 
-            //| Some i when i = id -> 
-            //    {model with 
-            //        clippingPlaneDeviceTrafo = trafo
-            //        clippingPlaneDeviceId = Some id}
-            //| None -> 
             {model with 
-                planeCorners = Quad3d(p0, p1, p2, p3)}
-            //        clippingPlaneDeviceTrafo = trafo
-            //        clippingPlaneDeviceId = Some id}
-            //| _ -> model
+                planeCorners = Quad3d(p0, p1, p2, p3)
+                holdClipping = true
+                clippingActive = true}
         | ScaleProbe id ->
             match model.secondControllerId with 
             | Some i when i = id -> 
@@ -813,14 +806,12 @@ module AppUpdate =
                             clickPosition = None}
                     | _ -> model
                 | ControllerMode.Clipping -> 
-                    match model.clippingPlaneDeviceId with 
-                    | Some i when i = id -> {model with clippingPlaneDeviceId = None}
+                    match model.mainControllerId with 
+                    | Some i when i = id -> {model with holdClipping = false}
                     | _ -> model
                 | _ -> model
             else 
-                { model with 
-                    clippingPlaneDeviceId = None 
-                }
+                model 
         | ToggleControllerMenu id -> 
             let r, theta = convertCartesianToPolar model.currTouchPadPos
             let level, isOpen = 
@@ -839,8 +830,7 @@ module AppUpdate =
             let screenTex = if not isOpen then model.lastContrScreenModeTexture else model.contrScreenTexture
             {model with 
                 menuLevel = level
-                controllerMenuOpen = isOpen
-                clippingPlaneDeviceId = None }
+                controllerMenuOpen = isOpen}
         | OpenProbeAttributeMenu id ->
             let r, theta = convertCartesianToPolar model.currTouchPadPos
             match model.mainControllerId with 
@@ -896,7 +886,8 @@ module AppUpdate =
                     lastTouchpadModeTexture = texture
                     contrScreenTexture = screenTexture
                     lastContrScreenModeTexture = screenTexture
-                    rayActive = false}
+                    rayActive = false
+                    clippingActive = false}
             | _ -> model
         | ChangeBillboard id ->
             match model.mainContrProbeIntersectionId with

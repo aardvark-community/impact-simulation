@@ -380,7 +380,8 @@ module Shaders =
             //return V4d(v.pointColor.XYZ * l, 1.0)
 
             return {v with 
-                        pointColor = V4d(c.XYZ,0.05 * v.linearCoord) // proper transfer function needed here for transparency
+                        pointColor = c
+                        //pointColor = V4d(c.XYZ,0.05 * v.linearCoord) // proper transfer function needed here for transparency
                         depth = dep}
         }
 
@@ -497,7 +498,7 @@ module HeraSg =
 
         // creating an index does not harm - any ways.
         let index = createIndex vertexCount (frame |> AVal.map (fun i -> frames.[i].positions)) (cameraView |> AVal.map CameraView.location) 
-        let transparencyEnabled = AVal.constant true
+        let transparencyEnabled = AVal.constant false
 
 
         Sg.render IndexedGeometryMode.PointList dci 
@@ -595,7 +596,7 @@ module HeraSg =
 
         // creating an index does not harm - any ways.
         let index = createIndex vertexCount (frame |> AVal.map (fun i -> frames.[i].positions)) (cameraView |> AVal.map CameraView.location) 
-        let transparencyEnabled = AVal.constant true
+        let transparencyEnabled = AVal.constant false
 
         Sg.render IndexedGeometryMode.PointList dci 
         |> Sg.index index
