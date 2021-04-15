@@ -221,12 +221,12 @@ module Demo =
                 let touchpadPlaneSg = 
                     (d.id, m.mainControllerId, m.secondControllerId)
                     |||> AVal.map3 (fun id mId sId ->
-                        if id = mId.Value then mainTouchpadPlaneSg 
-                        else if id = sId.Value then secondTouchpadPlaneSg
+                        if mId.IsSome && sId.IsSome then
+                            if id = mId.Value then mainTouchpadPlaneSg 
+                            else if id = sId.Value then secondTouchpadPlaneSg
+                            else Sg.empty
                         else Sg.empty)
-
                 (d.model, touchpadPlaneSg) ||> AVal.map2 (fun model touchpadSg ->
-                    //let touchpadPlaneSg = (m.mainControllerId, m.secondControllerId) ||> AVal.map2 (fun main second -> if id = main.Value then mainTouchpadPlaneSg else secondTouchpadSphereSg)
                     match model.Value with
                     | Some sg -> 
                         sg 

@@ -1015,9 +1015,31 @@ module AppUpdate =
                     { probe with currHistogram = newHistogramTexture}
                 )
             {model with allProbes = probeHistogramsUpdated}
-        | TouchDevice id -> model
+        | TouchDevice id ->
+            let mainTouching = 
+                match model.mainControllerId with
+                | Some i when i = id -> true
+                | _ -> model.mainTouching
+            let secondTouching = 
+                match model.secondControllerId with
+                | Some i when i = id -> true
+                | _ -> model.secondTouching
+            {model with 
+                mainTouching = mainTouching
+                secondTouching = secondTouching}
              //{model with touchpadDeviceId = Some id} 
-        | UntouchDevice id -> model
+        | UntouchDevice id ->
+            let mainTouching = 
+                match model.mainControllerId with
+                | Some i when i = id -> false
+                | _ -> model.mainTouching
+            let secondTouching = 
+                match model.secondControllerId with
+                | Some i when i = id -> false
+                | _ -> model.secondTouching
+            {model with 
+                mainTouching = mainTouching
+                secondTouching = secondTouching}
             //let tex = if model.allowHeraScaling then (texture "initial-scaling") else model.touchpadTexture
             //match model.touchpadDeviceId with 
             //| Some i when i = id -> 
