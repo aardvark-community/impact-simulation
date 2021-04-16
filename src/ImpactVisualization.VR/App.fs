@@ -57,7 +57,7 @@ module Demo =
         | VrMessage.Press(controllerId, buttonId) ->
             match buttonId with 
             | 0 -> [ToggleMainMenu controllerId; OpenMainMenu controllerId]
-            | 1 -> [ActivateControllerMode controllerId; ScaleProbe controllerId; DeleteProbe controllerId]
+            | 1 -> [ActivateControllerMode controllerId; ScaleProbe controllerId; DeleteProbe controllerId; DeleteClippingPlane controllerId]
             | _ -> []
         | VrMessage.Unpress(controllerId, buttonId) ->
             match buttonId with 
@@ -502,16 +502,16 @@ module Demo =
             |> Sg.trafo model.heraTransformations
             |> Sg.pass pass0
 
-        let planeSg positions color fillmode blendmode renderPass =
+        let planeSg positions (color : aval<C4b>) fillmode blendmode renderPass =
             Sg.draw IndexedGeometryMode.TriangleList
             |> Sg.vertexAttribute DefaultSemantic.Positions positions
             |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
             |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
+            |> Sg.vertexBufferValue DefaultSemantic.Colors (color |> AVal.map (fun c -> c.ToC4f().ToV4f()))
             |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
-                do! DefaultSurfaces.constantColor color
             }
             |> Sg.fillMode (fillmode |> AVal.constant)
             |> Sg.blendMode blendmode
@@ -519,7 +519,7 @@ module Demo =
 
         let planePositions = m.planeCorners |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
 
-        let clipPlaneSg = planeSg planePositions (C4f(1.0,1.0,0.1,0.2)) FillMode.Fill (AVal.constant mode) pass4
+        let clipPlaneSg = planeSg planePositions m.clippingColor FillMode.Fill (AVal.constant mode) pass4
 
         let tvSg = 
             Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"tv";"tv.obj"])
@@ -597,10 +597,6 @@ module Demo =
             |> Sg.noEvents
             |> Sg.trafo m.heraTransformations
             |> Sg.fillMode (FillMode.Line |> AVal.constant)
-
-
-
-
          
         //let unusedParts = 
         
@@ -668,9 +664,9 @@ module Demo =
         //    0
 
         Sg.ofSeq [
-            deviceSgs; currentSphereProbeSg; probesSgs; heraSg; clipPlaneSg; tvSg;
-            tvPosSphereSg; raySg;
-            browserSg; boxSg; mainTouchpadSphereSg; secondTouchpadSphereSg
+            deviceSgs; currentSphereProbeSg; probesSgs; heraSg; 
+            clipPlaneSg; tvSg; tvPosSphereSg; raySg; browserSg;
+            boxSg; mainTouchpadSphereSg; secondTouchpadSphereSg
         ] |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting

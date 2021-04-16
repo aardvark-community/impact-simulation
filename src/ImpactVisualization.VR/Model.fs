@@ -83,6 +83,7 @@ type Message =
     | ScaleProbe of int
     | StopProbeScale of int 
     | DeleteProbe of int 
+    | DeleteClippingPlane of int
     | DeactivateControllerMode of int
     | TouchDevice of int
     | UntouchDevice of int 
@@ -159,6 +160,8 @@ type Model =
         //Controller clipping plane
         holdClipping : bool
         clippingActive : bool
+        interesctingClippingPlane : bool
+        clippingColor : C4b
         planeCorners : Quad3d
 
         //Main controller menu

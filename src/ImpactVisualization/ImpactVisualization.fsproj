@@ -192,6 +192,9 @@
     <EmbeddedResource Include="resources\textures\histogram.png">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
+    <EmbeddedResource Include="resources\textures\delete-object.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
     <Compile Include="Hera.fs" />
     <Compile Include="HeraExtensions.fs" />
     <Compile Include="Model.fs" />

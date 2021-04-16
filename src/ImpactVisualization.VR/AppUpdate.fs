@@ -93,7 +93,8 @@ module AppUpdate =
                         "histogram-selected", fromStreamToTexture "histogram-selected.png";
                         "statistics-selected", fromStreamToTexture "statistics-selected.png";
                         "histogram", fromStreamToTexture "histogram.png";
-                        "statistics", fromStreamToTexture "statistics.png"]
+                        "statistics", fromStreamToTexture "statistics.png";
+                        "delete-object", fromStreamToTexture "delete-object.png"]
     
     let trafoOrIdentity trafo = Option.defaultValue Trafo3d.Identity trafo
 
@@ -203,7 +204,9 @@ module AppUpdate =
             screenCoordsHitPos = PixelPosition()
             holdClipping = false
             clippingActive = false
-            planeCorners = Quad3d(V3d(), V3d(), V3d(), V3d())
+            clippingColor = C4b(1.0,1.0,0.1,0.2)
+            planeCorners = Quad3d()
+            interesctingClippingPlane = false
             mainMenuOpen = false
             secondMenuOpen = false
             menuLevel = 0
@@ -462,6 +465,24 @@ module AppUpdate =
                 | None -> None
                 | _ -> model.secondContrProbeIntersectionId
 
+            //CLIPPING PLANE UPDATE
+            let currCorners = 
+                if model.holdClipping && model.clippingActive then
+                    let p0 = mainContrTrafo.Forward.TransformPos(planePos0)
+                    let p1 = mainContrTrafo.Forward.TransformPos(planePos1)
+                    let p2 = mainContrTrafo.Forward.TransformPos(planePos2)
+                    let p3 = mainContrTrafo.Forward.TransformPos(planePos3)
+                    Quad3d(p0, p1, p2, p3)
+                else model.planeCorners
+
+            let secondContrClippingIntersection =
+                match model.secondControllerId with 
+                | Some i when i = id && not model.holdClipping && currCorners.IsValid ->
+                    let intersectionContrTrafoPos = model.secondControllerTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
+                    let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
+                    controllerSphere.BoundingBox3d.Intersects(currCorners)
+                | _ -> false
+
             ////UPDATE MAIN CONTROLLER TEXTURES WHEN INTERSECTING WITH A PROBE
             let tex, screenTex = 
                 if not model.grabbingHera && not model.mainMenuOpen then 
@@ -493,26 +514,21 @@ module AppUpdate =
                     model.mainTouchpadTexture, model.mainContrScreenTexture
 
             let secondTex, secondContrScreenTex = 
-                if not model.mainMenuOpen && not model.secondTouching && mainContrProbeIntersection.IsNone && not model.grabbingHera && model.controllerMode = ControllerMode.Probe then 
-                    model.secondTouchpadTexture, (texture "select-attribute") 
-                else
-                    match mainContrProbeIntersection with 
-                    | Some probeId when model.allProbes.TryFind(probeId).IsSome ->
-                        let intersectedProbe = model.allProbes.Item probeId
-                        let probeAttrib = intersectedProbe.currAttribute
-                        computeNewAttributeTextures probeAttrib
-                    | _ ->
-                        if model.secondTouching then model.secondTouchpadTexture, model.secondContrScreenTexture else model.secondTouchpadTexture, texture ("empty")
+                if secondContrProbeIntersection.IsSome || secondContrClippingIntersection then
+                    model.secondTouchpadTexture, (texture "delete-object") 
+                else     
+                    if not model.mainMenuOpen && not model.secondTouching && mainContrProbeIntersection.IsNone && not model.grabbingHera && model.controllerMode = ControllerMode.Probe then 
+                        model.secondTouchpadTexture, (texture "select-attribute") 
+                    else
+                        match mainContrProbeIntersection with 
+                        | Some probeId when model.allProbes.TryFind(probeId).IsSome ->
+                            let intersectedProbe = model.allProbes.Item probeId
+                            let probeAttrib = intersectedProbe.currAttribute
+                            computeNewAttributeTextures probeAttrib
+                        | _ ->
+                            if model.secondTouching then model.secondTouchpadTexture, model.secondContrScreenTexture else model.secondTouchpadTexture, texture ("empty")
 
-            //CLIPPING PLANE UPDATE
-            let currCorners = 
-                if model.holdClipping && model.clippingActive then
-                    let p0 = mainContrTrafo.Forward.TransformPos(planePos0)
-                    let p1 = mainContrTrafo.Forward.TransformPos(planePos1)
-                    let p2 = mainContrTrafo.Forward.TransformPos(planePos2)
-                    let p3 = mainContrTrafo.Forward.TransformPos(planePos3)
-                    Quad3d(p0, p1, p2, p3)
-                else model.planeCorners
+
 
             //PROBES UPDATE WHEN HERA GRABBED
             let probesUpdate =
@@ -573,7 +589,7 @@ module AppUpdate =
 
             // UPDATE TEXTURES VISIBILITY
             let showMainTexture = mainContrProbeIntersection.IsSome || model.grabbingHera || model.mainMenuOpen
-            let showSecondTexture = ((model.controllerMode = ControllerMode.Probe) && not showMainTexture && model.secondTouching) || mainContrProbeIntersection.IsSome
+            let showSecondTexture = secondContrProbeIntersection.IsNone && not secondContrClippingIntersection && (((model.controllerMode = ControllerMode.Probe) && not showMainTexture && model.secondTouching) || mainContrProbeIntersection.IsSome) 
         
             {model with 
                 devicesTrafos = newInput
@@ -584,6 +600,8 @@ module AppUpdate =
                 planeCorners = currCorners
                 screenIntersection = intersect
                 rayColor = rColor
+                clippingColor = if secondContrClippingIntersection then C4b(1.0,0.0,0.0,0.2) else C4b(1.0,1.0,0.1,0.2)
+                interesctingClippingPlane = secondContrClippingIntersection
                 hitPoint = hit.Point
                 screenHitPoint = hit.Coord
                 screenCoordsHitPos = screenCoordsHitPos
@@ -690,6 +708,13 @@ module AppUpdate =
                         secondContrProbeIntersectionId = None} 
                 | _ -> model
             | None -> model
+        | DeleteClippingPlane id ->
+            match model.secondControllerId with 
+            | Some i when i = id && model.interesctingClippingPlane ->
+                {model with
+                    planeCorners = Quad3d()
+                    holdClipping = false}
+            | _ -> model
         | DeactivateControllerMode id ->
             if not model.mainMenuOpen then 
                 match model.controllerMode with 
