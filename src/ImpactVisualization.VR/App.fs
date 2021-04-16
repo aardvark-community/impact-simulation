@@ -56,7 +56,7 @@ module Demo =
             | _ -> []
         | VrMessage.Press(controllerId, buttonId) ->
             match buttonId with 
-            | 0 -> [ToggleMainMenu controllerId; OpenMainMenu controllerId; OpenProbeAttributeMenu controllerId; ]
+            | 0 -> [ToggleMainMenu controllerId; OpenMainMenu controllerId]
             | 1 -> [ActivateControllerMode controllerId; ScaleProbe controllerId; DeleteProbe controllerId]
             | _ -> []
         | VrMessage.Unpress(controllerId, buttonId) ->
@@ -250,7 +250,7 @@ module Demo =
                 ) m.mainControllerTrafo m.sphereScale
 
         let currentSphereProbeSg = 
-            Sg.sphere 6 m.sphereColor m.sphereRadius
+            Sg.sphere 6 (AVal.constant C4b.White) m.sphereRadius
             |> Sg.noEvents
             |> Sg.trafo sphereTrafo
             |> Sg.onOff m.currentProbeManipulated

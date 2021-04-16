@@ -70,7 +70,6 @@ type Message =
     | ScaleHera of int * float
     | MoveController of int * Trafo3d
     | ToggleMainMenu of int
-    | OpenProbeAttributeMenu of int
     | OpenMainMenu of int
     | ChangeTouchpadPos of int * V2d
     | ChangeMainControllerMode of int
@@ -124,10 +123,8 @@ type Model =
         sphereScale : float 
         lastSphereScale : float
         sphereRadius : float 
-        sphereColor : C4b
 
         //Ray
-        //rayDeviceId : Option<int>
         ray : Ray3d
         rayActive : bool
         rayColor : C4b
@@ -144,7 +141,6 @@ type Model =
         clickPosition : Option<V2d>
 
         //Probes manipulation
-        currentProbe : Option<Probe>
         currentProbeManipulated : bool 
         allProbes : HashMap<string, Probe>
         mainContrProbeIntersectionId : Option<string> 
@@ -159,7 +155,6 @@ type Model =
         currBoxPlotAttribSet : bool
         currBoxPlotAttrib : RenderValue
 
-        statistics : string
                 
         //Controller clipping plane
         holdClipping : bool
@@ -168,32 +163,26 @@ type Model =
 
         //Main controller menu
         mainMenuOpen : bool
-        //menuControllerTrafo : Trafo3d
-        //menuControllerId : Option<int>
         controllerMode : ControllerMode
         menuLevel : int 
 
         //Second controller menu
         secondMenuOpen : bool
         attribute : RenderValue
-        changeProbeAttribute : bool
-        lastIntersectedProbe : Option<string>
-        probeAttributeSelected : bool
+
 
         //Touchpad
         currMainTouchPadPos : V2d
         currSecondTouchPadPos : V2d
         mainTouching : bool
         secondTouching : bool
-        //touchpadDeviceId : Option<int>
-        //touchpadDeviceTrafo : Trafo3d
+
         mainTouchpadTexture : ITexture 
         secondTouchpadTexture : ITexture 
         showMainTexture : bool
         showSecondTexture : bool
 
         lastTouchpadModeTexture : ITexture
-        //textureDeviceTrafo : Trafo3d
 
         mainContrScreenTexture : ITexture
         secondContrScreenTexture : ITexture

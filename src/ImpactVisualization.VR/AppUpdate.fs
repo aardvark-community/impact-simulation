@@ -175,21 +175,17 @@ module AppUpdate =
             sphereScale = 1.0
             lastSphereScale = 1.0
             sphereRadius = 0.2
-            sphereColor = C4b(1.0,1.0,1.0,0.4)
             currentProbeManipulated = false
             newProbePlaced = false
             existingProbeModified = false
-            currentProbe = None
             allProbes = HashMap.Empty
             mainContrProbeIntersectionId = None
             secondContrProbeIntersectionId = None
             lastFilterProbe = None
             lastFilterProbeId = None
-            lastIntersectedProbe = None
             boxPlotProbes = PersistentHashMap.empty
             currBoxPlotAttribSet = false
             currBoxPlotAttrib = RenderValue.NoValue
-            statistics = ""
             rayActive = false
             ray = Ray3d.Invalid
             rayTriggerClicked = false
@@ -210,8 +206,6 @@ module AppUpdate =
             planeCorners = Quad3d(V3d(), V3d(), V3d(), V3d())
             mainMenuOpen = false
             secondMenuOpen = false
-            //menuControllerTrafo = Trafo3d.Identity
-            //menuControllerId = None
             menuLevel = 0
             controllerMode = ControllerMode.NoneMode
             attribute = RenderValue.NoValue
@@ -219,17 +213,12 @@ module AppUpdate =
             currSecondTouchPadPos = V2d.OO
             mainTouching = false
             secondTouching = false
-            //touchpadDeviceId = None
-            //touchpadDeviceTrafo = Trafo3d.Identity
-            changeProbeAttribute = false
-            probeAttributeSelected = false
             mainTouchpadTexture = allTextures.Item "initial"
             secondTouchpadTexture = allTextures.Item "initial-attributes"
             lastTouchpadModeTexture = allTextures.Item "initial"
             mainContrScreenTexture = allTextures.Item "empty"
             secondContrScreenTexture = allTextures.Item "empty"
             lastContrScreenModeTexture = allTextures.Item "empty"
-            //textureDeviceTrafo = Trafo3d.Identity
             showMainTexture = false
             showSecondTexture = false
             heraBox = Box3d.Infinite
@@ -475,7 +464,7 @@ module AppUpdate =
 
             ////UPDATE MAIN CONTROLLER TEXTURES WHEN INTERSECTING WITH A PROBE
             let tex, screenTex = 
-                if not model.grabbingHera && not model.mainMenuOpen && not model.changeProbeAttribute then 
+                if not model.grabbingHera && not model.mainMenuOpen then 
                     match mainContrProbeIntersection with
                     | Some probeId when model.allProbes.TryFind(probeId).IsSome ->
                         let intersectedProbe = model.allProbes.Item probeId
@@ -514,8 +503,6 @@ module AppUpdate =
                         computeNewAttributeTextures probeAttrib
                     | _ ->
                         if model.secondTouching then model.secondTouchpadTexture, model.secondContrScreenTexture else model.secondTouchpadTexture, texture ("empty")
-
-            //let screenTex = if probeIntersection.IsSome then texture "grab-sphere" else model.contrScreenTexture
 
             //CLIPPING PLANE UPDATE
             let currCorners = 
@@ -584,19 +571,8 @@ module AppUpdate =
                 else 
                     probesUpdate
 
-
-            //MENU, TOUCHPAD AND TEXTURES TRAFOS
-            //let currMenuTrafo = newOrOldTrafo id trafo model.mainControllerId model.mainControllerTrafo
-            //let newTouchpadDeviceTrafo = newOrOldTrafo id trafo model.mainControllerId model.main 
-            //let textureContrTrafo = newOrOldTrafo id trafo model.mainControllerId model.textureDeviceTrafo
-            //let newTextureDeviceTrafo = 
-            //    if model.mainMenuOpen then currMenuTrafo
-            //    else if model.grabbingHera then mainContrTrafo
-            //    else if mainContrProbeIntersection.IsSome then textureContrTrafo
-            //    else model.textureDeviceTrafo
-
-            let showMainTexture = mainContrProbeIntersection.IsSome || model.grabbingHera || model.mainMenuOpen //|| model.changeProbeAttribute
-
+            // UPDATE TEXTURES VISIBILITY
+            let showMainTexture = mainContrProbeIntersection.IsSome || model.grabbingHera || model.mainMenuOpen
             let showSecondTexture = ((model.controllerMode = ControllerMode.Probe) && not showMainTexture && model.secondTouching) || mainContrProbeIntersection.IsSome
         
             {model with 
@@ -607,7 +583,6 @@ module AppUpdate =
                 ray = currRay
                 planeCorners = currCorners
                 screenIntersection = intersect
-                //menuControllerTrafo = currMenuTrafo
                 rayColor = rColor
                 hitPoint = hit.Point
                 screenHitPoint = hit.Coord
@@ -624,8 +599,6 @@ module AppUpdate =
                 allProbes = allProbesUpdated
                 heraTransformations = heraTrafos
                 lastHeraScaleTrafo = newHeraScaleTrafo
-                //touchpadDeviceTrafo = newTouchpadDeviceTrafo
-                //textureDeviceTrafo = newTextureDeviceTrafo
                 newProbePlaced = (if model.newProbePlaced then false else model.newProbePlaced)}
         | ActivateControllerMode id ->
             match model.mainControllerId with 
@@ -769,7 +742,6 @@ module AppUpdate =
 
                         let probe = createProbe spherePos sphereRadius spherePosTransformed radiusTransformed intersection allData attrib true true billboardType
 
-                        // printf "Statistics: \n %A" stats
                         let filteredData = if intersection then array else mTwoD.data.arr
                         let attributeAsString = renderValueToString attrib
 
@@ -808,7 +780,6 @@ module AppUpdate =
                             firstHistogram = false
                             existingProbeModified = false
                             holdingSphere = false
-                            statistics = stats
                             sphereScale = 1.0
                             boxPlotProbes = newHashmap
                             currBoxPlotAttribSet = true
@@ -836,7 +807,7 @@ module AppUpdate =
             let level, isOpen = 
                 let closeMenu = 0, false
                 let goToNextMenu = (model.menuLevel + 1), true
-                if model.mainContrProbeIntersectionId.IsNone && not model.grabbingHera && not model.changeProbeAttribute then 
+                if model.mainContrProbeIntersectionId.IsNone && not model.grabbingHera then 
                     match model.mainControllerId with 
                     | Some i when i = id ->
                         match model.menuLevel with
@@ -862,15 +833,6 @@ module AppUpdate =
                     mainContrScreenTexture = screenTexture}
             else    
                 model
-        | OpenProbeAttributeMenu id ->
-            let r, theta = convertCartesianToPolar model.currSecondTouchPadPos
-            match model.mainControllerId with 
-            | Some i when i = id ->
-                let probeAttribute = model.mainContrProbeIntersectionId.IsSome && theta >= 180.0 && theta < 360.0 && model.menuLevel = 0 && not model.changeProbeAttribute                        
-                {model with 
-                    changeProbeAttribute = probeAttribute 
-                    lastIntersectedProbe = model.mainContrProbeIntersectionId}                        
-            | _ -> model
         | ChangeMainControllerMode id -> 
             match model.mainControllerId with  
             | Some i when i = id && model.mainMenuOpen && model.menuLevel = 1 && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone -> 
@@ -906,15 +868,15 @@ module AppUpdate =
             | _ -> model
         | ChangeBillboard id ->
             match model.mainContrProbeIntersectionId with
-            | Some probeId when not model.changeProbeAttribute && not model.mainMenuOpen && not model.grabbingHera ->
+            | Some probeId when not model.mainMenuOpen && not model.grabbingHera ->
                 match model.mainControllerId with 
                 | Some i when i = id && model.mainTouching ->
                     let r, theta = convertCartesianToPolar model.currMainTouchPadPos
                     let intersectedProbe = model.allProbes.Item probeId
                     let newBillboardType = 
                         match theta with 
-                        | t when t >= 0.0 && t < 90.0 -> BillboardType.Histogram
-                        | t when t >= 90.0 && t < 180.0 -> BillboardType.Statistic
+                        | t when (t >= 0.0 && t < 90.0) || (t >= 270.0 && t < 360.0) -> BillboardType.Histogram
+                        | t when t >= 90.0 && t < 270.0 -> BillboardType.Statistic
                         | _ -> intersectedProbe.currBillboard
                     let updatedProbe = {intersectedProbe with currBillboard = newBillboardType}
                     let update (pr : Option<Probe>) = updatedProbe 
@@ -980,7 +942,6 @@ module AppUpdate =
 
                         {model with 
                             allProbes = allProbesUpdated
-                            probeAttributeSelected = true
                             secondTouchpadTexture = texture
                             secondContrScreenTexture = screenTexture
                             twoDModel = updatedTwoDmodel
@@ -1006,16 +967,11 @@ module AppUpdate =
                 | Some i when i = id -> pos, pos <> V2d.OO
                 | _ -> model.currSecondTouchPadPos, model.secondTouching
 
-            //TODO: fix
-            let probeAttribSelected = 
-                if pos.X = 0.0 && pos.Y = 0.0 then false else model.probeAttributeSelected
-
             {model with 
                 currMainTouchPadPos = mainPos
                 currSecondTouchPadPos = secondPos
                 mainTouching = mainTouching
-                secondTouching = secondTouching
-                probeAttributeSelected = probeAttribSelected}
+                secondTouching = secondTouching}
         | SetTexture (t, p) ->
             let probeHistogramsUpdated = 
                 model.allProbes 
