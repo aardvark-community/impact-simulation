@@ -248,7 +248,7 @@ module AppUpdate =
         let getTexture tex = Option.defaultValue defaultTex tex
         let texture tex = allTextures.TryFind(tex) |> getTexture    
 
-        let computeNewAttributeTextures (newAttribute : RenderValue) (currAttribute : RenderValue) = 
+        let computeNewAttributeTextures (newAttribute : RenderValue) = //(currAttribute : RenderValue) = 
             //match currAttribute with 
             //| a when a = newAttribute && newAttribute <> RenderValue.Energy -> model.touchpadTexture, model.contrScreenTexture // if the attribute is the same then texture should not be loaded again   
             //| _ ->
@@ -473,7 +473,7 @@ module AppUpdate =
                 | None -> None
                 | _ -> model.secondContrProbeIntersectionId
 
-            ////SHOW CONTROLLER TEXTURES WHEN INTERSECTING WITH A PROBE
+            ////UPDATE MAIN CONTROLLER TEXTURES WHEN INTERSECTING WITH A PROBE
             let tex, screenTex = 
                 if not model.grabbingHera && not model.mainMenuOpen && not model.changeProbeAttribute then 
                     match mainContrProbeIntersection with
@@ -487,21 +487,33 @@ module AppUpdate =
                             | _ -> "histogram-selected", "histogram"
                         (texture texName), (texture screenTexName)
                     | _ ->
-                        //if model.controllerMode = ControllerMode.Probe then
-                        //    let newContrScreenTexture = 
-                        //        match model.attribute with 
-                        //        | RenderValue.Energy -> texture "probe-energy"
-                        //        | RenderValue.CubicRoot -> texture "probe-cubicroot"
-                        //        | RenderValue.Strain -> texture "probe-strain"
-                        //        | RenderValue.AlphaJutzi -> texture "probe-alphajutzi"
-                        //        | RenderValue.Pressure -> texture "probe-pressure"
-                        //        | RenderValue.Density -> texture "probe-density"
-                        //        | _ -> model.contrScreenTexture
-                        //    model.mainTouchpadTexture, newContrScreenTexture
-                        //else 
+                        if model.controllerMode = ControllerMode.Probe then
+                            let newContrScreenTexture = 
+                                match model.attribute with 
+                                | RenderValue.Energy -> texture "probe-energy"
+                                | RenderValue.CubicRoot -> texture "probe-cubicroot"
+                                | RenderValue.Strain -> texture "probe-strain"
+                                | RenderValue.AlphaJutzi -> texture "probe-alphajutzi"
+                                | RenderValue.Pressure -> texture "probe-pressure"
+                                | RenderValue.Density -> texture "probe-density"
+                                | _ -> model.mainContrScreenTexture
+                            model.mainTouchpadTexture, newContrScreenTexture
+                        else 
                             model.mainTouchpadTexture, model.lastContrScreenModeTexture
                 else 
                     model.mainTouchpadTexture, model.mainContrScreenTexture
+
+            let secondTex, secondContrScreenTex = 
+                if not model.mainMenuOpen && not model.secondTouching && mainContrProbeIntersection.IsNone && not model.grabbingHera && model.controllerMode = ControllerMode.Probe then 
+                    model.secondTouchpadTexture, (texture "select-attribute") 
+                else
+                    match mainContrProbeIntersection with 
+                    | Some probeId when model.allProbes.TryFind(probeId).IsSome ->
+                        let intersectedProbe = model.allProbes.Item probeId
+                        let probeAttrib = intersectedProbe.currAttribute
+                        computeNewAttributeTextures probeAttrib
+                    | _ ->
+                        if model.secondTouching then model.secondTouchpadTexture, model.secondContrScreenTexture else model.secondTouchpadTexture, texture ("empty")
 
             //let screenTex = if probeIntersection.IsSome then texture "grab-sphere" else model.contrScreenTexture
 
@@ -583,11 +595,9 @@ module AppUpdate =
             //    else if mainContrProbeIntersection.IsSome then textureContrTrafo
             //    else model.textureDeviceTrafo
 
-            let showMainTexture = 
-                if mainContrProbeIntersection.IsSome then 
-                    true
-                else 
-                    model.grabbingHera || model.mainMenuOpen //|| model.changeProbeAttribute
+            let showMainTexture = mainContrProbeIntersection.IsSome || model.grabbingHera || model.mainMenuOpen //|| model.changeProbeAttribute
+
+            let showSecondTexture = ((model.controllerMode = ControllerMode.Probe) && not showMainTexture && model.secondTouching) || mainContrProbeIntersection.IsSome
         
             {model with 
                 devicesTrafos = newInput
@@ -606,7 +616,10 @@ module AppUpdate =
                 secondContrProbeIntersectionId = secondContrProbeIntersection
                 mainTouchpadTexture = tex
                 mainContrScreenTexture = screenTex
+                secondTouchpadTexture = secondTex
+                secondContrScreenTexture = secondContrScreenTex
                 showMainTexture = showMainTexture
+                showSecondTexture = showSecondTexture
                 heraBox = heraBBox
                 allProbes = allProbesUpdated
                 heraTransformations = heraTrafos
@@ -837,6 +850,18 @@ module AppUpdate =
             {model with 
                 menuLevel = level
                 mainMenuOpen = isOpen}
+        | OpenMainMenu id ->
+            let texture, screenTexture =
+                match model.menuLevel with
+                | l when l = 1 -> if model.controllerMode = ControllerMode.NoneMode then (texture "initial"), (texture "select-tool") else model.lastTouchpadModeTexture, model.lastContrScreenModeTexture
+                | l when l = 2 -> (texture "initial-attributes"), (texture "select-attribute") //TODO: will be changed
+                | _ -> model.mainTouchpadTexture, model.mainContrScreenTexture
+            if model.mainMenuOpen then
+                {model with 
+                    mainTouchpadTexture = texture
+                    mainContrScreenTexture = screenTexture}
+            else    
+                model
         | OpenProbeAttributeMenu id ->
             let r, theta = convertCartesianToPolar model.currSecondTouchPadPos
             match model.mainControllerId with 
@@ -846,20 +871,6 @@ module AppUpdate =
                     changeProbeAttribute = probeAttribute 
                     lastIntersectedProbe = model.mainContrProbeIntersectionId}                        
             | _ -> model
-        | OpenMainMenu id ->
-            //let currDeviceTrafo = trafoOrIdentity (model.devicesTrafos.TryFind(id))
-            let texture, screenTexture =
-                match model.menuLevel with
-                | l when l = 1 -> if model.controllerMode = ControllerMode.NoneMode then (texture "initial"), (texture "select-tool") else model.lastTouchpadModeTexture, model.lastContrScreenModeTexture
-                | l when l = 2 -> (texture "initial-attributes"), (texture "select-attribute")
-                | _ -> model.mainTouchpadTexture, model.mainContrScreenTexture
-            if model.mainMenuOpen then //TODO: Handle the case when opening the menu with the first controller and clicking on the second controller
-                {model with 
-                    //textureDeviceTrafo = currDeviceTrafo
-                    mainTouchpadTexture = texture
-                    mainContrScreenTexture = screenTexture}
-            else    
-                model
         | ChangeMainControllerMode id -> 
             match model.mainControllerId with  
             | Some i when i = id && model.mainMenuOpen && model.menuLevel = 1 && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone -> 
@@ -873,7 +884,7 @@ module AppUpdate =
                         | _ -> model.controllerMode
                     else 
                         model.controllerMode
-                let texture, screenTexture = 
+                let tex, screenTexture = 
                     match model.controllerMode with 
                     | m when m = newContrlMode -> model.mainTouchpadTexture, model.mainContrScreenTexture // if the  controller mode is the same then texture should not be loaded again   
                     | _ ->
@@ -886,8 +897,8 @@ module AppUpdate =
                         (texture texName), (texture screenTexName)
                 {model with 
                     controllerMode = newContrlMode
-                    mainTouchpadTexture = texture
-                    lastTouchpadModeTexture = texture
+                    mainTouchpadTexture = tex
+                    lastTouchpadModeTexture = tex
                     mainContrScreenTexture = screenTexture
                     lastContrScreenModeTexture = screenTexture
                     rayActive = false
@@ -895,7 +906,7 @@ module AppUpdate =
             | _ -> model
         | ChangeBillboard id ->
             match model.mainContrProbeIntersectionId with
-            | Some probeId when not model.changeProbeAttribute && not model.mainMenuOpen && not model.grabbingHera && not model.probeAttributeSelected ->
+            | Some probeId when not model.changeProbeAttribute && not model.mainMenuOpen && not model.grabbingHera ->
                 match model.mainControllerId with 
                 | Some i when i = id && model.mainTouching ->
                     let r, theta = convertCartesianToPolar model.currMainTouchPadPos
@@ -924,24 +935,25 @@ module AppUpdate =
             | _ -> model
         | SelectGlobalAttribute id ->
             match model.secondControllerId with  
-            | Some i when i = id && model.menuLevel = 2 && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone -> 
+            | Some i when i = id && model.controllerMode = ControllerMode.Probe && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone -> 
                 let newAttribute = computeNewAttribute model.currSecondTouchPadPos model.attribute 
-                let texture, screenTexture = computeNewAttributeTextures newAttribute model.attribute
+                let texture, screenTexture = computeNewAttributeTextures newAttribute //model.attribute
                 {model with 
                     attribute = newAttribute
+                    showSecondTexture = true
                     secondTouchpadTexture = texture
                     secondContrScreenTexture = screenTexture}
             | _ -> model
         | SelectProbeAttribute id ->
             match model.secondControllerId with 
-            | Some i when i = id && model.changeProbeAttribute ->
-                match model.lastIntersectedProbe with
+            | Some i when i = id && model.mainContrProbeIntersectionId.IsSome -> //&& model.changeProbeAttribute ->
+                match model.mainContrProbeIntersectionId with
                 | Some probeId ->
                     let intersectedProbe = model.allProbes.TryFind(probeId)
                     if intersectedProbe.IsSome then 
                         let probe = intersectedProbe.Value
                         let newAttribute = computeNewAttribute model.currSecondTouchPadPos probe.currAttribute
-                        let texture, screenTexture = computeNewAttributeTextures newAttribute probe.currAttribute
+                        let texture, screenTexture = computeNewAttributeTextures newAttribute//probe.currAttribute
                         let updatedProbe = {probe with currAttribute = newAttribute}
                         let update (pr : Option<Probe>) = updatedProbe 
                         let allProbesUpdated = model.allProbes |> HashMap.update probeId update
