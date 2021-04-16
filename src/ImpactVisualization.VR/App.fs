@@ -98,7 +98,6 @@ module Demo =
         let pass3 = RenderPass.after "pass3" RenderPassOrder.Arbitrary pass2   
         let pass4 = RenderPass.after "pass4" RenderPassOrder.Arbitrary pass3   
 
-
         let mutable mode = BlendMode(true)
         mode.Enabled <- true
         mode.Operation <- BlendOperation.Add
@@ -217,6 +216,63 @@ module Demo =
         //    }
         //    |> Sg.pass pass0
 
+
+        let contrOrientation = m.mainControllerTrafo |> AVal.map (fun t -> t.GetOrthoNormalOrientation()) 
+        let controllerTypeMenuOpen = AVal.map2 (fun menuOpen level -> menuOpen && level = 1) m.mainMenuOpen m.menuLevel
+
+        let controllerSg path rotX rotY rotZ scTrafo (contrPos : V3d) = 
+            Loader.Assimp.load (Path.combine path)
+            |> Sg.adapter
+            |> Sg.transform (Trafo3d.Scale(1.0, 1.0, -1.0))
+            |> Sg.transform (Trafo3d.RotationEulerInDegrees(rotX, rotY, rotZ))
+            |> Sg.trafo scTrafo 
+            |> Sg.transform (Trafo3d.Translation(contrPos))
+            //|> Sg.trafo contrOrientation
+            //|> Sg.translate' contrPos
+            |> Sg.shader {
+                do! DefaultSurfaces.trafo
+                do! DefaultSurfaces.diffuseTexture
+                do! DefaultSurfaces.simpleLighting
+            }
+            |> Sg.pass pass0
+
+        let controllerPos position = m.mainControllerTrafo |> AVal.map (fun t -> t.Forward.TransformPos(position)) 
+
+        let probeContrPos = (V3d(-0.12, 0.11, 0.0))
+        let rayContrPos = (V3d(0.0, 0.15, 0.0))
+        let clippingContrPos = (V3d(0.12, 0.11, 0.0))
+
+        let scaleTrafo mode = 
+            m.controllerMode |> AVal.map (fun m ->
+                if m = mode then Trafo3d (Scale3d(0.7)) else Trafo3d (Scale3d(0.5)))
+
+        let probeScaleTrafo = scaleTrafo ControllerMode.Probe
+        let rayScaleTrafo = scaleTrafo ControllerMode.Ray
+        let clippingScaleTrafo = scaleTrafo ControllerMode.Clipping
+
+        let probeContrSg = 
+            let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"probe";"probe.obj"]
+            controllerSg path 90.0 0.0 30.0 probeScaleTrafo probeContrPos
+           
+        let laserContrSg = 
+            let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"laser";"laser.obj"]
+            controllerSg path 90.0 0.0 0.0 rayScaleTrafo rayContrPos
+
+        let clippingContrSg = 
+            let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"clipping";"clipping.obj"]
+            controllerSg path 90.0 0.0 -30.0 clippingScaleTrafo clippingContrPos
+
+        let smallControllersSgs deviceId = 
+            let visible =
+                (deviceId, m.mainControllerId, controllerTypeMenuOpen) |||> AVal.map3 (fun currId mId isOpen ->
+                    match mId with
+                    | Some i when i = currId -> isOpen
+                    | _ -> false)
+            probeContrSg
+            |> Sg.andAlso laserContrSg
+            |> Sg.andAlso clippingContrSg
+            |> Sg.onOff visible
+
         let deviceSgs = 
             info.state.devices |> AMap.toASet |> ASet.chooseA (fun (_,d) ->
                 //printf "Device Type: %A, %A \n" d.kind d.id
@@ -229,6 +285,7 @@ module Demo =
                         |> Sg.andAlso textScreenSg
                         |> Sg.andAlso (textPlaneSgs d.id)
                         |> Sg.andAlso (touchpadSgs d.id)
+                        |> Sg.andAlso (smallControllersSgs d.id)
                         |> Sg.trafo d.pose.deviceToWorld
                         |> Sg.onOff d.pose.isValid
                         |> Some
@@ -497,50 +554,7 @@ module Demo =
             |> Sg.trafo (Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0) |> AVal.constant)
             |> Sg.translate 2.5 2.0 0.5
 
-        let contrOrientation = m.mainControllerTrafo |> AVal.map (fun t -> t.GetOrthoNormalOrientation()) 
-        let controllerTypeMenuOpen = AVal.map2 (fun menuOpen level -> menuOpen && level = 1) m.mainMenuOpen m.menuLevel
 
-        let controllerSg path rotX rotY rotZ scTrafo contrPos = 
-            Loader.Assimp.load (Path.combine path)
-            |> Sg.adapter
-            |> Sg.transform (Trafo3d.Scale(1.0, 1.0, -1.0))
-            |> Sg.transform (Trafo3d.RotationEulerInDegrees(rotX, rotY, rotZ))
-            |> Sg.trafo scTrafo 
-            |> Sg.trafo contrOrientation
-            |> Sg.translate' contrPos
-            |> Sg.onOff controllerTypeMenuOpen
-            |> Sg.shader {
-                do! DefaultSurfaces.trafo
-                do! DefaultSurfaces.diffuseTexture
-                do! DefaultSurfaces.simpleLighting
-            }
-            |> Sg.pass pass0
-
-        let controllerPos position = m.mainControllerTrafo |> AVal.map (fun t -> t.Forward.TransformPos(position)) 
-
-        let probeContrPos = controllerPos (V3d(-0.12, 0.11, 0.0))
-        let rayContrPos = controllerPos (V3d(0.0, 0.15, 0.0))
-        let clippingContrPos = controllerPos (V3d(0.12, 0.11, 0.0))
-
-        let scaleTrafo mode = 
-            m.controllerMode |> AVal.map (fun m ->
-                if m = mode then Trafo3d (Scale3d(0.7)) else Trafo3d (Scale3d(0.5)))
-
-        let probeScaleTrafo = scaleTrafo ControllerMode.Probe
-        let rayScaleTrafo = scaleTrafo ControllerMode.Ray
-        let clippingScaleTrafo = scaleTrafo ControllerMode.Clipping
-
-        let probeContrSg = 
-            let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"probe";"probe.obj"]
-            controllerSg path 90.0 0.0 30.0 probeScaleTrafo probeContrPos
-           
-        let laserContrSg = 
-            let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"laser";"laser.obj"]
-            controllerSg path 90.0 0.0 0.0 rayScaleTrafo rayContrPos
-
-        let clippingContrSg = 
-            let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"clipping";"clipping.obj"]
-            controllerSg path 90.0 0.0 -30.0 clippingScaleTrafo clippingContrPos
 
         let lines = m.ray |> AVal.map (fun r -> [|Line3d(r.Origin, r.Direction)|]) 
 
@@ -655,7 +669,7 @@ module Demo =
 
         Sg.ofSeq [
             deviceSgs; currentSphereProbeSg; probesSgs; heraSg; clipPlaneSg; tvSg;
-            tvPosSphereSg; probeContrSg; laserContrSg; clippingContrSg; raySg;
+            tvPosSphereSg; raySg;
             browserSg; boxSg; mainTouchpadSphereSg; secondTouchpadSphereSg
         ] |> Sg.shader {
                 do! DefaultSurfaces.trafo
