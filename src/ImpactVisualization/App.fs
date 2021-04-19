@@ -720,6 +720,7 @@ module App =
                 runtime
             |> Sg.noEvents
 
+
         let currentBox = 
             m.boxFilter |> AVal.map (fun b ->
                 match b with 

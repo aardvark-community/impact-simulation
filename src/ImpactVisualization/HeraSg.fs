@@ -347,7 +347,7 @@ module Shaders =
             //BLINN-PHONG LIGHTING MODEL FROM MY LECTURE
             let lightPos = V3d(0.0, 100.0, 0.0)
             let spherePos_view = viewMatrix * v.wp
-            let posOnSphere = spherePos_view + normal * pointRadius // Radius is different for 2D and VR !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            let posOnSphere = spherePos_view + V4d(normal_normalized * pointRadius, 1.0)// Radius is different for 2D and VR !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
             //Depth reconstruction
             let posOnSphere_screen = projectionMatrix * posOnSphere
