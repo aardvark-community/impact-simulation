@@ -684,8 +684,10 @@ module Demo =
     let app (client : Browser) (histogramClient : Browser) (viewTrafos : aval<Trafo3d []>) (projTrafos : aval<Trafo3d []>) (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
         let frames = DataLoader.loadDataAllFrames runtime
         client.SetFocus true
-        let viewTrafo = combinedTrafo viewTrafos
-        let projTrafo = combinedTrafo projTrafos
+        //let viewTrafo = combinedTrafo viewTrafos
+        //let projTrafo = combinedTrafo projTrafos
+        let viewTrafo = viewTrafos |> AVal.map (fun vts -> vts.[0])
+        let projTrafo = projTrafos |> AVal.map (fun pts -> pts.[0])
         {
             unpersist = Unpersist.instance
             initial = initial runtime frames

@@ -332,46 +332,47 @@ module Shaders =
             let modelMatrixInv = uniform.ModelTrafoInv
     
             let shading = uniform?EnableShading
-            let reconstructNormal = uniform?ReconstructNormal
+            //let reconstructNormal = uniform?ReconstructNormal
             let reconstructDepth : bool = uniform?ReconstructDepth
             let pointRadius : float = uniform?PointRadius
 
             //Normal reconstruction
             let distToCenter_squared = Vec.dot c c 
             let normalVec = V3d(c, Math.Sqrt(1.0 - distToCenter_squared))
-            let normalVec_normalized = normalVec |> Vec.normalize // IN VIEW SPACE!!!!!!!!
+            let normal_normalized = normalVec |> Vec.normalize  // IN VIEW SPACE!!!!!!!!
+            let normal =  V4d(normal_normalized, 1.0)
 
-            let norm = if reconstructNormal then normalVec_normalized else v.normal
+            //let norm = if reconstructNormal then normalVec_normalized else v.normal
 
             //BLINN-PHONG LIGHTING MODEL FROM MY LECTURE
-            let lp = V3d(0.0, 40.0, 0.0)
+            let lightPos = V3d(0.0, 100.0, 0.0)
             let spherePos_view = viewMatrix * v.wp
-            let posOnSphere = spherePos_view + V4d(norm, 1.0) * pointRadius // Radius is different for 2D and VR
+            let posOnSphere = spherePos_view + normal * pointRadius // Radius is different for 2D and VR !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
             //Depth reconstruction
             let posOnSphere_screen = projectionMatrix * posOnSphere
             let ndc_depth = posOnSphere_screen.Z / posOnSphere_screen.W
             let dep = if reconstructDepth then ((ndc_depth + 1.0) / 2.0) else v.fc.Z
 
-            let lightPos_view = viewMatrix * V4d(lp, 1.0)
-            let lightPos = if reconstructNormal then lightPos_view else V4d(lp, 1.0)
-            let posSphere = if reconstructNormal then posOnSphere else v.wp
-            let lightDir = Vec.normalize(lightPos.XYZ - posSphere.XYZ)
-            let viewDir = Vec.normalize(-posSphere.XYZ)
+            let lightPos_view = viewMatrix * V4d(lightPos, 1.0)
+            //let lightPos = if reconstructNormal then lightPos_view else V4d(lp, 1.0)
+            //let posSphere = if reconstructNormal then posOnSphere else v.wp
+            let lightDir = Vec.normalize(lightPos_view.XYZ - posOnSphere.XYZ)
+            let viewDir = Vec.normalize(-posOnSphere.XYZ)
             
             //Diffuse term
             let diff =
-                let value = Vec.dot norm lightDir
-                if reconstructNormal then (max 0.0 value) else (abs value)
+                let value = Vec.dot normal_normalized lightDir
+                max 0.0 value
 
             //Speculat term 
             let halfwayDir = Vec.normalize(lightDir + viewDir)
-            let spec = Math.Pow(Math.Max(Vec.Dot(norm, halfwayDir), 0.0), 128.0)
+            let spec = Math.Pow(Math.Max(Vec.Dot(normal_normalized, halfwayDir), 0.0), 128.0)
 
             // Final Color
             let color = V4d(v.pointColor.XYZ, 1.0)
             let fragmentColor = (ambient * color) + (diffuse * diff * color) //+ (specular * spec * color)
-            let c = if shading then fragmentColor else color
+            let finalColor = if shading then fragmentColor else color
 
             let alpha : float = uniform?Alpha
             //return V4d((v.velocity * 0.5 + V3d.Half).XYZ,1.0) // color according to velocity
@@ -380,7 +381,7 @@ module Shaders =
             //return V4d(v.pointColor.XYZ * l, 1.0)
 
             return {v with 
-                        pointColor = c
+                        pointColor = finalColor
                         //pointColor = V4d(c.XYZ,0.05 * v.linearCoord) // proper transfer function needed here for transparency
                         depth = dep}
         }
