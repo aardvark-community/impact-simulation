@@ -484,6 +484,8 @@ module Demo =
 
         //let sphereProbe = Sphere3d.Invalid |> AVal.constant
 
+        let viewVector = viewTrafo |> AVal.map (fun t -> t.Forward.C2.XYZ)
+
         let heraSg = 
             let model = m
             let m = m.twoDModel
@@ -496,7 +498,7 @@ module Demo =
                 m.renderValue m.currentMap m.domainRange m.clippingPlane contrClippingPlane 
                 m.boxFilter sphereProbe allPlacedSpheres spheresLength
                 m.currFilters m.dataRange m.colorValue.c 
-                m.cameraState.view viewTrafo
+                m.cameraState.view viewTrafo viewVector
                 runtime
             |> Sg.noEvents
             |> Sg.trafo model.heraTransformations

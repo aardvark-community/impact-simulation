@@ -60,13 +60,8 @@ let main argv =
     let boxPlotClient1 = new Browser(null,AVal.constant System.DateTime.Now,app.Runtime, true, AVal.constant (V2i(1920, 1080)))
     let viewTrafos = app.SystemInfo.render.viewTrafos
     let projTrafos = app.SystemInfo.render.projTrafos
-
-
     let bla = Demo.app client histogramClient viewTrafos projTrafos app.Runtime
     let mapp = ComposedApp.start' app true bla
-    
-
-
 
     WebPart.startServerLocalhost 4321 [
         MutableApp.toWebPart app.Runtime mapp
@@ -79,7 +74,7 @@ let main argv =
     //boxPlotClient1.LoadUrl "http://localhost:4321/?page=boxPlotPage1" |> ignore
     
     Aardium.run {
-        url "http://localhost:4321/?page=boxPlotPage"
+        url "http://localhost:4321/?page=mainPage"
     }
 
     Aardvark.Cef.Internal.Cef.shutdown()

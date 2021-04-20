@@ -25,11 +25,16 @@ module Shaders =
             [<Normal>]
             normal : V3d
 
-            [<Depth(DepthWriteMode.OnlyLess)>]
+            [<Depth(DepthWriteMode.OnlyGreater)>]
             depth : float
+
+            [<Semantic("DepthRange"); Interpolation(InterpolationMode.Flat)>] 
+            depthRange : float
 
             [<PointSize>] // gl_PointSize
             pointSize : float
+
+            [<Semantic("PointPixelSize")>] ps : float
 
             [<Semantic("linearCoord")>]
             linearCoord : float
@@ -68,6 +73,7 @@ module Shaders =
             pressure : float
 
         }
+
 
     let transfer = 
         sampler2d {
@@ -121,11 +127,50 @@ module Shaders =
     //                pointColor = color
     //            }
     //    }   
+
+    let vs (v : Vertex) = 
+        vertex {
+            let mv = uniform.ViewTrafo
+            let vp = mv * v.wp
+
+            let s = uniform.PointSize / V2d uniform.ViewportSize
+            let opp = uniform.ProjTrafo * vp
+            let pp0 = opp.XYZ / opp.W
+
+            let vpx = 
+                let temp = uniform.ProjTrafoInv * V4d(pp0 + V3d(s.X, 0.0, 0.0), 1.0)
+                temp.XYZ / temp.W
+              
+            let vpy = 
+                let temp = uniform.ProjTrafoInv * V4d(pp0 + V3d(0.0, s.Y, 0.0), 1.0)
+                temp.XYZ / temp.W
+
+            let worldRadius =
+                0.5 * (Vec.length (vp.XYZ - vpx) + Vec.length (vp.XYZ - vpy))
+
+            let vpz = vp + V4d(0.0, 0.0, worldRadius, 0.0)
+            let ppz = uniform.ProjTrafo * vpz
+            let ppz = ppz.XYZ / ppz.W
+
+            let depthRange = abs (ppz.Z - pp0.Z)
+
+            let pixelDist = 
+                uniform.PointSize
+ 
+            let pixelDist = 
+                if ppz.Z < -1.0 then -1.0
+                else pixelDist
+
+            return { v with ps = floor pixelDist; pointSize = pixelDist; pos = V4d(ppz, 1.0); depthRange = depthRange; }
+
+        }
     
 
     let internal pointSprite (p : Point<Vertex>) = 
         point {
-            let wp = p.Value.wp
+            let pos = p.Value.pos
+            let modM = uniform.ModelTrafo
+            let wp  = p.Value.wp //modM * pos
 
             let dm : DomainRange = uniform?DomainRange
             let dataRange : Range = uniform?DataRange
@@ -315,6 +360,25 @@ module Shaders =
                             linearCoord = linearCoord // give linearCoord to fs or decide alpha here - in fs it might be more flexible - one could fade out points
                        }
         }
+
+    let pointSpriteFragment (v : Vertex) = 
+          fragment {
+             let mutable cc = v.pointCoord
+             let c = v.pointCoord * 2.0 - V2d.II
+             let f = Vec.dot c c - 1.0
+             if f > 0.0 then discard()
+     
+             let t = 1.0 - sqrt (-f)
+             let depth = v.fc.Z
+             let outDepth = depth + v.depthRange * t
+
+             let c = c * (1.0 + 2.0 / v.ps)
+             let f = Vec.dot c c 
+             let diffuse = sqrt (max 0.0 (1.0 - f))
+             let color = V3d.III * diffuse
+
+             return { v with pointColor = V4d(color, 1.0); depth = outDepth }
+          }
         
     let fs (v : Vertex) = 
         fragment {
@@ -332,7 +396,7 @@ module Shaders =
             let viewMatrix = viewMatrixTF.Forward
             let viewMatrixInv = viewMatrixTF.Backward
             let projectionMatrix = uniform.ProjTrafo
-            let viewProjMatrixInv = uniform.ViewProjTrafoInv
+            let viewProjMatrix = uniform.ViewProjTrafo
             let modelMatrixInv = uniform.ModelTrafoInv
     
             let shading = uniform?EnableShading
@@ -343,7 +407,7 @@ module Shaders =
             //Normal reconstruction
             let distToCenter_squared = Vec.dot c c 
             let normalVec = V3d(c, Math.Sqrt(1.0 - distToCenter_squared))
-            let normal_normalized = normalVec |> Vec.normalize  // IN VIEW SPACE!!!!!!!!
+            let normal_normalized = normalVec |> Vec.normalize  // IN SCREEN SPACE!??!!??!!!!!
             let normal =  V4d(normal_normalized, 1.0)
 
 
@@ -358,24 +422,35 @@ module Shaders =
             //Depth reconstruction
             let posOnSphere_screen = projectionMatrix * posOnSphere
             let ndc_depth = posOnSphere_screen.Z / posOnSphere_screen.W
-            let dep = if reconstructDepth then ((ndc_depth + 1.0) / 2.0) else v.fc.Z
+
+            
+            let t = 1.0 - sqrt (-f)
+            let depth = v.fc.Z
+            let outDepth = depth + v.depthRange * t
+
+            let dep = if reconstructDepth then outDepth else depth
 
             let lightPos_view = viewMatrix * lightPos
             //let lightPos = if reconstructNormal then lightPos_view else V4d(lp, 1.0)
             //let posSphere = if reconstructNormal then posOnSphere else v.wp
             let lightDir = Vec.normalize(lightPos_view.XYZ - posOnSphere.XYZ)
-            let viewDir = Vec.normalize(-posOnSphere.XYZ)
+            //let viewDir = Vec.normalize(-posOnSphere.XYZ)
             
+            //let vVec = viewMatrix.C2.XYZ |> Vec.normalize
 
             let viewVec_view = viewMatrix * V4d(viewVector, 1.0) |> Vec.normalize |> V3d
+
+            let c = c * (1.0 + 2.0 / v.ps)
+            let f = Vec.dot c c 
+
             //Diffuse term
             let diff =
-                let value = Vec.dot normal_normalized -viewVec_view
+                let value = 1.0 - f //Vec.dot normal_normalized lightDir
                 max 0.0 value
 
             //Speculat term 
-            let halfwayDir = Vec.normalize(lightDir + viewDir)
-            let spec = Math.Pow(Math.Max(Vec.Dot(normal_normalized, halfwayDir), 0.0), 128.0)
+            //let halfwayDir = Vec.normalize(lightDir + viewDir)
+            //let spec = Math.Pow(Math.Max(Vec.Dot(normal_normalized, halfwayDir), 0.0), 128.0)
 
             // Final Color
             let color = V4d(v.pointColor.XYZ, 1.0)
@@ -525,7 +600,7 @@ module HeraSg =
         |> Sg.shader {  
             do! DefaultSurfaces.trafo
             do! Shaders.pointSprite
-            // do! Shaders.vs
+            do! Shaders.vs
             do! Shaders.fs
         }
         |> Sg.uniform "PointSize" pointSize
@@ -561,7 +636,7 @@ module HeraSg =
                            (filterBox : aval<option<Box3f>>) (sphereProbe : aval<Sphere3d>) (allSpheres : aval<V4f[]>) (spheresLength : aval<int>)
                            (currFilters : aval<Filters>) 
                            (dataRange : aval<Range>) (colorValue : aval<C4b>) 
-                           (cameraView : aval<CameraView>) (viewTrafoVR : aval<Trafo3d>)
+                           (cameraView : aval<CameraView>) (viewTrafoVR : aval<Trafo3d>) (viewVector : aval<V3d>)
                            (runtime : IRuntime)
                            (frames : Frame[])  = 
 
@@ -635,7 +710,7 @@ module HeraSg =
         |> Sg.uniform "OutliersRange" outliersRange
         |> Sg.uniform "PointRadius" pointRadius
         |> Sg.uniform "ViewMatrix" viewTrafoVR
-        |> Sg.uniform "ViewVector" (AVal.constant V3d.OOO)
+        |> Sg.uniform "ViewVector" viewVector
         |> Sg.uniform "TransferFunction" texture
         |> Sg.uniform "RenderValue" renderValue
         |> Sg.uniform "DomainRange" domainRange
