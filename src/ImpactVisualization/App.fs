@@ -709,6 +709,8 @@ module App =
         //        | None -> Box3d.Infinite)
 
        
+        let viewVector = m.cameraState.view |> AVal.map (fun c -> c.Backward)
+
         let heraSg = 
             data
             |> HeraSg.createAnimatedSg m.frame m.pointSize m.discardPoints m.normalizeData 
@@ -716,7 +718,7 @@ module App =
                 m.lowerOutliers m.higherOutliers m.outliersRange
                 m.renderValue m.currentMap 
                 m.domainRange m.clippingPlane m.boxFilter m.currFilters m.dataRange m.colorValue.c 
-                m.cameraState.view
+                m.cameraState.view viewVector
                 runtime
             |> Sg.noEvents
 

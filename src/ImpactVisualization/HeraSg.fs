@@ -327,8 +327,12 @@ module Shaders =
             let specular = 0.3
 
             let modelMatrix = uniform.ModelTrafo
-            let viewMatrix : M44d = uniform?ViewTrafo
+            let viewMatrixTF : Trafo3d = uniform?ViewTrafo
+            let viewVector : V3d = uniform?ViewVector
+            let viewMatrix = viewMatrixTF.Forward
+            let viewMatrixInv = viewMatrixTF.Backward
             let projectionMatrix = uniform.ProjTrafo
+            let viewProjMatrixInv = uniform.ViewProjTrafoInv
             let modelMatrixInv = uniform.ModelTrafoInv
     
             let shading = uniform?EnableShading
@@ -342,10 +346,12 @@ module Shaders =
             let normal_normalized = normalVec |> Vec.normalize  // IN VIEW SPACE!!!!!!!!
             let normal =  V4d(normal_normalized, 1.0)
 
+
+
             //let norm = if reconstructNormal then normalVec_normalized else v.normal
 
             //BLINN-PHONG LIGHTING MODEL FROM MY LECTURE
-            let lightPos = V3d(0.0, 100.0, 0.0)
+            let lightPos = V4d(0.0, 100.0, 0.0, 1.0)
             let spherePos_view = viewMatrix * v.wp
             let posOnSphere = spherePos_view + V4d(normal_normalized * pointRadius, 1.0)// Radius is different for 2D and VR !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -354,15 +360,17 @@ module Shaders =
             let ndc_depth = posOnSphere_screen.Z / posOnSphere_screen.W
             let dep = if reconstructDepth then ((ndc_depth + 1.0) / 2.0) else v.fc.Z
 
-            let lightPos_view = viewMatrix * V4d(lightPos, 1.0)
+            let lightPos_view = viewMatrix * lightPos
             //let lightPos = if reconstructNormal then lightPos_view else V4d(lp, 1.0)
             //let posSphere = if reconstructNormal then posOnSphere else v.wp
             let lightDir = Vec.normalize(lightPos_view.XYZ - posOnSphere.XYZ)
             let viewDir = Vec.normalize(-posOnSphere.XYZ)
             
+
+            let viewVec_view = viewMatrix * V4d(viewVector, 1.0) |> Vec.normalize |> V3d
             //Diffuse term
             let diff =
-                let value = Vec.dot normal_normalized lightDir
+                let value = Vec.dot normal_normalized -viewVec_view
                 max 0.0 value
 
             //Speculat term 
@@ -456,7 +464,7 @@ module HeraSg =
                          (filterBox : aval<option<Box3f>>)
                          (currFilters : aval<Filters>) 
                          (dataRange : aval<Range>) (colorValue : aval<C4b>) 
-                         (cameraView : aval<CameraView>)
+                         (cameraView : aval<CameraView>) (viewVector : aval<V3d>)
                          (runtime : IRuntime)
                          (frames : Frame[])  = 
 
@@ -529,6 +537,7 @@ module HeraSg =
         |> Sg.uniform "OutliersRange" outliersRange
         |> Sg.uniform "PointRadius" pointRadius
         |> Sg.uniform "ViewMatrix" viewTrafo
+        |> Sg.uniform "ViewVector" viewVector
         |> Sg.uniform "TransferFunction" texture
         |> Sg.uniform "RenderValue" renderValue
         |> Sg.uniform "DomainRange" domainRange
@@ -567,7 +576,7 @@ module HeraSg =
                                                         | Some i -> true
                                                         | None -> false)
 
-        let viewTrafo = viewTrafoVR |> AVal.map (fun vT -> vT.Forward)                                                        
+        //let viewTrafo = viewTrafoVR |> AVal.map (fun vT -> vT.Forward)                                                        
                                                             
        // let currFrame = frame |> AVal.map (fun i -> frames.[i])
         let currentBuffers = frame |> AVal.map (fun i -> frames.[i].preparedFrame)
@@ -625,7 +634,8 @@ module HeraSg =
         |> Sg.uniform "ReconstructDepth" reconstructDepth
         |> Sg.uniform "OutliersRange" outliersRange
         |> Sg.uniform "PointRadius" pointRadius
-        |> Sg.uniform "ViewMatrix" viewTrafo
+        |> Sg.uniform "ViewMatrix" viewTrafoVR
+        |> Sg.uniform "ViewVector" (AVal.constant V3d.OOO)
         |> Sg.uniform "TransferFunction" texture
         |> Sg.uniform "RenderValue" renderValue
         |> Sg.uniform "DomainRange" domainRange
