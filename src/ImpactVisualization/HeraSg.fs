@@ -1,4 +1,4 @@
-namespace HeraSg
+﻿namespace HeraSg
 
 open System
 open System.IO
@@ -108,15 +108,15 @@ module Shaders =
     //                | _ -> v.energy
     //            let linearCoord = value renderValue          
     //            let transferFunc = transfer.SampleLevel(V2d(linearCoord, 0.0), 0.0)
-
+    //
     //            let pos = V3f(v.wp)
-
+    //
     //            let min = filter.Min
     //            let max = filter.Max
-
+    //
     //            let minRange = dataRange.min
     //            let maxRange = dataRange.max
-
+    //
     //            if (min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z && minRange <= linearCoord && linearCoord <= maxRange) then
     //                transferFunc
     //            else
@@ -178,9 +178,7 @@ module Shaders =
             let min = filter.Min
             let max = filter.Max
             let pos = V3f(wp)
-            let minRange = if normalizeData then 0.0 else dataRange.min
-            let maxRange = if normalizeData then 1.0 else dataRange.max
-            let isInsideMinMaxRange = min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z
+            let isInsideBoxFilter = min.X <= pos.X && pos.X <= max.X && min.Y <= pos.Y && pos.Y <= max.Y && min.Z <= pos.Z && pos.Z <= max.Z
 
             let minOutlier = outliersRange.min
             let maxOutlier = outliersRange.max
@@ -188,29 +186,22 @@ module Shaders =
 
             let plane = uniform?ClippingPlane
 
-            let isInAllRanges = notDiscardByFilters && isInsideMinMaxRange && minRange <= linearCoord && linearCoord <= maxRange && isInsideOutlierRange
+            let minRange = if normalizeData then 0.0 else dataRange.min
+            let maxRange = if normalizeData then 1.0 else dataRange.max
+            let isInAllRanges = notDiscardByFilters && isInsideBoxFilter && minRange <= linearCoord && linearCoord <= maxRange && isInsideOutlierRange
 
-            let color = 
-                if (isInAllRanges) then
-                    transferFunc
-                else
-                    colorValue
+            let pointInDomainRange = wp.X >= dm.x.min && wp.X <= dm.x.max && wp.Y >= dm.y.min && wp.Y <= dm.y.max && wp.Z >= dm.z.min && wp.Z <= dm.z.max
+            let pointInsidePlanes = wp.X <= plane.x && wp.Y <= plane.y && wp.Z <= plane.z
+            let discardByRanges = if isInAllRanges then false else discardPoints
 
-            if (wp.X >= dm.x.min && wp.X <= dm.x.max && wp.Y >= dm.y.min && wp.Y <= dm.y.max && wp.Z >= dm.z.min && wp.Z <= dm.z.max) &&
-                (wp.X <= plane.x && wp.Y <= plane.y && wp.Z <= plane.z) then
-                if (discardPoints) then
-                    if (isInAllRanges) then
-                        yield  { p.Value with 
-                                    pointColor = color
-                                    pointSize = uniform?PointSize
-                                    linearCoord = linearCoord // give linearCoord to fs or decide alpha here - in fs it might be more flexible - one could fade out points
-                               }
-                else
-                    yield { p.Value with 
-                                pointColor = color
-                                pointSize = uniform?PointSize
-                                linearCoord = linearCoord
-                          }
+            let color = if isInAllRanges then transferFunc else colorValue
+
+            if pointInDomainRange && pointInsidePlanes  && not discardByRanges then
+                yield  { p.Value with 
+                            pointColor = color
+                            pointSize = uniform?PointSize
+                            linearCoord = linearCoord // give linearCoord to fs or decide alpha here - in fs it might be more flexible - one could fade out points
+                       }
         }
       
     let internal pointSpriteVr (p : Point<Vertex>) = 
@@ -369,11 +360,23 @@ module Shaders =
             let ambient = V4d(0.4, 0.375, 0.35, 1.0)
             let diffuse = 0.6
             let specular = 0.3
-    
+
+            let opacityTF = uniform?OpacityTF
+            let invert = uniform?InvertTF
+
+            let tf = 
+                match opacityTF with
+                | TransferFunction.Linear -> v.linearCoord
+                | TransferFunction.Logaritmic -> log v.linearCoord
+                | TransferFunction.Exponential -> exp v.linearCoord
+                | _ -> v.linearCoord
+
             let shading = uniform?EnableShading
             //let reconstructNormal = uniform?ReconstructNormal
             let reconstructDepth : bool = uniform?ReconstructDepth
             //let pointRadius : float = uniform?PointRadius
+            let transparency = uniform?EnableTransparency
+            let alphaStrength = uniform?AlphaStrength
 
             let t = 1.0 - sqrt (-f)
             let depth = v.fc.Z
@@ -391,19 +394,21 @@ module Shaders =
             //let spec = Math.Pow(Math.Max(Vec.Dot(normal_normalized, halfwayDir), 0.0), 128.0)
 
             // Final Color
-            let color = V4d(v.pointColor.XYZ, 1.0)
-            let fragmentColor = (ambient * color) + (diffuse * diff * color) //+ (specular * spec * color)
-            let finalColor = if shading then fragmentColor else color
+            let inColor = V4d(v.pointColor.XYZ, 1.0)
+            let fragmentColor = (ambient * inColor) + (diffuse * diff * inColor) //+ (specular * spec * color)
+            let finalColor = if shading then fragmentColor else inColor
+            let finalTF = if invert then 1.0 - tf else tf
+            let alpha = if transparency then alphaStrength * finalTF else 1.0
 
-            let alpha : float = uniform?Alpha
+            //let alpha : float = uniform?Alpha
             //return V4d((v.velocity * 0.5 + V3d.Half).XYZ,1.0) // color according to velocity
             //return V4d(V3d(v.cubicRoots), 1.0) // color according to cubic Roots
             //let color = V4d(v.pointColor.XYZ, 1.0)
             //return V4d(v.pointColor.XYZ * l, 1.0)
 
             return {v with 
-                        pointColor = finalColor
-                        //pointColor = V4d(c.XYZ,0.05 * v.linearCoord) // proper transfer function needed here for transparency
+                        //pointColor = finalColor
+                        pointColor = V4d(finalColor.XYZ, alpha) // proper transfer function needed here for transparency
                         depth = dep}
         }
 
@@ -464,18 +469,19 @@ module HeraSg =
         currentBuffer :> aval<_>
 
     let transparencyModes (transparencyEnabled : aval<bool>) (sg : ISg) =
-        let depthWrite = transparencyEnabled |> AVal.map not // enabled depth write if no transparancy wanted
+        let depthWrite = transparencyEnabled |> AVal.map not // enabled depth write if no transparеncy wanted
         let blendMode = transparencyEnabled |> AVal.map (function true -> composeBackwards | _ -> BlendMode.None) // blending only if transparency enabled
         sg |> Sg.depthMask depthWrite |> Sg.blendMode blendMode
 
     let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) 
                          (normalizeData : aval<bool>) (enableShading : aval<bool>)
-                         (reconstructNormal : aval<bool>) (reconstructDepth : aval<bool>)
+                         (reconstructNormal : aval<bool>) (reconstructDepth : aval<bool>) 
+                         (enableTransparency : aval<bool>) (alphaStrength : aval<float>) 
+                         (opacityTF : aval<TransferFunction>) (invertTF : aval<bool>)
                          (lowerOutliers : aval<bool>) (higherOutliers : aval<bool>) (outliersRange : aval<Range>)
                          (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
                          (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
-                         (filterBox : aval<option<Box3f>>)
-                         (currFilters : aval<Filters>) 
+                         (filterBox : aval<option<Box3f>>) (currFilters : aval<Filters>) 
                          (dataRange : aval<Range>) (colorValue : aval<C4b>) 
                          (cameraView : aval<CameraView>) (viewVector : aval<V3d>)
                          (runtime : IRuntime)
@@ -517,11 +523,9 @@ module HeraSg =
         //|> Sg.vertexAttribute (Sym.ofString "AlphaJutzi") (currFrame |> AVal.map (fun f -> Array.map float32 f.alphaJutzis))
         //|> Sg.vertexAttribute (Sym.ofString "Pressure") (currFrame |> AVal.map (fun f -> Array.map float32 f.pressures))
 
-
         // creating an index does not harm - any ways.
         let index = createIndex vertexCount (frame |> AVal.map (fun i -> frames.[i].positions)) (cameraView |> AVal.map CameraView.location) 
-        let transparencyEnabled = AVal.constant false
-
+        let transparencyEnabled = enableTransparency
 
         Sg.render IndexedGeometryMode.PointList dci 
         |> Sg.index index
@@ -547,6 +551,10 @@ module HeraSg =
         |> Sg.uniform "EnableShading" enableShading
         |> Sg.uniform "ReconstructNormal" reconstructNormal
         |> Sg.uniform "ReconstructDepth" reconstructDepth
+        |> Sg.uniform "EnableTransparency" enableTransparency
+        |> Sg.uniform "AlphaStrength" alphaStrength
+        |> Sg.uniform "OpacityTF" opacityTF
+        |> Sg.uniform "InvertTF" invertTF
         |> Sg.uniform "OutliersRange" outliersRange
         |> Sg.uniform "PointRadius" pointRadius
         |> Sg.uniform "ViewMatrix" viewTrafo
@@ -564,16 +572,14 @@ module HeraSg =
   
     //TODO: Create a function containing repetitive code
     let createAnimatedVrSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) 
-                           (normalizeData : aval<bool>) (enableShading : aval<bool>) 
-                           (reconstructNormal : aval<bool>) (reconstructDepth : aval<bool>)
-                           (lowerOutliers : aval<bool>) (higherOutliers : aval<bool>) (outliersRange : aval<Range>)
-                           (pointRadius : aval<float>)
-                           (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
-                           (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
-                           (contrClippingPlane : aval<Plane3d>)
-                           (filterBox : aval<option<Box3f>>) (sphereProbe : aval<Sphere3d>) (allSpheres : aval<V4f[]>) (spheresLength : aval<int>)
-                           (currFilters : aval<Filters>) 
-                           (dataRange : aval<Range>) (colorValue : aval<C4b>) 
+                           (normalizeData : aval<bool>) (enableShading : aval<bool>)(reconstructNormal : aval<bool>) 
+                           (reconstructDepth : aval<bool>) (enableTransparency : aval<bool>) (alphaStrength : aval<float>) 
+                           (opacityTF : aval<TransferFunction>) (invertTF : aval<bool>)
+                           (lowerOutliers : aval<bool>) (higherOutliers : aval<bool>) (outliersRange : aval<Range>) (pointRadius : aval<float>)
+                           (renderValue : aval<RenderValue>) (tfPath : aval<string>) (domainRange : aval<DomainRange>) 
+                           (clippingPlane : aval<ClippingPlane>) (contrClippingPlane : aval<Plane3d>) (filterBox : aval<option<Box3f>>) 
+                           (sphereProbe : aval<Sphere3d>) (allSpheres : aval<V4f[]>) (spheresLength : aval<int>)
+                           (currFilters : aval<Filters>) (dataRange : aval<Range>) (colorValue : aval<C4b>) 
                            (cameraView : aval<CameraView>) (viewTrafoVR : aval<Trafo3d>) (viewVector : aval<V3d>)
                            (runtime : IRuntime)
                            (frames : Frame[])  = 
@@ -619,7 +625,7 @@ module HeraSg =
 
         // creating an index does not harm - any ways.
         let index = createIndex vertexCount (frame |> AVal.map (fun i -> frames.[i].positions)) (cameraView |> AVal.map CameraView.location) 
-        let transparencyEnabled = AVal.constant false
+        let transparencyEnabled = enableTransparency
 
         Sg.render IndexedGeometryMode.PointList dci 
         |> Sg.index index
@@ -645,6 +651,10 @@ module HeraSg =
         |> Sg.uniform "EnableShading" enableShading
         |> Sg.uniform "ReconstructNormal" reconstructNormal
         |> Sg.uniform "ReconstructDepth" reconstructDepth
+        |> Sg.uniform "EnableTransparency" enableTransparency
+        |> Sg.uniform "AlphaStrength" alphaStrength
+        |> Sg.uniform "OpacityTF" opacityTF
+        |> Sg.uniform "InvertTF" invertTF
         |> Sg.uniform "OutliersRange" outliersRange
         |> Sg.uniform "PointRadius" pointRadius
         |> Sg.uniform "ViewMatrix" viewTrafo

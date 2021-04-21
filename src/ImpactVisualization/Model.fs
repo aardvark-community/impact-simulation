@@ -62,6 +62,12 @@ type RenderValue =
     | Density = 6
     | NoValue = 7
 
+type TransferFunction = 
+    | Linear = 0
+    | Logaritmic = 1
+    | Exponential = 2
+
+
 type DiscardProperties =
     {
         plane           : V3d
@@ -172,10 +178,14 @@ type Model =
         attributeText : string
 
         normalizeData : bool
-
         enableShading : bool
         reconstructNormal : bool 
         reconstructDepth : bool 
+
+        enableTransparency : bool
+        alphaStrength : float
+        transferFunction : TransferFunction
+        invertTF : bool 
 
         lowerOutliers : bool
         higherOutliers : bool

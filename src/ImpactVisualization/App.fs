@@ -29,6 +29,10 @@ type Message =
     | EnableShading
     | ReconstructNormal
     | ReconstructDepth
+    | EnableTransparency
+    | InvertTransferFunction
+    | SetAlphaStrength of float
+    | SetTransferFunction of TransferFunction
     | DisplayLowerOutliers
     | DisplayHigherOutliers
     | SetPointSize of float
@@ -126,6 +130,10 @@ module App =
             enableShading = false
             reconstructNormal = false
             reconstructDepth = false
+            enableTransparency = false
+            alphaStrength = 0.5
+            transferFunction = TransferFunction.Linear
+            invertTF = false
             lowerOutliers = false
             higherOutliers = false
             outliersRange = {
@@ -389,6 +397,10 @@ module App =
             | EnableShading -> {m with enableShading = not m.enableShading}
             | ReconstructNormal -> {m with reconstructNormal = not m.reconstructNormal}
             | ReconstructDepth -> {m with reconstructDepth = not m.reconstructDepth}
+            | EnableTransparency -> {m with enableTransparency = not m.enableTransparency}
+            | SetAlphaStrength s -> {m with alphaStrength = s}
+            | SetTransferFunction t -> {m with transferFunction = t}
+            | InvertTransferFunction -> {m with invertTF = not m.invertTF}
             | DisplayLowerOutliers -> 
                 let currData = m.values.arr
                 let lowerOutlierBoundary = findOutliers currData |> fst
@@ -659,6 +671,7 @@ module App =
                 | _ -> m
 
     let renderValues = AMap.ofArray((Enum.GetValues typeof<RenderValue> :?> (RenderValue [])) |> Array.map (fun c -> (c, text (Enum.GetName(typeof<RenderValue>, c)) )))
+    let opacityTFs = AMap.ofArray((Enum.GetValues typeof<TransferFunction> :?> (TransferFunction [])) |> Array.map (fun t -> (t, text (Enum.GetName(typeof<TransferFunction>, t)) )))
 
     let view (runtime : IRuntime) (data : Frame[]) (m : AdaptiveModel) =
         let shuffleR (r : Random) xs = xs |> Seq.sortBy (fun _ -> r.Next())
@@ -714,7 +727,8 @@ module App =
         let heraSg = 
             data
             |> HeraSg.createAnimatedSg m.frame m.pointSize m.discardPoints m.normalizeData 
-                m.enableShading m.reconstructNormal m.reconstructDepth
+                m.enableShading m.reconstructNormal m.reconstructDepth 
+                m.enableTransparency m.alphaStrength m.transferFunction m.invertTF
                 m.lowerOutliers m.higherOutliers m.outliersRange
                 m.renderValue m.currentMap 
                 m.domainRange m.clippingPlane m.boxFilter m.currFilters m.dataRange m.colorValue.c 
@@ -949,7 +963,44 @@ module App =
                                             content [ text "Reconstruct Depth"]  
                                         }
                                     ]
-                              
+
+                                    div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
+                                        simplecheckbox { 
+                                            attributes [clazz "ui inverted checkbox"]
+                                            state m.enableTransparency
+                                            toggle EnableTransparency
+                                            content [ text "Enable Transparency"]  
+                                        }
+                                    ]
+
+                                    div [style "width: 90%; margin-top: 5px; margin-bottom: 5px"] [  
+                                        Html.SemUi.accordion "Transparency Settings" "plus" false [
+                                            Incremental.div (AttributeMap.ofAMap (amap {
+                                                yield clazz "transparency"
+                                                yield style "width: 100%"
+                                            })) (alist {
+                                                span [style "padding: 2px"] [text "Alpha Strength: "] 
+                                                Incremental.text (m.alphaStrength |> AVal.map (fun f -> f.ToString()))
+                                                slider { min = 0.0; max = 1.0; step = 0.025 } [clazz "ui slider"; style "padding: 3px"] m.alphaStrength (fun s -> SetAlphaStrength s)
+                                                dropdown1 [ clazz "ui selection"; style "margin-top: 5px; margin-bottom: 5px; min-width: 100%"] opacityTFs m.transferFunction SetTransferFunction
+                                                div [style "margin-top: 5px; margin-bottom: 5px"] [ 
+                                                    simplecheckbox { 
+                                                        attributes [clazz "ui inverted checkbox"]
+                                                        state m.invertTF
+                                                        toggle InvertTransferFunction
+                                                        content [ text "Invert Transfer Function"]  
+                                                    }
+                                                ]
+                                                }
+                                                )
+                                            ]
+                                    ]
+
+                                    //div [ clazz "item"; style "width: 90%; margin-top: 7px; margin-bottom: 5px" ] [
+                                    //    span [style "padding: 2px"] [text "Alpha Strength: "]
+                                    //    slider { min = 0.0; max = 1.0; step = 0.025 } [clazz "ui inverted slider"; style "padding: 3px"] m.alphaStrength (fun s -> SetAlphaStrength s)
+                                    //]
+
                                     div [style "width: 90%; margin-top: 5px; margin-bottom: 5px"] [  
                                         Html.SemUi.accordion "Clipping Box" "plus" false [
                                             Incremental.div (AttributeMap.ofAMap (amap {
