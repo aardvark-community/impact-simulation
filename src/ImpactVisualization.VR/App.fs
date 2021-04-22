@@ -493,7 +493,7 @@ module Demo =
             |> HeraSg.HeraSg.createAnimatedVrSg 
                 m.frame m.pointSize m.discardPoints m.normalizeData 
                 m.enableShading m.reconstructNormal m.reconstructDepth 
-                m.enableTransparency m.alphaStrength m.transferFunction m.invertTF
+                m.enableTransparency m.alphaStrength m.transferFunction m.invertTF m.center m.startValue m.endValue
                 m.lowerOutliers m.higherOutliers m.outliersRange model.scalingFactorHera 
                 m.renderValue m.currentMap m.domainRange m.clippingPlane contrClippingPlane 
                 m.boxFilter sphereProbe allPlacedSpheres spheresLength

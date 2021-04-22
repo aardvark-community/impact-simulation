@@ -32,6 +32,9 @@ type Message =
     | EnableTransparency
     | InvertTransferFunction
     | SetAlphaStrength of float
+    | SetCenter of float 
+    | SetStartValue of float 
+    | SetEndValue of float
     | SetTransferFunction of TransferFunction
     | DisplayLowerOutliers
     | DisplayHigherOutliers
@@ -134,6 +137,12 @@ module App =
             alphaStrength = 0.5
             transferFunction = TransferFunction.Linear
             invertTF = false
+            center = (minValue + maxValue)/2.0
+            centerNormalized = 0.5
+            startValue = minValue
+            startValueNormalized = 0.0
+            endValue = maxValue
+            endValueNormalized = 1.0
             lowerOutliers = false
             higherOutliers = false
             outliersRange = {
@@ -401,6 +410,24 @@ module App =
             | SetAlphaStrength s -> {m with alphaStrength = s}
             | SetTransferFunction t -> {m with transferFunction = t}
             | InvertTransferFunction -> {m with invertTF = not m.invertTF}
+            | SetCenter c -> 
+                let wholeRange = m.endValue - m.startValue
+                let newCenter = m.startValue + c * wholeRange
+                {m with 
+                    center = newCenter
+                    centerNormalized = c}
+            | SetStartValue sv -> 
+                let startValueRange = m.center - m.initDataRange.min
+                let newStartValue = m.initDataRange.min + sv * startValueRange
+                {m with 
+                    startValue = newStartValue
+                    startValueNormalized = sv}
+            | SetEndValue ev -> 
+                let endValueRange = m.initDataRange.max - m.center
+                let newEndValue = m.center + ev * endValueRange
+                {m with 
+                    endValue = newEndValue
+                    endValueNormalized = ev}
             | DisplayLowerOutliers -> 
                 let currData = m.values.arr
                 let lowerOutlierBoundary = findOutliers currData |> fst
@@ -482,11 +509,19 @@ module App =
                         let temp : float[] [] = Array.empty
                         temp
 
+                let newCenter = (minValue - maxValue)/2.0
+
                 {m with 
                     renderValue = v
                     values = { version = m.values.version + 1; arr = renderValues }
                     dataRange = newDataRange
                     initDataRange = newDataRange
+                    center = newCenter
+                    centerNormalized = 0.5
+                    startValue = minValue
+                    startValueNormalized = 0.0
+                    endValue = maxValue
+                    endValueNormalized = 1.0
                     data = { version = m.data.version + 1; arr = filteredData }
                     filteredAllFrames = filteredDataAllFrames}
             | SetColorValue a -> 
@@ -728,7 +763,7 @@ module App =
             data
             |> HeraSg.createAnimatedSg m.frame m.pointSize m.discardPoints m.normalizeData 
                 m.enableShading m.reconstructNormal m.reconstructDepth 
-                m.enableTransparency m.alphaStrength m.transferFunction m.invertTF
+                m.enableTransparency m.alphaStrength m.transferFunction m.invertTF m.center m.startValue m.endValue
                 m.lowerOutliers m.higherOutliers m.outliersRange
                 m.renderValue m.currentMap 
                 m.domainRange m.clippingPlane m.boxFilter m.currFilters m.dataRange m.colorValue.c 
@@ -991,6 +1026,15 @@ module App =
                                                         content [ text "Invert Transfer Function"]  
                                                     }
                                                 ]
+                                                span [style "padding: 2px"] [text "Center: "] 
+                                                Incremental.text (m.center |> AVal.map (fun f -> f.Round(3).ToString()))
+                                                slider { min = 0.0; max = 1.0; step = 0.0001 } [clazz "ui slider"; style "padding: 3px"] m.centerNormalized (fun c -> SetCenter c)
+                                                span [style "padding: 2px"] [text "Start: "] 
+                                                Incremental.text (m.startValue |> AVal.map (fun f -> f.Round(3).ToString()))
+                                                slider { min = 0.0; max = 1.0; step = 0.0001 } [clazz "ui slider"; style "padding: 3px"] m.startValueNormalized (fun sv -> SetStartValue sv)
+                                                span [style "padding: 2px"] [text "End: "] 
+                                                Incremental.text (m.endValue |> AVal.map (fun f -> f.Round(3).ToString()))
+                                                slider { min = 0.0; max = 1.0; step = 0.0001 } [clazz "ui slider"; style "padding: 3px"] m.endValueNormalized (fun ev -> SetEndValue ev)
                                                 }
                                                 )
                                             ]

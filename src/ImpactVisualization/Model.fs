@@ -66,6 +66,7 @@ type TransferFunction =
     | Linear = 0
     | Logaritmic = 1
     | Exponential = 2
+    | Tent = 3
 
 
 type DiscardProperties =
@@ -186,6 +187,12 @@ type Model =
         alphaStrength : float
         transferFunction : TransferFunction
         invertTF : bool 
+        center : float
+        startValue : float 
+        endValue : float 
+        centerNormalized : float 
+        startValueNormalized : float
+        endValueNormalized : float
 
         lowerOutliers : bool
         higherOutliers : bool

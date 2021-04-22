@@ -364,11 +364,26 @@ module Shaders =
             let opacityTF = uniform?OpacityTF
             let invert = uniform?InvertTF
 
+            let dataRange : Range = uniform?DataRange
+            let center = uniform?Center
+            let s = uniform?StartValue
+            let e = uniform?EndValue
+
+            let tent t = 
+                match t with 
+                | t when t < s -> 0.0
+                | t when s <= t && t < center -> (t - s)/(center - s)
+                | t when center <= t && t <= e -> (t - center)/(center - e) + 1.0
+                | t when t > e -> 0.0
+                | _ -> 0.0
+
+
             let tf = 
                 match opacityTF with
                 | TransferFunction.Linear -> v.linearCoord
                 | TransferFunction.Logaritmic -> log v.linearCoord
                 | TransferFunction.Exponential -> exp v.linearCoord
+                | TransferFunction.Tent -> tent v.linearCoord
                 | _ -> v.linearCoord
 
             let shading = uniform?EnableShading
@@ -477,7 +492,7 @@ module HeraSg =
                          (normalizeData : aval<bool>) (enableShading : aval<bool>)
                          (reconstructNormal : aval<bool>) (reconstructDepth : aval<bool>) 
                          (enableTransparency : aval<bool>) (alphaStrength : aval<float>) 
-                         (opacityTF : aval<TransferFunction>) (invertTF : aval<bool>)
+                         (opacityTF : aval<TransferFunction>) (invertTF : aval<bool>) (center : aval<float>) (startValue : aval<float>) (endValue : aval<float>)
                          (lowerOutliers : aval<bool>) (higherOutliers : aval<bool>) (outliersRange : aval<Range>)
                          (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
                          (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
@@ -555,6 +570,9 @@ module HeraSg =
         |> Sg.uniform "AlphaStrength" alphaStrength
         |> Sg.uniform "OpacityTF" opacityTF
         |> Sg.uniform "InvertTF" invertTF
+        |> Sg.uniform "Center" center
+        |> Sg.uniform "StartValue" startValue
+        |> Sg.uniform "EndValue" endValue
         |> Sg.uniform "OutliersRange" outliersRange
         |> Sg.uniform "PointRadius" pointRadius
         |> Sg.uniform "ViewMatrix" viewTrafo
@@ -574,7 +592,7 @@ module HeraSg =
     let createAnimatedVrSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) 
                            (normalizeData : aval<bool>) (enableShading : aval<bool>)(reconstructNormal : aval<bool>) 
                            (reconstructDepth : aval<bool>) (enableTransparency : aval<bool>) (alphaStrength : aval<float>) 
-                           (opacityTF : aval<TransferFunction>) (invertTF : aval<bool>)
+                           (opacityTF : aval<TransferFunction>) (invertTF : aval<bool>) (center : aval<float>) (startValue : aval<float>) (endValue : aval<float>)
                            (lowerOutliers : aval<bool>) (higherOutliers : aval<bool>) (outliersRange : aval<Range>) (pointRadius : aval<float>)
                            (renderValue : aval<RenderValue>) (tfPath : aval<string>) (domainRange : aval<DomainRange>) 
                            (clippingPlane : aval<ClippingPlane>) (contrClippingPlane : aval<Plane3d>) (filterBox : aval<option<Box3f>>) 
@@ -655,6 +673,9 @@ module HeraSg =
         |> Sg.uniform "AlphaStrength" alphaStrength
         |> Sg.uniform "OpacityTF" opacityTF
         |> Sg.uniform "InvertTF" invertTF
+        |> Sg.uniform "Center" center
+        |> Sg.uniform "StartValue" startValue
+        |> Sg.uniform "EndValue" endValue
         |> Sg.uniform "OutliersRange" outliersRange
         |> Sg.uniform "PointRadius" pointRadius
         |> Sg.uniform "ViewMatrix" viewTrafo
