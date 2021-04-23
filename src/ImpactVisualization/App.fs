@@ -844,6 +844,67 @@ module App =
 
             }
 
+        let createSlider valueText (value : aval<float>) (normalizedValue : aval<float>) updateFunc = 
+            div [] [
+                span [style "padding: 2px"] [text valueText] 
+                Incremental.text (value |> AVal.map (fun f -> f.Round(3).ToString()))
+                slider { min = 0.0; max = 1.0; step = 0.0001 } [clazz "ui slider"; style "padding: 3px"] normalizedValue updateFunc
+            ]
+
+        let allSliders visibilityStyle = 
+            div [style visibilityStyle ] [
+                createSlider "Center: " m.center m.centerNormalized (fun c -> SetCenter c) 
+                createSlider "Start: " m.startValue m.startValueNormalized (fun sv -> SetStartValue sv) 
+                createSlider "End: " m.endValue m.endValueNormalized (fun ev -> SetEndValue ev)
+            ]
+
+        let dynamicActiveTentOptions = 
+            alist {
+                let! tf = m.transferFunction
+
+                if tf = TransferFunction.Tent then 
+                    yield allSliders "pointer-events: all; opacity: 1.0"
+                else 
+                    yield allSliders "pointer-events: none; opacity: 0.1"
+            }
+
+        let transparencySettings visibilityStyle = 
+            div [style visibilityStyle] [  
+                Html.SemUi.accordion "Transparency Settings" "plus" false [
+                    Incremental.div (AttributeMap.ofAMap (amap {
+                        yield clazz "transparency"
+                        yield style "width: 100%"
+                    })) (alist {
+                        span [style "padding: 2px"] [text "Alpha Strength: "] 
+                        Incremental.text (m.alphaStrength |> AVal.map (fun f -> f.ToString()))
+                        slider { min = 0.0; max = 1.0; step = 0.025 } [clazz "ui slider"; style "padding: 3px"] m.alphaStrength (fun s -> SetAlphaStrength s)
+                        dropdown1 [ clazz "ui selection"; style "margin-top: 5px; margin-bottom: 5px; min-width: 100%"] opacityTFs m.transferFunction SetTransferFunction
+                        div [style "margin-top: 5px; margin-bottom: 5px"] [ 
+                            simplecheckbox { 
+                                attributes [clazz "ui inverted checkbox"]
+                                state m.invertTF
+                                toggle InvertTransferFunction
+                                content [ text "Invert Transfer Function"]  
+                            }
+                        ]
+                        Incremental.div AttributeMap.empty dynamicActiveTentOptions
+                        }
+                        )
+                    ]
+            ]
+
+        let dynamicTransparencyOptions = 
+            alist {
+                let! transparencyActive = m.enableTransparency
+
+                if transparencyActive then 
+                    yield transparencySettings "width: 90%; margin-top: 5px; margin-bottom: 5px; pointer-events: all; opacity: 1.0"
+                else 
+                    yield transparencySettings "width: 90%; margin-top: 5px; margin-bottom: 5px; pointer-events: none; opacity: 0.5"
+
+            }
+        
+
         let colorMaps = AMap.map (fun k v -> text v) m.colorMaps
 
         let dependencies = 
@@ -1008,42 +1069,7 @@ module App =
                                         }
                                     ]
 
-                                    div [style "width: 90%; margin-top: 5px; margin-bottom: 5px"] [  
-                                        Html.SemUi.accordion "Transparency Settings" "plus" false [
-                                            Incremental.div (AttributeMap.ofAMap (amap {
-                                                yield clazz "transparency"
-                                                yield style "width: 100%"
-                                            })) (alist {
-                                                span [style "padding: 2px"] [text "Alpha Strength: "] 
-                                                Incremental.text (m.alphaStrength |> AVal.map (fun f -> f.ToString()))
-                                                slider { min = 0.0; max = 1.0; step = 0.025 } [clazz "ui slider"; style "padding: 3px"] m.alphaStrength (fun s -> SetAlphaStrength s)
-                                                dropdown1 [ clazz "ui selection"; style "margin-top: 5px; margin-bottom: 5px; min-width: 100%"] opacityTFs m.transferFunction SetTransferFunction
-                                                div [style "margin-top: 5px; margin-bottom: 5px"] [ 
-                                                    simplecheckbox { 
-                                                        attributes [clazz "ui inverted checkbox"]
-                                                        state m.invertTF
-                                                        toggle InvertTransferFunction
-                                                        content [ text "Invert Transfer Function"]  
-                                                    }
-                                                ]
-                                                span [style "padding: 2px"] [text "Center: "] 
-                                                Incremental.text (m.center |> AVal.map (fun f -> f.Round(3).ToString()))
-                                                slider { min = 0.0; max = 1.0; step = 0.0001 } [clazz "ui slider"; style "padding: 3px"] m.centerNormalized (fun c -> SetCenter c)
-                                                span [style "padding: 2px"] [text "Start: "] 
-                                                Incremental.text (m.startValue |> AVal.map (fun f -> f.Round(3).ToString()))
-                                                slider { min = 0.0; max = 1.0; step = 0.0001 } [clazz "ui slider"; style "padding: 3px"] m.startValueNormalized (fun sv -> SetStartValue sv)
-                                                span [style "padding: 2px"] [text "End: "] 
-                                                Incremental.text (m.endValue |> AVal.map (fun f -> f.Round(3).ToString()))
-                                                slider { min = 0.0; max = 1.0; step = 0.0001 } [clazz "ui slider"; style "padding: 3px"] m.endValueNormalized (fun ev -> SetEndValue ev)
-                                                }
-                                                )
-                                            ]
-                                    ]
-
-                                    //div [ clazz "item"; style "width: 90%; margin-top: 7px; margin-bottom: 5px" ] [
-                                    //    span [style "padding: 2px"] [text "Alpha Strength: "]
-                                    //    slider { min = 0.0; max = 1.0; step = 0.025 } [clazz "ui inverted slider"; style "padding: 3px"] m.alphaStrength (fun s -> SetAlphaStrength s)
-                                    //]
+                                    Incremental.div AttributeMap.empty dynamicTransparencyOptions
 
                                     div [style "width: 90%; margin-top: 5px; margin-bottom: 5px"] [  
                                         Html.SemUi.accordion "Clipping Box" "plus" false [
