@@ -126,6 +126,13 @@ module AppUpdate =
             showHistogram = showHisto
             currBillboard = billboardType
         }
+
+    let createBoxPlot (attribute : RenderValue) (trafo : Trafo3d) : BoxPlot =
+        {   
+            id = Guid.NewGuid().ToString()
+            attribute = attribute
+            trafo = trafo
+        }
     
     let convertCartesianToPolar (cartCoords : V2d) = 
         let x = cartCoords.X
@@ -187,6 +194,9 @@ module AppUpdate =
             boxPlotProbes = PersistentHashMap.empty
             currBoxPlotAttribSet = false
             currBoxPlotAttrib = RenderValue.NoValue
+            showCurrBoxPlot = false
+            currBoxPlot = None
+            allPlacedBoxPlots = HashMap.empty
             rayActive = false
             ray = Ray3d.Invalid
             rayTriggerClicked = false
@@ -327,7 +337,7 @@ module AppUpdate =
         | GrabHera id ->
             match model.mainControllerId with
             | Some i when i = id ->
-                let controlT = trafoOrIdentity model.mainControllerTrafo
+                let controlT = model.mainControllerTrafo
                 let heraT = model.heraTrafo
                 let controlHeraT = heraT * controlT.Inverse
                 {model with 
@@ -714,6 +724,32 @@ module AppUpdate =
                     planeCorners = Quad3d()
                     holdClipping = false}
             | _ -> model
+        | SelectBoxPlotProbes id ->
+            match model.mainControllerId with 
+            | Some i when i = id -> 
+                match model.mainContrProbeIntersectionId with 
+                | Some probeId ->
+                    let intersectedProbe = model.allProbes.Item probeId
+
+                    let arrayBoxPlot, statsBoxPlot = intersectedProbe.allData.Item model.currBoxPlotAttrib
+                    let newHashmap = model.boxPlotProbes.Add(probeId, arrayBoxPlot) 
+                    let dataForBoxPlot = newHashmap |> PersistentHashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
+
+                    if (not model.showCurrBoxPlot) then
+                        let boxPlot = createBoxPlot model.currBoxPlotAttrib model.mainControllerTrafo
+                        {model with currBoxPlot = Some boxPlot}
+                    else 
+                        model
+                | None -> model
+            | _ -> model
+        | PlaceBoxPlot id ->
+            model
+        | ChangeBoxPlotAttribute id ->
+            model
+        | DeleteBoxPlot id ->
+            model
+        | TakeBoxPlot id ->
+            model
         | DeactivateControllerMode id ->
             if not model.mainMenuOpen then 
                 match model.controllerMode with 

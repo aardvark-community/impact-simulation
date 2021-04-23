@@ -90,7 +90,14 @@ module Demo =
     let ui (runtime : IRuntime) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : DomNode<Message> = // 2D UI
         div [] [AardVolume.App.view runtime data m.twoDModel |> UI.map TwoD]
 
-    let vr (runtime : IRuntime) (client : Browser) (histogramClient : Browser) (viewTrafo : aval<Trafo3d>) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
+    let planeSg positions : ISg<Message> = 
+        Sg.draw IndexedGeometryMode.TriangleList
+        |> Sg.vertexAttribute DefaultSemantic.Positions positions
+        |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
+        |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
+        |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
+
+    let vr (runtime : IRuntime) (client : Browser) (histogramClient : Browser) (boxPlotClient : Browser) (viewTrafo : aval<Trafo3d>) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
        
         let pass0 = RenderPass.main
         let pass1 = RenderPass.after "pass1" RenderPassOrder.Arbitrary pass0 
@@ -123,11 +130,7 @@ module Demo =
         let pPositions =  AVal.constant  [|V3f(-1.588, -0.5, 0.31); V3f(1.588, -0.5, 0.31); V3f(1.588, 0.5, 0.31); V3f(-1.588, 0.5, 0.31)|]
 
         let textPlaneSg showTexture texture = 
-            Sg.draw IndexedGeometryMode.TriangleList
-            |> Sg.vertexAttribute DefaultSemantic.Positions pPositions
-            |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
-            |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
-            |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
+            planeSg pPositions
             |> Sg.translate 0.0 -0.0006 0.0
             |> Sg.scale 0.022
             |> Sg.onOff showTexture
@@ -153,11 +156,7 @@ module Demo =
         let texturePositions =  AVal.constant  [|V3f(-1.0, -1.0, 0.0); V3f(1.0, -1.0, 0.0); V3f(1.0, 1.0, 0.0); V3f(-1.0, 1.0, 0.0)|]
 
         let touchpadPlaneSg showTexture texture =  
-            Sg.draw IndexedGeometryMode.TriangleList
-            |> Sg.vertexAttribute DefaultSemantic.Positions texturePositions
-            |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
-            |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
-            |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
+            planeSg texturePositions
             |> Sg.scale 0.0205
             |> Sg.transform (Trafo3d.RotationXInDegrees(6.5))
             |> Sg.translate 0.0 -0.05 0.0052
@@ -273,6 +272,21 @@ module Demo =
             |> Sg.andAlso clippingContrSg
             |> Sg.onOff visible
 
+        let defaultBoxPlotPositions = AVal.constant  [|V3f(-1.92, -1.0, 0.0); V3f(1.92, -1.0, 0.0); V3f(1.92, 1.0, 0.0); V3f(-1.92, 1.0, 0.0)|]
+
+        let boxPlotSg = 
+            planeSg defaultBoxPlotPositions
+            |> Sg.scale 0.2
+            |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+            |> Sg.onOff m.showCurrBoxPlot
+            |> Sg.diffuseTexture boxPlotClient.Texture 
+            |> Sg.shader {
+                do! DefaultSurfaces.trafo
+                do! DefaultSurfaces.diffuseTexture
+            }  
+            |> Sg.blendMode (AVal.constant mode)
+            |> Sg.pass pass2
+
         let deviceSgs = 
             info.state.devices |> AMap.toASet |> ASet.chooseA (fun (_,d) ->
                 //printf "Device Type: %A, %A \n" d.kind d.id
@@ -382,11 +396,7 @@ module Demo =
                         | Some tex -> tex
                         | None -> DefaultTextures.blackPix :> PixImage
                     convertPixImageToITexture pixImage)
-            Sg.draw IndexedGeometryMode.TriangleList
-            |> Sg.vertexAttribute DefaultSemantic.Positions probeHistogramPositions
-            |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
-            |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
-            |> Sg.index (AVal.constant [|0;1;2; 0;2;3|]) 
+            planeSg probeHistogramPositions
             |> Sg.trafo histogramScaleTrafo
             |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
             |> Sg.myBillboard viewTrafo
@@ -504,7 +514,7 @@ module Demo =
             |> Sg.trafo model.heraTransformations
             |> Sg.pass pass0
 
-        let planeSg positions (color : aval<C4b>) fillmode blendmode renderPass =
+        let clipPlaneSg positions (color : aval<C4b>) fillmode blendmode renderPass =
             Sg.draw IndexedGeometryMode.TriangleList
             |> Sg.vertexAttribute DefaultSemantic.Positions positions
             |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
@@ -521,7 +531,7 @@ module Demo =
 
         let planePositions = m.planeCorners |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
 
-        let clipPlaneSg = planeSg planePositions m.clippingColor FillMode.Fill (AVal.constant mode) pass4
+        let clipPlaneSg = clipPlaneSg planePositions m.clippingColor FillMode.Fill (AVal.constant mode) pass4
 
         let tvSg = 
             Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"tv";"tv.obj"])
@@ -576,11 +586,7 @@ module Demo =
         let quadPositions = m.tvQuad |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
 
         let browserSg = 
-            Sg.draw IndexedGeometryMode.TriangleList
-            |> Sg.vertexAttribute DefaultSemantic.Positions quadPositions
-            |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
-            |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.OI; V2f.II; V2f.IO |])
-            |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
+            planeSg quadPositions
             |> Sg.diffuseTexture client.Texture 
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
@@ -683,7 +689,7 @@ module Demo =
             do! DefaultSurfaces.simpleLighting
         }
 
-    let app (client : Browser) (histogramClient : Browser) (viewTrafos : aval<Trafo3d []>) (projTrafos : aval<Trafo3d []>) (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
+    let app (client : Browser) (histogramClient : Browser) (boxPlotClient : Browser) (viewTrafos : aval<Trafo3d []>) (projTrafos : aval<Trafo3d []>) (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
         let frames = DataLoader.loadDataAllFrames runtime
         client.SetFocus true
         //let viewTrafo = combinedTrafo viewTrafos
@@ -697,6 +703,6 @@ module Demo =
             threads = threads
             input = input 
             ui = ui runtime frames
-            vr = vr runtime client histogramClient viewTrafo frames
+            vr = vr runtime client histogramClient boxPlotClient viewTrafo frames
             pauseScene = Some pause
         }

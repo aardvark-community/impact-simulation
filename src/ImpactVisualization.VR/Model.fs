@@ -57,6 +57,14 @@ type Probe = {
     id : string
 }
 
+type BoxPlot = {
+    attribute : RenderValue
+    trafo     : Trafo3d
+
+    [<NonAdaptive>]
+    id : string
+}
+
 type ThreeDMessage = Nop
 
 type Message =
@@ -80,6 +88,11 @@ type Message =
     | CreateProbe of int // of int * Trafo3d
     | CreateRay of int //of int * Trafo3d
     | CreateClipping of int //of int * Trafo3d
+    | SelectBoxPlotProbes of int 
+    | PlaceBoxPlot of int
+    | ChangeBoxPlotAttribute of int 
+    | DeleteBoxPlot of int
+    | TakeBoxPlot of int 
     | ScaleProbe of int
     | StopProbeScale of int 
     | DeleteProbe of int 
@@ -114,7 +127,6 @@ type Model =
         grabbingHera : bool
         heraBox : Box3d
         heraTransformations : Trafo3d
-
 
         holdingSphere : bool 
         scalingSphere : bool
@@ -155,8 +167,10 @@ type Model =
         boxPlotProbes : PersistentHashMap<string, float[]>
         currBoxPlotAttribSet : bool
         currBoxPlotAttrib : RenderValue
-
-                
+        showCurrBoxPlot : bool 
+        currBoxPlot : Option<BoxPlot>
+        allPlacedBoxPlots : HashMap<string, BoxPlot>
+                        
         //Controller clipping plane
         holdClipping : bool
         clippingActive : bool
@@ -172,7 +186,6 @@ type Model =
         //Second controller menu
         secondMenuOpen : bool
         attribute : RenderValue
-
 
         //Touchpad
         currMainTouchPadPos : V2d
