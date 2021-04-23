@@ -459,6 +459,17 @@ module HeraSg =
         mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
         mode
 
+    let private testBlendMode = 
+        let mutable mode = BlendMode(true)
+        mode.Enabled <- true
+        mode.Operation <- BlendOperation.Subtract
+        mode.AlphaOperation <- BlendOperation.Subtract
+        mode.SourceFactor <- BlendFactor.SourceAlpha
+        mode.DestinationFactor <- BlendFactor.InvSourceAlpha
+        mode.SourceAlphaFactor <- BlendFactor.One
+        mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
+        mode
+
 
     let private createIndex (vertexCount : int) (positions : aval<V3f[]>) (cameraLocation : aval<V3d>) = 
         let currentBuffer = cval (Array.init vertexCount id)

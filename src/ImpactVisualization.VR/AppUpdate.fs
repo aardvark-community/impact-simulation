@@ -327,8 +327,7 @@ module AppUpdate =
         | GrabHera id ->
             match model.mainControllerId with
             | Some i when i = id ->
-                let currentContrTr = model.devicesTrafos.TryFind(id)
-                let controlT = trafoOrIdentity currentContrTr
+                let controlT = trafoOrIdentity model.mainControllerTrafo
                 let heraT = model.heraTrafo
                 let controlHeraT = heraT * controlT.Inverse
                 {model with 

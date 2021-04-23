@@ -903,7 +903,6 @@ module App =
                     yield transparencySettings "width: 90%; margin-top: 5px; margin-bottom: 5px; pointer-events: none; opacity: 0.5"
 
             }
-        
 
         let colorMaps = AMap.map (fun k v -> text v) m.colorMaps
 
