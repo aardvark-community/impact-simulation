@@ -57,7 +57,9 @@ module Demo =
         | VrMessage.Press(controllerId, buttonId) ->
             match buttonId with 
             | 0 -> [ToggleMainMenu controllerId; OpenMainMenu controllerId]
-            | 1 -> [ActivateControllerMode controllerId; ScaleProbe controllerId; DeleteProbe controllerId; DeleteClippingPlane controllerId]
+            | 1 -> [ActivateControllerMode controllerId; ScaleProbe controllerId; 
+                    DeleteProbe controllerId; DeleteClippingPlane controllerId;
+                    SelectBoxPlotProbes controllerId]
             | _ -> []
         | VrMessage.Unpress(controllerId, buttonId) ->
             match buttonId with 
@@ -217,7 +219,7 @@ module Demo =
 
 
         let contrOrientation = m.mainControllerTrafo |> AVal.map (fun t -> t.GetOrthoNormalOrientation()) 
-        let controllerTypeMenuOpen = AVal.map2 (fun menuOpen level -> menuOpen && level = 1) m.mainMenuOpen m.menuLevel
+        let controllerTypeMenuOpen = AVal.map3 (fun menuOpen level controllerMode -> menuOpen && level = 1 && not (controllerMode = ControllerMode.Analyze)) m.mainMenuOpen m.menuLevel m.controllerMode
 
         let controllerSg path rotX rotY rotZ scTrafo (contrPos : V3d) = 
             Loader.Assimp.load (Path.combine path)
@@ -420,14 +422,14 @@ module Demo =
         let probesSgs = 
             m.allProbes |> AMap.toASet |> ASet.choose (fun (key, probe) ->
                 let color =
-                    AVal.map3 (fun mainId secondId probeIsInsideHera ->
+                    AVal.map3 (fun mainId secondId col ->
                         match secondId with 
                         | Some i when i = key -> C4b.Red
                         | _ ->
                             match mainId with 
                             | Some i when i = key -> C4b.LightGreen
-                            | _ -> if probeIsInsideHera then C4b.Blue else C4b.White
-                    ) m.mainContrProbeIntersectionId m.secondContrProbeIntersectionId probe.insideHera
+                            | _ -> col
+                    ) m.mainContrProbeIntersectionId m.secondContrProbeIntersectionId probe.color
                 let statisticsSg = createStatisticsSg probe
                 let probeHistogramSg = createHistogramSg probe
                 let billboardSg = 

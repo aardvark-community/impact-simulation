@@ -18,6 +18,7 @@ type ControllerMode =
     | Probe = 0
     | Ray = 1
     | Clipping = 2
+    | Analyze = 3
     | NoneMode = 3
 
 type ProbeType = 
@@ -40,6 +41,7 @@ type BillboardType =
 
 [<ModelType>]
 type Probe = {
+    color           : C4b
     center          : V3d
     radius          : float
     centerRelToHera : V3d

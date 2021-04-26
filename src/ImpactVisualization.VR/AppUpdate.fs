@@ -59,6 +59,7 @@ module AppUpdate =
                         "left", fromStreamToTexture "left.png"; 
                         "middle", fromStreamToTexture "middle.png"; 
                         "right", fromStreamToTexture "right.png"; 
+                        "analyze", fromStreamToTexture "analyze.png"; 
                         "bottom-left", fromStreamToTexture "bottom-left.png"; 
                         "bottom-middle", fromStreamToTexture "bottom-middle.png"; 
                         "bottom-right", fromStreamToTexture "bottom-right.png"; 
@@ -94,7 +95,8 @@ module AppUpdate =
                         "statistics-selected", fromStreamToTexture "statistics-selected.png";
                         "histogram", fromStreamToTexture "histogram.png";
                         "statistics", fromStreamToTexture "statistics.png";
-                        "delete-object", fromStreamToTexture "delete-object.png"]
+                        "delete-object", fromStreamToTexture "delete-object.png";
+                        "analyze-probes", fromStreamToTexture "analyze-probes.png"]
     
     let trafoOrIdentity trafo = Option.defaultValue Trafo3d.Identity trafo
 
@@ -108,12 +110,13 @@ module AppUpdate =
     let sphereIntersection (controllerSphere : Sphere3d) (probe : Sphere3d) = controllerSphere.Intersects(probe)
     
 
-    let createProbe (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) 
+    let createProbe (color : C4b) (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) 
                     (inside : bool) (allData : HashMap<RenderValue, (float[] * string)>) 
                     (attribute : RenderValue) (showStats : bool) (showHisto : bool) 
                     (billboardType : BillboardType) : Probe = 
         {
             id = Guid.NewGuid().ToString()
+            color = color
             center = pos
             radius = rad
             centerRelToHera = posToHera
@@ -193,8 +196,8 @@ module AppUpdate =
             lastFilterProbeId = None
             boxPlotProbes = PersistentHashMap.empty
             currBoxPlotAttribSet = false
-            currBoxPlotAttrib = RenderValue.NoValue
-            showCurrBoxPlot = false
+            currBoxPlotAttrib = RenderValue.Energy
+            showCurrBoxPlot = true
             currBoxPlot = None
             allPlacedBoxPlots = HashMap.empty
             rayActive = false
@@ -549,12 +552,12 @@ module AppUpdate =
                     |> HashMap.map (fun key probe -> 
                         let newCenter = heraTrafos.Forward.TransformPos(probe.centerRelToHera)
                         let newRadius = probe.radiusRelToHera * heraTrafos.Forward.GetScaleVector3().X
-                        let sphere = Sphere3d(newCenter, newRadius)
-                        let intersection = heraBBox.Intersects(sphere)
+                        //let sphere = Sphere3d(newCenter, newRadius)
+                        //let intersection = heraBBox.Intersects(sphere)
                         { probe with 
                             center = newCenter
                             radius = newRadius
-                            insideHera = intersection
+                            //insideHera = intersection
                         }
                     )
                 else 
@@ -632,15 +635,12 @@ module AppUpdate =
                 newProbePlaced = (if model.newProbePlaced then false else model.newProbePlaced)}
         | ActivateControllerMode id ->
             match model.mainControllerId with 
-            | Some i when i = id  -> 
-                if not model.mainMenuOpen then 
-                    match model.controllerMode with
-                    | ControllerMode.Probe -> callUpdate (CreateProbe id)
-                    | ControllerMode.Ray -> callUpdate (CreateRay id)
-                    | ControllerMode.Clipping -> callUpdate (CreateClipping id)
-                    | _ -> model
-                else 
-                    model
+            | Some i when i = id && not model.mainMenuOpen -> 
+                match model.controllerMode with
+                | ControllerMode.Probe -> callUpdate (CreateProbe id)
+                | ControllerMode.Ray -> callUpdate (CreateRay id)
+                | ControllerMode.Clipping -> callUpdate (CreateClipping id)
+                | _ -> model
             | _ -> model
         | CreateProbe id ->
             match model.mainContrProbeIntersectionId with // is the main controller currently intersecting a probe (id of probe is a string)
@@ -733,7 +733,7 @@ module AppUpdate =
             | _ -> model
         | SelectBoxPlotProbes id ->
             match model.mainControllerId with 
-            | Some i when i = id -> 
+            | Some i when i = id && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze -> 
                 match model.mainContrProbeIntersectionId with 
                 | Some probeId ->
                     let intersectedProbe = model.allProbes.Item probeId
@@ -742,9 +742,25 @@ module AppUpdate =
                     let newHashmap = model.boxPlotProbes.Add(probeId, arrayBoxPlot) 
                     let dataForBoxPlot = newHashmap |> PersistentHashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
 
-                    if (not model.showCurrBoxPlot) then
+                    let updatedTwoDmodel = 
+                        { mTwoD with
+                            boxPlotData = dataForBoxPlot
+                            boxPlotAttribute = renderValueToString model.currBoxPlotAttrib
+                        }
+
+                    let updatedProbe = {intersectedProbe with color = C4b.Yellow}
+                    let update (pr : Option<Probe>) = updatedProbe 
+                    let allProbesUpdated = model.allProbes |> HashMap.update probeId update
+
+                    if model.showCurrBoxPlot then
                         let boxPlot = createBoxPlot model.currBoxPlotAttrib model.mainControllerTrafo
-                        {model with currBoxPlot = Some boxPlot}
+                        {model with 
+                            currBoxPlot = Some boxPlot
+                            boxPlotProbes = newHashmap
+                            currBoxPlotAttribSet = true
+                            allProbes = allProbesUpdated
+                            twoDModel = updatedTwoDmodel
+                            }
                     else 
                         model
                 | None -> model
@@ -807,23 +823,25 @@ module AppUpdate =
 
                         let array, stats = allData.Item attrib
 
-                        let probe = createProbe spherePos sphereRadius spherePosTransformed radiusTransformed intersection allData attrib true true billboardType
+                        let color = if intersection then C4b.Blue else C4b.White
+
+                        let probe = createProbe color spherePos sphereRadius spherePosTransformed radiusTransformed intersection allData attrib true true billboardType
 
                         let filteredData = if intersection then array else mTwoD.data.arr
                         let attributeAsString = renderValueToString attrib
 
-                        let newCurrBoxPlotAttrib = if not model.currBoxPlotAttribSet then attrib else model.currBoxPlotAttrib
-                        let arrayBoxPlot, statsBoxPlot = allData.Item newCurrBoxPlotAttrib
-                        let newHashmap = model.boxPlotProbes.Add(probe.id, arrayBoxPlot) 
-                        let dataForBoxPlot = newHashmap |> PersistentHashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
+                        //let newCurrBoxPlotAttrib = if not model.currBoxPlotAttribSet then attrib else model.currBoxPlotAttrib
+                        //let arrayBoxPlot, statsBoxPlot = allData.Item newCurrBoxPlotAttrib
+                        //let newHashmap = model.boxPlotProbes.Add(probe.id, arrayBoxPlot) 
+                       // let dataForBoxPlot = newHashmap |> PersistentHashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
 
                         let updatedTwoDmodel = 
                             { mTwoD with
                                 sphereFilter = Some sphereTransformed
                                 data = { version = mTwoD.data.version + 1; arr = filteredData}
                                 attributeText = attributeAsString
-                                boxPlotData = dataForBoxPlot
-                                boxPlotAttribute = renderValueToString newCurrBoxPlotAttrib
+                                //boxPlotData = dataForBoxPlot
+                                //boxPlotAttribute = renderValueToString newCurrBoxPlotAttrib
                             }
 
                         let sleepTime = computeSleepTime filteredData.Length
@@ -848,9 +866,9 @@ module AppUpdate =
                             existingProbeModified = false
                             holdingSphere = false
                             sphereScale = 1.0
-                            boxPlotProbes = newHashmap
-                            currBoxPlotAttribSet = true
-                            currBoxPlotAttrib = newCurrBoxPlotAttrib
+                            //boxPlotProbes = newHashmap
+                            //currBoxPlotAttribSet = true
+                            //currBoxPlotAttrib = newCurrBoxPlotAttrib
                             twoDModel = updatedTwoDmodel
                             threads = ThreadPool.start threadsVr ThreadPool.empty}
                     | _ -> model 
@@ -910,6 +928,7 @@ module AppUpdate =
                         | t when t >= 0.0   && t < 60.0  -> ControllerMode.Clipping
                         | t when t >= 60.0  && t < 120.0 -> ControllerMode.Ray
                         | t when t >= 120.0 && t < 180.0 -> ControllerMode.Probe
+                        | t when t >= 180.0 && t < 360.0 -> ControllerMode.Analyze
                         | _ -> model.controllerMode
                     else 
                         model.controllerMode
@@ -922,6 +941,7 @@ module AppUpdate =
                             | ControllerMode.Probe -> "left", "probe" 
                             | ControllerMode.Ray -> "middle", "ray" 
                             | ControllerMode.Clipping -> "right", "clipping"
+                            | ControllerMode.Analyze -> "analyze", "analyze-probes"
                             | _ -> "initial", "select-tool"
                         (texture texName), (texture screenTexName)
                 {model with 
