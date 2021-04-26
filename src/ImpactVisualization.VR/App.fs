@@ -586,7 +586,11 @@ module Demo =
         let quadPositions = m.tvQuad |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
 
         let browserSg = 
-            planeSg quadPositions
+            Sg.draw IndexedGeometryMode.TriangleList
+            |> Sg.vertexAttribute DefaultSemantic.Positions quadPositions
+            |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
+            |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.OI; V2f.II; V2f.IO |])
+            |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
             |> Sg.diffuseTexture client.Texture 
             |> Sg.shader {
                 do! DefaultSurfaces.trafo

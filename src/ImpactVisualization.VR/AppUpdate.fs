@@ -411,18 +411,21 @@ module AppUpdate =
                     let direction = mainContrTrafo.Forward.TransformPos(V3d.OIO * 1000.0)
                     Ray3d(origin, direction)
                 else Ray3d.Invalid    
-            let intersect = initRay.Intersects(model.tvQuad)
+            //let intersect = initRay.Intersects(model.tvQuad)
             let mutable hit = RayHit3d.MaxRange
-            let hitPoint = initRay.Hits(model.tvQuad, &hit)
+            let hitPoint = if model.rayActive then initRay.Hits(model.tvQuad, &hit) else false
             let currRay, rColor, screenCoordsHitPos =
-                if intersect then
-                    let screenCoords = (V2d(hit.Coord.Y * screenResolution.ToV2d().X, hit.Coord.X * screenResolution.ToV2d().Y)).ToV2i()
-                    let screenPos = PixelPosition(screenCoords, screenResolution.X, screenResolution.Y)
-                    if model.rayTriggerClicked then
-                        client.Mouse.Move(screenPos)
-                    Ray3d(initRay.Origin, hit.Point), C4b.Green, screenPos
-                else
-                    initRay, C4b.Red, PixelPosition()
+                if model.rayActive then 
+                    if hitPoint then
+                        let screenCoords = (V2d(hit.Coord.Y * screenResolution.ToV2d().X, hit.Coord.X * screenResolution.ToV2d().Y)).ToV2i()
+                        let screenPos = PixelPosition(screenCoords, screenResolution.X, screenResolution.Y)
+                        if model.rayTriggerClicked then
+                            client.Mouse.Move(screenPos)
+                        Ray3d(initRay.Origin, hit.Point), C4b.Green, screenPos
+                    else
+                        initRay, C4b.Red, PixelPosition()
+                else Ray3d.Invalid, C4b.Red, PixelPosition()
+                    
 
             let newHeraScaleTrafo = 
                 if model.grabbingHera && model.mainTouching then
@@ -607,7 +610,7 @@ module AppUpdate =
                 sphereScale = scalingFactor
                 ray = currRay
                 planeCorners = currCorners
-                screenIntersection = intersect
+                screenIntersection = hitPoint
                 rayColor = rColor
                 clippingColor = if secondContrClippingIntersection then C4b(1.0,0.0,0.0,0.2) else C4b(1.0,1.0,0.1,0.2)
                 interesctingClippingPlane = secondContrClippingIntersection
@@ -664,8 +667,12 @@ module AppUpdate =
                     newProbePlaced = false
                     holdingSphere = true}                 
         | CreateRay id ->
-            let origin = model.mainControllerTrafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
-            let direction = model.mainControllerTrafo.Forward.TransformPos(V3d.OIO * 1000.0) 
+            let origin, direction =     
+                if not model.rayActive then 
+                    model.mainControllerTrafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0)),
+                    model.mainControllerTrafo.Forward.TransformPos(V3d.OIO * 1000.0)
+                else 
+                    model.ray.Origin, model.ray.Direction
             client.Mouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
             {model with
                 ray = Ray3d(origin, direction)
@@ -1012,7 +1019,7 @@ module AppUpdate =
             | _ -> model
         | ChangeTouchpadPos (id, pos) -> 
             match model.mainControllerId with 
-            | Some i when i = id && model.rayActive && model.screenIntersection -> 
+            | Some i when i = id && model.rayActive && model.screenIntersection && not model.grabbingHera -> 
                 client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
             | _ -> ()
 
