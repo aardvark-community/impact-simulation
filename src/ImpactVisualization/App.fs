@@ -30,6 +30,7 @@ type Message =
     | ReconstructNormal
     | ReconstructDepth
     | EnableTransparency
+    | SetTransparencyAttribute of RenderValue
     | InvertTransferFunction
     | SetAlphaStrength of float
     | SetCenter of float 
@@ -134,6 +135,11 @@ module App =
             reconstructNormal = false
             reconstructDepth = false
             enableTransparency = false
+            transparencyAttribute = RenderValue.Energy
+            transparencyDataRange = {
+                min = minValue
+                max = maxValue
+            }
             alphaStrength = 0.5
             transferFunction = TransferFunction.Linear
             invertTF = false
@@ -407,6 +413,27 @@ module App =
             | ReconstructNormal -> {m with reconstructNormal = not m.reconstructNormal}
             | ReconstructDepth -> {m with reconstructDepth = not m.reconstructDepth}
             | EnableTransparency -> {m with enableTransparency = not m.enableTransparency}
+            | SetTransparencyAttribute a ->     
+                let renderValues = 
+                    match a with
+                    | RenderValue.Energy ->  frames.[m.frame].energies
+                    | RenderValue.CubicRoot -> frames.[m.frame].cubicRoots
+                    | RenderValue.Strain -> frames.[m.frame].strains
+                    | RenderValue.AlphaJutzi -> frames.[m.frame].alphaJutzis
+                    | RenderValue.Pressure -> frames.[m.frame].pressures
+                    | RenderValue.Mass -> frames.[m.frame].masses
+                    | RenderValue.Density -> frames.[m.frame].densities
+                    | _ -> frames.[m.frame].energies
+                let range = renderValues.GetBoundingRange()
+                let minValue = range.Min
+                let maxValue = range.Max
+                let newDataRange = {
+                    min = minValue
+                    max = maxValue
+                    }            
+                {m with 
+                    transparencyAttribute = a
+                    transparencyDataRange = newDataRange}
             | SetAlphaStrength s -> {m with alphaStrength = s}
             | SetTransferFunction t -> {m with transferFunction = t}
             | InvertTransferFunction -> {m with invertTF = not m.invertTF}
@@ -417,13 +444,13 @@ module App =
                     center = newCenter
                     centerNormalized = c}
             | SetStartValue sv -> 
-                let startValueRange = m.center - m.initDataRange.min
-                let newStartValue = m.initDataRange.min + sv * startValueRange
+                let startValueRange = m.center - m.transparencyDataRange.min
+                let newStartValue = m.transparencyDataRange.min + sv * startValueRange
                 {m with 
                     startValue = newStartValue
                     startValueNormalized = sv}
             | SetEndValue ev -> 
-                let endValueRange = m.initDataRange.max - m.center
+                let endValueRange = m.transparencyDataRange.max - m.center
                 let newEndValue = m.center + ev * endValueRange
                 {m with 
                     endValue = newEndValue
@@ -706,6 +733,7 @@ module App =
                 | _ -> m
 
     let renderValues = AMap.ofArray((Enum.GetValues typeof<RenderValue> :?> (RenderValue [])) |> Array.map (fun c -> (c, text (Enum.GetName(typeof<RenderValue>, c)) )))
+    let transparencyValues = AMap.ofArray((Enum.GetValues typeof<RenderValue> :?> (RenderValue [])) |> Array.map (fun c -> (c, text (Enum.GetName(typeof<RenderValue>, c)) )))
     let opacityTFs = AMap.ofArray((Enum.GetValues typeof<TransferFunction> :?> (TransferFunction [])) |> Array.map (fun t -> (t, text (Enum.GetName(typeof<TransferFunction>, t)) )))
 
     let view (runtime : IRuntime) (data : Frame[]) (m : AdaptiveModel) =
@@ -763,7 +791,8 @@ module App =
             data
             |> HeraSg.createAnimatedSg m.frame m.pointSize m.discardPoints m.normalizeData 
                 m.enableShading m.reconstructNormal m.reconstructDepth 
-                m.enableTransparency m.alphaStrength m.transferFunction m.invertTF m.center m.startValue m.endValue
+                m.enableTransparency m.transparencyAttribute m.alphaStrength 
+                m.transferFunction m.invertTF m.center m.startValue m.endValue
                 m.lowerOutliers m.higherOutliers m.outliersRange
                 m.renderValue m.currentMap 
                 m.domainRange m.clippingPlane m.boxFilter m.currFilters m.dataRange m.colorValue.c 
@@ -875,6 +904,7 @@ module App =
                         yield clazz "transparency"
                         yield style "width: 100%"
                     })) (alist {
+                        dropdown1 [ clazz "ui selection"; style "margin-top: 5px; margin-bottom: 5px; min-width: 100%"] transparencyValues m.transparencyAttribute SetTransparencyAttribute
                         span [style "padding: 2px"] [text "Alpha Strength: "] 
                         Incremental.text (m.alphaStrength |> AVal.map (fun f -> f.ToString()))
                         slider { min = 0.0; max = 1.0; step = 0.025 } [clazz "ui slider"; style "padding: 3px"] m.alphaStrength (fun s -> SetAlphaStrength s)

@@ -173,6 +173,7 @@ type Model =
         clippingPlane : ClippingPlane
         dataRange : Range
         initDataRange : Range
+        transparencyDataRange : Range
         discardPoints : bool
         transition : bool
 
@@ -184,6 +185,7 @@ type Model =
         reconstructDepth : bool 
 
         enableTransparency : bool
+        transparencyAttribute : RenderValue
         alphaStrength : float
         transferFunction : TransferFunction
         invertTF : bool 

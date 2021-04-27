@@ -128,8 +128,17 @@ module Shaders =
     //            }
     //    }   
 
-  
-    
+    //[<Inline; ReflectedDefinition>]
+    //let getAttribute (renderVal : RenderValue) (currVertex : Vertex) = 
+    //    match renderVal with
+    //    | RenderValue.Energy -> currVertex.energy
+    //    | RenderValue.CubicRoot -> currVertex.cubicRoot
+    //    | RenderValue.Strain -> currVertex.localStrain
+    //    | RenderValue.AlphaJutzi -> currVertex.alphaJutzi
+    //    | RenderValue.Pressure -> currVertex.pressure
+    //    | RenderValue.Mass -> currVertex.mass
+    //    | RenderValue.Density -> currVertex.density
+    //    | _ -> currVertex.energy
 
     let internal pointSprite (p : Point<Vertex>) = 
         point {
@@ -141,13 +150,35 @@ module Shaders =
             let filters : Filters = uniform?CurrFilters
             let discardPoints = uniform?DiscardPoints
             let renderValue = uniform?RenderValue
+            let transparencyAttrib = uniform?TransparencyAttribute
             let colorValue = uniform?Color
             let normalizeData = uniform?NormalizeData
             let outliersRange : Range = uniform?OutliersRange 
 
-        
-            let value renderValue = 
+            //let value renderVal currVertex = 
+            //    match renderVal with
+            //    | RenderValue.Energy -> currVertex.energy
+            //    | RenderValue.CubicRoot -> currVertex.cubicRoot
+            //    | RenderValue.Strain -> currVertex.localStrain
+            //    | RenderValue.AlphaJutzi -> currVertex.alphaJutzi
+            //    | RenderValue.Pressure -> currVertex.pressure
+            //    | RenderValue.Mass -> currVertex.mass
+            //    | RenderValue.Density -> currVertex.density
+            //    | _ -> currVertex.energy
+
+            let currValue =
                 match renderValue with
+                    | RenderValue.Energy -> p.Value.energy
+                    | RenderValue.CubicRoot -> p.Value.cubicRoot
+                    | RenderValue.Strain -> p.Value.localStrain
+                    | RenderValue.AlphaJutzi -> p.Value.alphaJutzi
+                    | RenderValue.Pressure -> p.Value.pressure
+                    | RenderValue.Mass -> p.Value.mass
+                    | RenderValue.Density -> p.Value.density
+                    | _ -> p.Value.energy
+
+            let transparencyValue = 
+                match transparencyAttrib with
                 | RenderValue.Energy -> p.Value.energy
                 | RenderValue.CubicRoot -> p.Value.cubicRoot
                 | RenderValue.Strain -> p.Value.localStrain
@@ -157,8 +188,9 @@ module Shaders =
                 | RenderValue.Density -> p.Value.density
                 | _ -> p.Value.energy
 
-            let currValue = value renderValue  
+
             let linearCoord = if normalizeData then (currValue - dataRange.min) / (dataRange.max - dataRange.min) else currValue
+            let linearCoordTransp = if normalizeData then (transparencyValue - dataRange.min) / (dataRange.max - dataRange.min) else transparencyValue
 
             //let temp = (currValue - dataRange.min) / (dataRange.max - dataRange.min) // normalized values!!! 
             //let linearCoord = Math.Pow(temp, 1.0/2.0)
@@ -200,7 +232,7 @@ module Shaders =
                 yield  { p.Value with 
                             pointColor = color
                             pointSize = uniform?PointSize
-                            linearCoord = linearCoord // give linearCoord to fs or decide alpha here - in fs it might be more flexible - one could fade out points
+                            linearCoord = linearCoordTransp // give linearCoord to fs or decide alpha here - in fs it might be more flexible - one could fade out points
                        }
         }
       
@@ -222,6 +254,7 @@ module Shaders =
             let filters : Filters = uniform?CurrFilters
             let discardPoints = uniform?DiscardPoints
             let renderValue = uniform?RenderValue
+            let transparencyAttrib = uniform?TransparencyAttribute
             let colorValue = uniform?Color
             let normalizeData = uniform?NormalizeData
             let outliersRange : Range = uniform?OutliersRange 
@@ -234,8 +267,19 @@ module Shaders =
             let probesLength = uniform?SpheresLength
             let allProbes : V4f[] = uniform.SpheresInfos
 
-            let value renderValue = 
+            let currValue =
                 match renderValue with
+                    | RenderValue.Energy -> p.Value.energy
+                    | RenderValue.CubicRoot -> p.Value.cubicRoot
+                    | RenderValue.Strain -> p.Value.localStrain
+                    | RenderValue.AlphaJutzi -> p.Value.alphaJutzi
+                    | RenderValue.Pressure -> p.Value.pressure
+                    | RenderValue.Mass -> p.Value.mass
+                    | RenderValue.Density -> p.Value.density
+                    | _ -> p.Value.energy
+
+            let transparencyValue = 
+                match transparencyAttrib with
                 | RenderValue.Energy -> p.Value.energy
                 | RenderValue.CubicRoot -> p.Value.cubicRoot
                 | RenderValue.Strain -> p.Value.localStrain
@@ -244,9 +288,14 @@ module Shaders =
                 | RenderValue.Mass -> p.Value.mass
                 | RenderValue.Density -> p.Value.density
                 | _ -> p.Value.energy
-            
-            let currValue = value renderValue  
+
+
             let linearCoord = if normalizeData then (currValue - dataRange.min) / (dataRange.max - dataRange.min) else currValue
+            let linearCoordTransp = if normalizeData then (transparencyValue - dataRange.min) / (dataRange.max - dataRange.min) else transparencyValue
+
+            //let transparencyValue = value transparencyAttrib
+            //let linearCoordTransp = if normalizeData then (transparencyValue - dataRange.min) / (dataRange.max - dataRange.min) else transparencyValue
+
             
             let transferFunc = transfer.SampleLevel(V2d(linearCoord, 0.0), 0.0)
 
@@ -310,7 +359,7 @@ module Shaders =
                 yield  { p.Value with 
                             pointColor = color
                             pointSize = pSize;
-                            linearCoord = linearCoord // give linearCoord to fs or decide alpha here - in fs it might be more flexible - one could fade out points
+                            linearCoord = linearCoordTransp // give linearCoord to fs or decide alpha here - in fs it might be more flexible - one could fade out points
                        }
         }
 
@@ -502,8 +551,9 @@ module HeraSg =
     let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) 
                          (normalizeData : aval<bool>) (enableShading : aval<bool>)
                          (reconstructNormal : aval<bool>) (reconstructDepth : aval<bool>) 
-                         (enableTransparency : aval<bool>) (alphaStrength : aval<float>) 
-                         (opacityTF : aval<TransferFunction>) (invertTF : aval<bool>) (center : aval<float>) (startValue : aval<float>) (endValue : aval<float>)
+                         (enableTransparency : aval<bool>) (transparencyAttrib : aval<RenderValue>) 
+                         (alphaStrength : aval<float>) (opacityTF : aval<TransferFunction>) (invertTF : aval<bool>) 
+                         (center : aval<float>) (startValue : aval<float>) (endValue : aval<float>)
                          (lowerOutliers : aval<bool>) (higherOutliers : aval<bool>) (outliersRange : aval<Range>)
                          (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
                          (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
@@ -578,6 +628,7 @@ module HeraSg =
         |> Sg.uniform "ReconstructNormal" reconstructNormal
         |> Sg.uniform "ReconstructDepth" reconstructDepth
         |> Sg.uniform "EnableTransparency" enableTransparency
+        |> Sg.uniform "TransparencyAttribute" transparencyAttrib
         |> Sg.uniform "AlphaStrength" alphaStrength
         |> Sg.uniform "OpacityTF" opacityTF
         |> Sg.uniform "InvertTF" invertTF
@@ -602,8 +653,9 @@ module HeraSg =
     //TODO: Create a function containing repetitive code
     let createAnimatedVrSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) 
                            (normalizeData : aval<bool>) (enableShading : aval<bool>)(reconstructNormal : aval<bool>) 
-                           (reconstructDepth : aval<bool>) (enableTransparency : aval<bool>) (alphaStrength : aval<float>) 
-                           (opacityTF : aval<TransferFunction>) (invertTF : aval<bool>) (center : aval<float>) (startValue : aval<float>) (endValue : aval<float>)
+                           (reconstructDepth : aval<bool>) (enableTransparency : aval<bool>) (transparencyAttrib : aval<RenderValue>)
+                           (alphaStrength : aval<float>) (opacityTF : aval<TransferFunction>) (invertTF : aval<bool>) 
+                           (center : aval<float>) (startValue : aval<float>) (endValue : aval<float>)
                            (lowerOutliers : aval<bool>) (higherOutliers : aval<bool>) (outliersRange : aval<Range>) (pointRadius : aval<float>)
                            (renderValue : aval<RenderValue>) (tfPath : aval<string>) (domainRange : aval<DomainRange>) 
                            (clippingPlane : aval<ClippingPlane>) (contrClippingPlane : aval<Plane3d>) (filterBox : aval<option<Box3f>>) 
@@ -681,6 +733,7 @@ module HeraSg =
         |> Sg.uniform "ReconstructNormal" reconstructNormal
         |> Sg.uniform "ReconstructDepth" reconstructDepth
         |> Sg.uniform "EnableTransparency" enableTransparency
+        |> Sg.uniform "TransparencyAttribute" transparencyAttrib
         |> Sg.uniform "AlphaStrength" alphaStrength
         |> Sg.uniform "OpacityTF" opacityTF
         |> Sg.uniform "InvertTF" invertTF
