@@ -132,11 +132,12 @@ module AppUpdate =
             currBillboard = billboardType
         }
 
-    let createBoxPlot (attribute : RenderValue) (trafo : Trafo3d) : BoxPlot =
+    let createBoxPlot (attribute : RenderValue) (trafo : Trafo3d) (data : HashMap<int, float[]>): BoxPlot =
         {   
             id = Guid.NewGuid().ToString()
             attribute = attribute
             trafo = trafo
+            data = data
         }
     
     let convertCartesianToPolar (cartCoords : V2d) = 
@@ -200,7 +201,7 @@ module AppUpdate =
             lastProbeId = 0
             currBoxPlotAttribSet = false
             currBoxPlotAttrib = RenderValue.Energy
-            showCurrBoxPlot = true
+            showCurrBoxPlot = false
             currBoxPlot = None
             allPlacedBoxPlots = HashMap.empty
             rayActive = false
@@ -795,7 +796,7 @@ module AppUpdate =
                     let allProbesUpdated = model.allProbes |> HashMap.update probeId update
 
                     if model.showCurrBoxPlot then
-                        let boxPlot = createBoxPlot model.currBoxPlotAttrib model.mainControllerTrafo
+                        let boxPlot = createBoxPlot model.currBoxPlotAttrib model.secondControllerTrafo newHashmap
                         {model with 
                             currBoxPlot = Some boxPlot
                             boxPlotProbes = newHashmap
@@ -946,9 +947,11 @@ module AppUpdate =
                 else 
                     closeMenu
             let screenTex = if not isOpen then model.lastContrScreenModeTexture else model.mainContrScreenTexture
+            let showBoxPlot = if (model.controllerMode = ControllerMode.Analyze) then true else model.showCurrBoxPlot
             {model with 
                 menuLevel = level
-                mainMenuOpen = isOpen}
+                mainMenuOpen = isOpen
+                showCurrBoxPlot = showBoxPlot}
         | OpenMainMenu id ->
             let texture, screenTexture =
                 match model.menuLevel with

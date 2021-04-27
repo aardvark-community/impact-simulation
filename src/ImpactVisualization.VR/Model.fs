@@ -19,7 +19,7 @@ type ControllerMode =
     | Ray = 1
     | Clipping = 2
     | Analyze = 3
-    | NoneMode = 3
+    | NoneMode = 4
 
 type ProbeType = 
     | Sphere = 0 
@@ -64,6 +64,7 @@ type Probe = {
 type BoxPlot = {
     attribute : RenderValue
     trafo     : Trafo3d
+    data      : HashMap<int, float[]>
 
     [<NonAdaptive>]
     id : string
