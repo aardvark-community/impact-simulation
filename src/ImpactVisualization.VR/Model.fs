@@ -41,6 +41,8 @@ type BillboardType =
 
 [<ModelType>]
 type Probe = {
+    numberId        : int
+    selected        : bool
     color           : C4b
     center          : V3d
     radius          : float
@@ -166,7 +168,8 @@ type Model =
         existingProbeModified : bool
 
         //Box Plot
-        boxPlotProbes : PersistentHashMap<string, float[]>
+        boxPlotProbes : HashMap<int, float[]>
+        lastProbeId : int
         currBoxPlotAttribSet : bool
         currBoxPlotAttrib : RenderValue
         showCurrBoxPlot : bool 

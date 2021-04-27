@@ -37,7 +37,7 @@ function initBoxPlot(id) {
         //.attr("x", ((totalWidth + margin_b.left + margin_b.right) / 2))             
        // .attr("y", 0)
         .attr("text-anchor", "middle")  
-        .style("font", "24px sans-serif")
+        .style("font", "30px sans-serif")
         .text("Attribute");
 
     // Move the left axis over 25 pixels, and the top axis over 35 pixels
@@ -137,7 +137,7 @@ function refreshBoxPlot(data){
         .attr("y", d => yScale(d.quartile[0]))
         .attr("fill", "#000")
         .attr("text-anchor", "end")
-        .style("font", "11px sans-serif")
+        .style("font", "14px sans-serif")
         .text(d => format(d.quartile[0]));
 
     var rectText2 = g_b.selectAll(".rectText2")
@@ -150,7 +150,7 @@ function refreshBoxPlot(data){
         .attr("y", d => yScale(d.quartile[2]))
         .attr("fill", "#000")
         .attr("text-anchor", "end")
-        .style("font", "11px sans-serif")
+        .style("font", "14px sans-serif")
         .text(d => format(d.quartile[2]));
 
      // Now render all the horizontal lines at once - the whiskers and the median
@@ -206,19 +206,24 @@ function refreshBoxPlot(data){
             .attr("x", lineConfig.x2)
             .attr("y", lineConfig.y2)
             .attr("fill", "#000")
-            .style("font", "11px sans-serif")
+            .style("font", "14px sans-serif")
             .text(lineConfig.text);
     }
 
     // Setup a scale on the left
     var axisLeft = d3.axisLeft(yScale)
         .tickFormat(d3.format(".2s"));;
-    axisG.append("g").call(axisLeft);
+    axisG.append("g")
+        .style("font", "16px sans-serif")
+        .call(axisLeft);
 
     // Setup a series axis on the top
     var axisBottom = d3.axisBottom(xScale)
         .tickFormat(d => "Probe " + d);
-    axisBottomG.append("g").call(axisBottom);
+    axisBottomG.append("g")
+        .style("font", "16px sans-serif")
+        .style("font-weight", "bold")
+        .call(axisBottom);
 }
 
 function resetContainers(){

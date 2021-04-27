@@ -274,13 +274,21 @@ module Demo =
             |> Sg.andAlso clippingContrSg
             |> Sg.onOff visible
 
-        let defaultBoxPlotPositions = AVal.constant  [|V3f(-1.92, -1.0, 0.0); V3f(1.92, -1.0, 0.0); V3f(1.92, 1.0, 0.0); V3f(-1.92, 1.0, 0.0)|]
+        let defaultBoxPlotPositions = AVal.constant  [|V3f(-1.7, -1.0, 0.0); V3f(1.7, -1.0, 0.0); V3f(1.7, 1.0, 0.0); V3f(-1.7, 1.0, 0.0)|]
 
-        let boxPlotSg = 
+        let boxPlotSg deviceId =
+            let showTexture =
+                (deviceId, m.secondControllerId, m.showCurrBoxPlot) 
+                |||> AVal.map3 (fun dId sId show ->
+                    match sId with 
+                    | Some id when id = dId -> show
+                    | _ -> false)
             planeSg defaultBoxPlotPositions
             |> Sg.scale 0.2
             |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
-            |> Sg.onOff m.showCurrBoxPlot
+            |> Sg.transform (Trafo3d.RotationXInDegrees(35.0))
+            |> Sg.translate 0.0 0.25 0.1
+            |> Sg.onOff showTexture
             |> Sg.diffuseTexture boxPlotClient.Texture 
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
@@ -302,6 +310,7 @@ module Demo =
                         |> Sg.andAlso (textPlaneSgs d.id)
                         |> Sg.andAlso (touchpadSgs d.id)
                         |> Sg.andAlso (smallControllersSgs d.id)
+                        |> Sg.andAlso (boxPlotSg d.id)
                         |> Sg.trafo d.pose.deviceToWorld
                         |> Sg.onOff d.pose.isValid
                         |> Some
