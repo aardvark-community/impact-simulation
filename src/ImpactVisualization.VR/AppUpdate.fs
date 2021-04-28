@@ -96,7 +96,8 @@ module AppUpdate =
                         "histogram", fromStreamToTexture "histogram.png";
                         "statistics", fromStreamToTexture "statistics.png";
                         "delete-object", fromStreamToTexture "delete-object.png";
-                        "analyze-probes", fromStreamToTexture "analyze-probes.png"]
+                        "analyze-probes", fromStreamToTexture "analyze-probes.png";
+                        "main-controller", fromStreamToTexture "main-controller.png"]
     
     let trafoOrIdentity trafo = Option.defaultValue Trafo3d.Identity trafo
 
@@ -178,6 +179,7 @@ module AppUpdate =
             devicesTrafos = HashMap.Empty
             mainControllerId = None
             secondControllerId = None
+            mainContrSignTexture = allTextures.Item "empty"
             mainControllerTrafo = Trafo3d.Identity
             secondControllerTrafo = Trafo3d.Identity
             heraTrafo = Trafo3d.Identity
@@ -340,7 +342,8 @@ module AppUpdate =
                 let sndId = controllersIds.[1]
                 {model with
                     mainControllerId = Some fstId
-                    secondControllerId = Some sndId}
+                    secondControllerId = Some sndId
+                    mainContrSignTexture = texture "main-controller"}
             else
                 model
         | ToggleBillboardVisibility id ->

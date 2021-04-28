@@ -201,6 +201,9 @@
     <EmbeddedResource Include="resources\textures\analyze-probes.png">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
+    <EmbeddedResource Include="resources\textures\main-controller.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
     <Compile Include="Hera.fs" />
     <Compile Include="HeraExtensions.fs" />
     <Compile Include="Model.fs" />

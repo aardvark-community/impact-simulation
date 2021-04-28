@@ -298,6 +298,29 @@ module Demo =
             |> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass2
 
+        let mainSignPos = AVal.constant  [|V3f(-1.0, -1.0, 0.0); V3f(1.0, -1.0, 0.0); V3f(1.0, 1.0, 0.0); V3f(-1.0, 1.0, 0.0)|]
+        let mainControllerSignSg deviceId = 
+            let showTexture = 
+                (deviceId, m.mainControllerId)
+                ||> AVal.map2 (fun dId mId -> 
+                    match mId with 
+                    | Some id when id = dId -> true
+                    | _ -> false)
+            planeSg mainSignPos
+            |> Sg.scale 0.005
+            |> Sg.transform (Trafo3d.RotationXInDegrees(7.0))
+            |> Sg.translate 0.0 -0.15 -0.0026
+            |> Sg.onOff showTexture
+            |> Sg.diffuseTexture m.mainContrSignTexture
+            |> Sg.shader {
+                do! DefaultSurfaces.trafo
+                do! DefaultSurfaces.diffuseTexture
+            }  
+            |> Sg.blendMode (AVal.constant mode)
+            |> Sg.pass pass2
+
+
+
         let deviceSgs = 
             info.state.devices |> AMap.toASet |> ASet.chooseA (fun (_,d) ->
                 //printf "Device Type: %A, %A \n" d.kind d.id
@@ -312,6 +335,7 @@ module Demo =
                         |> Sg.andAlso (touchpadSgs d.id)
                         |> Sg.andAlso (smallControllersSgs d.id)
                         |> Sg.andAlso (boxPlotSg d.id)
+                        |> Sg.andAlso (mainControllerSignSg d.id)
                         |> Sg.trafo d.pose.deviceToWorld
                         |> Sg.onOff d.pose.isValid
                         |> Some

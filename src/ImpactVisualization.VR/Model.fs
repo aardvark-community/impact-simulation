@@ -123,6 +123,7 @@ type Model =
         devicesTrafos : HashMap<int, Trafo3d>
         mainControllerId : Option<int> 
         secondControllerId : Option<int>
+        mainContrSignTexture : ITexture
 
         mainControllerTrafo : Trafo3d
         secondControllerTrafo : Trafo3d
