@@ -78,6 +78,7 @@ type Message =
     | Nop
     | StartVr
     | SetController of int
+    | ToggleBillboardVisibility of int
     | GrabHera of int
     | UngrabHera of int
     | ScaleHera of int * float
@@ -116,6 +117,7 @@ type Model =
         twoDModel : AardVolume.Model.Model
         threads : ThreadPool<Message>
         firstHistogram : bool
+        showBillboard : bool
 
         //Controllers
         devicesTrafos : HashMap<int, Trafo3d>

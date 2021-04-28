@@ -174,6 +174,7 @@ module AppUpdate =
             text = "hello" 
             threads = ThreadPool.Empty
             firstHistogram = true
+            showBillboard = true
             devicesTrafos = HashMap.Empty
             mainControllerId = None
             secondControllerId = None
@@ -341,6 +342,11 @@ module AppUpdate =
                     secondControllerId = Some sndId}
             else
                 model
+        | ToggleBillboardVisibility id ->
+            match model.secondControllerId with 
+            | Some i when i = id ->
+                {model with showBillboard = not model.showBillboard}
+            | _ -> model
         | GrabHera id ->
             match model.mainControllerId with
             | Some i when i = id ->
@@ -539,13 +545,16 @@ module AppUpdate =
                     if not model.mainMenuOpen && not model.secondTouching && mainContrProbeIntersection.IsNone && not model.grabbingHera && model.controllerMode = ControllerMode.Probe then 
                         model.secondTouchpadTexture, (texture "select-attribute") 
                     else
-                        match mainContrProbeIntersection with 
-                        | Some probeId when model.allProbes.TryFind(probeId).IsSome ->
-                            let intersectedProbe = model.allProbes.Item probeId
-                            let probeAttrib = intersectedProbe.currAttribute
-                            computeNewAttributeTextures probeAttrib
-                        | _ ->
-                            if model.secondTouching then model.secondTouchpadTexture, model.secondContrScreenTexture else model.secondTouchpadTexture, texture ("empty")
+                        if model.controllerMode = ControllerMode.Analyze then
+                            computeNewAttributeTextures model.currBoxPlotAttrib
+                        else 
+                            match mainContrProbeIntersection with 
+                            | Some probeId when model.allProbes.TryFind(probeId).IsSome ->
+                                let intersectedProbe = model.allProbes.Item probeId
+                                let probeAttrib = intersectedProbe.currAttribute
+                                computeNewAttributeTextures probeAttrib
+                            | _ ->
+                                if model.secondTouching then model.secondTouchpadTexture, model.secondContrScreenTexture else model.secondTouchpadTexture, texture ("empty")
 
 
 
@@ -608,7 +617,11 @@ module AppUpdate =
 
             // UPDATE TEXTURES VISIBILITY
             let showMainTexture = mainContrProbeIntersection.IsSome || model.grabbingHera || model.mainMenuOpen
-            let showSecondTexture = secondContrProbeIntersection.IsNone && not secondContrClippingIntersection && (((model.controllerMode = ControllerMode.Probe) && not showMainTexture && model.secondTouching) || mainContrProbeIntersection.IsSome) 
+
+            let showSecondTexture = 
+                secondContrProbeIntersection.IsNone && not secondContrClippingIntersection && 
+                (((model.controllerMode = ControllerMode.Probe) && not showMainTexture && model.secondTouching) || 
+                    mainContrProbeIntersection.IsSome || model.controllerMode = ControllerMode.Analyze) 
         
             {model with 
                 devicesTrafos = newInput
@@ -810,8 +823,6 @@ module AppUpdate =
                 | None -> model
             | _ -> model
         | PlaceBoxPlot id ->
-            model
-        | ChangeBoxPlotAttribute id ->
             model
         | DeleteBoxPlot id ->
             model
@@ -1027,6 +1038,48 @@ module AppUpdate =
                         mainContrScreenTexture = screenTexture}
                         //showTexture = true}
                 | _ -> model
+            | _ -> model
+        | ChangeBoxPlotAttribute id ->
+            match model.secondControllerId with  
+            | Some i when i = id && model.controllerMode = ControllerMode.Analyze ->
+                let newAttribute = computeNewAttribute model.currSecondTouchPadPos model.currBoxPlotAttrib
+                let texture, screenTexture = computeNewAttributeTextures newAttribute
+
+                if newAttribute <> model.currBoxPlotAttrib then 
+
+                    let newHashmap = 
+                        model.boxPlotProbes
+                        |> HashMap.map (fun key array ->
+                            let currProbe = 
+                                model.allProbes
+                                |> HashMap.filter (fun k probe -> 
+                                    probe.selected && probe.numberId = key
+                                )
+                                |> HashMap.toSeq
+                                |> Seq.exactlyOne
+                                |> snd
+                            let newArray, newStats = currProbe.allData.Item newAttribute
+                            newArray                                
+                        )
+                       
+                    let dataForBoxPlot = newHashmap |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
+
+                    let updatedTwoDmodel = 
+                        { mTwoD with
+                            boxPlotData = dataForBoxPlot
+                            boxPlotAttribute = renderValueToString newAttribute
+                        }
+
+                    {model with 
+                        twoDModel = updatedTwoDmodel
+                        boxPlotProbes = newHashmap
+                        currBoxPlotAttrib = newAttribute
+                        currBoxPlotAttribSet = true
+                        showSecondTexture = true
+                        secondTouchpadTexture = texture
+                        secondContrScreenTexture = screenTexture}
+                else 
+                    model
             | _ -> model
         | SelectGlobalAttribute id ->
             match model.secondControllerId with  

@@ -48,7 +48,7 @@ module Demo =
            // printf "press button: %A " (controllerId, buttonId)
             match buttonId with 
             | 1 -> [ResetHera]
-            | 2 -> [GrabHera controllerId]
+            | 2 -> [GrabHera controllerId; ToggleBillboardVisibility controllerId]
             | _ -> []
         | VrMessage.UnpressButton(controllerId, buttonId) ->
             match buttonId with 
@@ -80,6 +80,7 @@ module Demo =
             | 0 ->  [ChangeTouchpadPos (controllerId, value); 
                      ScaleHera (controllerId, value.X); 
                      ChangeMainControllerMode controllerId; 
+                     ChangeBoxPlotAttribute controllerId;
                      SelectGlobalAttribute controllerId;
                      SelectProbeAttribute controllerId;
                      ChangeBillboard controllerId
@@ -425,7 +426,7 @@ module Demo =
             |> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass2
 
-        let showBillboard = m.grabbingHera |> AVal.map (fun grabbing -> not grabbing)
+        let showBillboard = (m.showBillboard, m.grabbingHera) ||> AVal.map2 (fun show grabbing -> show && not grabbing)
 
         //TODO: Probably causing overhead due to the complexity, especially when grabbing hera
         let probesSgs = 

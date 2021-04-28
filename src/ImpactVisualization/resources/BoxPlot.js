@@ -14,10 +14,11 @@ let groupCounts = {}; //this will come from the program with all necessary data!
 let globalCounts = [];
 
 let svg_b = undefined;
+let svg_container = undefined;
 let axisG = undefined;
 let axisBottomG = undefined;
 let g_b = undefined;
-let attribute = undefined;
+//let attribute = undefined;
 
 function initBoxPlot(id) {
     // Setup the svg and group we will draw the box plot in
@@ -26,27 +27,34 @@ function initBoxPlot(id) {
         .attr("viewBox", "0 0 " + (totalWidth + 2 * margin_b.right) + " " + height_b)
 	    .attr("width", totalWidth)
 	    .attr("height", totalHeight)
-	    .append("g")
-	    .attr("transform", "translate(" + margin_b.left + "," + margin_b.top + ")");
+
 
     	// add a title
 	svg_b.append("g")
-        .attr("transform", "translate("  + ((totalWidth + margin_b.left + margin_b.right) / 2) + ",0)")
+        .attr("transform", "translate("  + ((totalWidth + margin_b.left + margin_b.right) / 2) + ",-20)")
         .append("text")
         .attr("id","mainText")
         //.attr("x", ((totalWidth + margin_b.left + margin_b.right) / 2))             
        // .attr("y", 0)
         .attr("text-anchor", "middle")  
-        .style("font", "30px sans-serif")
+        .style("font", "42px sans-serif")
         .text("Attribute");
 
+    svg_container = svg_b.append("g")
+        .attr("transform", "translate(" + margin_b.left + "," + margin_b.top + ")");
+
     // Move the left axis over 25 pixels, and the top axis over 35 pixels
-    axisG = svg_b.append("g").attr("transform", "translate(45,10)");
-    axisBottomG = svg_b.append("g").attr("transform", "translate(50," + (height_b + margin_b.top) + ")");
+    axisG = svg_container.append("g").attr("transform", "translate(45,10)");
+    axisBottomG = svg_container.append("g").attr("transform", "translate(50," + (height_b + margin_b.top) + ")");
 
     // Setup the group the box plot elements will render in
-    g_b = svg_b.append("g")
+    g_b = svg_container.append("g")
 	    .attr("transform", "translate(35,10)");
+}
+
+function setNewAttribute(attr) {
+    svg_b.select("#mainText")
+        .text(attr)
 }
 
 function refreshBoxPlot(data){
@@ -55,8 +63,8 @@ function refreshBoxPlot(data){
    
     groupCounts = data
 
-    svg_b.select("#mainText")
-        .text(attribute)
+    //svg_b.select("#mainText")
+    //    .text(attribute)
 
     // Sort group counts so quantile methods work
     for(var key in groupCounts) {

@@ -967,7 +967,7 @@ module App =
         let boxPlotChannel = m.boxPlotData.Channel
         let attributeChannel = m.boxPlotAttribute.Channel
         let updateBoxPlot =
-            "initBoxPlot(__ID__); boxPlotAttribute.onmessage = function (a) { attribute = a }; boxPlotData.onmessage = function (data) { refreshBoxPlot(data); }"
+            "initBoxPlot(__ID__); boxPlotAttribute.onmessage = function (a) { setNewAttribute(a); }; boxPlotData.onmessage = function (data) { refreshBoxPlot(data); }"
 
         let onBrushed = 
             onEvent ("brushing") [] (( fun args ->
