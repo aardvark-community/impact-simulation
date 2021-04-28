@@ -110,14 +110,14 @@ module AppUpdate =
     let sphereIntersection (controllerSphere : Sphere3d) (probe : Sphere3d) = controllerSphere.Intersects(probe)
     
 
-    let createProbe (color : C4b) (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) 
+    let createProbe (numberId : int) (selected : bool) (color : C4b) (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) 
                     (inside : bool) (allData : HashMap<RenderValue, (float[] * string)>) 
                     (attribute : RenderValue) (showStats : bool) (showHisto : bool) 
                     (billboardType : BillboardType) : Probe = 
         {
             id = Guid.NewGuid().ToString()
-            numberId = -1
-            selected = false
+            numberId = numberId
+            selected = selected
             color = color
             center = pos
             radius = rad
@@ -198,6 +198,7 @@ module AppUpdate =
             secondContrProbeIntersectionId = None
             lastFilterProbe = None
             lastFilterProbeId = None
+            lastModifiedProbeIntId = -1
             boxPlotProbes = HashMap.empty
             lastProbeId = 0
             currBoxPlotAttribSet = false
@@ -669,21 +670,24 @@ module AppUpdate =
                     | None -> model.sphereScale, None
                 let pr = model.allProbes.Item probe
                 let intId = pr.numberId
-                let newHashmap = model.boxPlotProbes.Remove(intId)
-                let dataForBoxPlot = newHashmap |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
 
-                let updatedTwoDmodel = 
-                    { mTwoD with
-                        boxPlotData = dataForBoxPlot
-                    }
+                let newHashmap, updatedTwoDmodel = 
+                    if intId <> -1 then 
+                        let hm = model.boxPlotProbes.Remove(intId)
+                        let dataForBoxPlot = hm |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
+                        hm, { mTwoD with boxPlotData = dataForBoxPlot}
+                    else 
+                        model.boxPlotProbes, model.twoDModel
+
                 {model with 
                     allProbes = model.allProbes.Remove(probe)
-                    boxPlotProbes = model.boxPlotProbes.Remove(intId)
+                    boxPlotProbes = newHashmap
                     lastFilterProbe = currProbe
                     lastFilterProbeId = probeId
                     currentProbeManipulated = true
                     newProbePlaced = false
                     existingProbeModified = true
+                    lastModifiedProbeIntId = intId
                     holdingSphere = true
                     sphereScale = currScale
                     mainContrProbeIntersectionId = None
@@ -691,6 +695,7 @@ module AppUpdate =
             | None -> 
                 {model with 
                     currentProbeManipulated = true
+                    lastModifiedProbeIntId = -1
                     newProbePlaced = false
                     holdingSphere = true}                 
         | CreateRay id ->
@@ -878,24 +883,31 @@ module AppUpdate =
 
                         let array, stats = allData.Item attrib
 
-                        let color = if intersection then C4b.Blue else C4b.White
 
-                        let probe = createProbe color spherePos sphereRadius spherePosTransformed radiusTransformed intersection allData attrib true true billboardType
+                        let selected = model.lastModifiedProbeIntId <> -1 
+                        let color = if intersection then (if selected then C4b.Yellow else C4b.Blue) else C4b.White
+
+                        let probe = createProbe model.lastModifiedProbeIntId selected color spherePos sphereRadius spherePosTransformed radiusTransformed intersection allData attrib true true billboardType
 
                         let filteredData = if intersection then array else mTwoD.data.arr
                         let attributeAsString = renderValueToString attrib
 
                         //let newCurrBoxPlotAttrib = if not model.currBoxPlotAttribSet then attrib else model.currBoxPlotAttrib
-                        //let arrayBoxPlot, statsBoxPlot = allData.Item newCurrBoxPlotAttrib
-                        //let newHashmap = model.boxPlotProbes.Add(probe.id, arrayBoxPlot) 
-                       // let dataForBoxPlot = newHashmap |> PersistentHashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
+                        let newHashmap, dataForBoxPlot = 
+                            if model.existingProbeModified && selected then 
+                                let arrayBoxPlot, statsBoxPlot = allData.Item model.currBoxPlotAttrib
+                                let hm = model.boxPlotProbes.Add(model.lastModifiedProbeIntId, arrayBoxPlot) 
+                                let boxPlotData = hm |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
+                                hm, boxPlotData
+                            else 
+                                model.boxPlotProbes, mTwoD.boxPlotData
 
                         let updatedTwoDmodel = 
                             { mTwoD with
                                 sphereFilter = Some sphereTransformed
                                 data = { version = mTwoD.data.version + 1; arr = filteredData}
                                 attributeText = attributeAsString
-                                //boxPlotData = dataForBoxPlot
+                                boxPlotData = dataForBoxPlot
                                 //boxPlotAttribute = renderValueToString newCurrBoxPlotAttrib
                             }
 
@@ -921,7 +933,7 @@ module AppUpdate =
                             existingProbeModified = false
                             holdingSphere = false
                             sphereScale = 1.0
-                            //boxPlotProbes = newHashmap
+                            boxPlotProbes = newHashmap
                             //currBoxPlotAttribSet = true
                             //currBoxPlotAttrib = newCurrBoxPlotAttrib
                             twoDModel = updatedTwoDmodel

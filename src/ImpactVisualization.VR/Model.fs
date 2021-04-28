@@ -167,6 +167,7 @@ type Model =
         secondContrProbeIntersectionId : Option<string>
         lastFilterProbe : Option<Probe>
         lastFilterProbeId : Option<string>
+        lastModifiedProbeIntId : int
         newProbePlaced : bool
         existingProbeModified : bool
 
