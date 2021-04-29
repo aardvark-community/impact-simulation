@@ -65,6 +65,7 @@ type Probe = {
 type BoxPlot = {
     attribute : RenderValue
     trafo     : Trafo3d
+    positions : Quad3d
     texture   : PixImage
     data      : HashMap<int, float[]>
 

@@ -133,11 +133,12 @@ module AppUpdate =
             currBillboard = billboardType
         }
 
-    let createBoxPlot (attribute : RenderValue) (trafo : Trafo3d) (texture : PixImage) (data : HashMap<int, float[]>): BoxPlot =
+    let createBoxPlot (attribute : RenderValue) (trafo : Trafo3d) (corners : Quad3d) (texture : PixImage) (data : HashMap<int, float[]>): BoxPlot =
         {   
             id = Guid.NewGuid().ToString()
             attribute = attribute
             trafo = trafo
+            positions = corners
             texture = texture 
             data = data
         }
@@ -169,6 +170,8 @@ module AppUpdate =
 
 
     let initialScalingHera = 0.05
+
+    let defaultBoxPlotPositions = Quad3d(V3d(-1.7, -1.0, 0.0), V3d(1.7, -1.0, 0.0), V3d(1.7, 1.0, 0.0), V3d(-1.7, 1.0, 0.0))
 
     let defaultBoxPlotsTrafo = 
         let scale = Trafo3d.Scale(0.3)
@@ -261,6 +264,11 @@ module AppUpdate =
     let getScreenshot (histogramClient : Browser) = 
         let pixImage = PixImage<byte>(Col.Format.BGRA,histogramClient.Size.GetValue())
         let temp = pixImage.GetMatrix<C4b>().SetByCoord(fun (v : V2l) -> histogramClient.ReadPixel(V2i v) |> C4b) 
+        pixImage :> PixImage
+
+    let createColorPixImage (boxPlotClient : Browser) (color : C4b) = 
+        let pixImage = PixImage<byte>(Col.Format.BGRA,boxPlotClient.Size.GetValue())
+        let temp = pixImage.GetMatrix<C4b>().SetByCoord(fun (v : V2l) -> color) 
         pixImage :> PixImage
 
     let rec update (runtime : IRuntime) (client : Browser) (histogramClient : Browser) (boxPlotClient : Browser) (viewTrafo : aval<Trafo3d>) (projTrafo : aval<Trafo3d>) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
@@ -487,20 +495,21 @@ module AppUpdate =
                 | None -> None
                 | _ -> model.mainContrProbeIntersectionId
 
+            //INTERSECTION OF MAIN CONTROLLER WITH A BOX PLOT
             let mainContrBoxPlotIntersection = 
                 match model.mainControllerId with 
                 | Some i when i = id && mainContrProbeIntersection.IsNone && not model.grabbingHera ->
                     let intersectionContrTrafoPos = model.mainControllerTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
                     let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
-                    model.allProbes
-                    |> HashMap.filter (fun key probe ->
-                        let sphere = Sphere3d(probe.center, probe.radius)
-                        sphereIntersection controllerSphere sphere)
+                    model.allPlacedBoxPlots
+                    |> HashMap.filter (fun key boxPlot -> controllerSphere.BoundingBox3d.Intersects(boxPlot.positions))
                     |> HashMap.toSeq
-                    |> Seq.map (fun (key, probe) -> key)
+                    |> Seq.map (fun (key, boxPlot) -> key)
                     |> Seq.tryLast    
                 | None -> None
-                | _ -> model.mainContrProbeIntersectionId
+                | _ -> model.mainContrBoxPlotIntersectionId
+
+
 
             //INTERSECTION OF SECOND CONTROLLER WITH A PROBE
             let secondContrProbeIntersection = 
@@ -517,6 +526,20 @@ module AppUpdate =
                     |> Seq.tryLast    
                 | None -> None
                 | _ -> model.secondContrProbeIntersectionId
+
+            //INTERSECTION OF SECOND CONTROLLER WITH A BOX PLOT
+            let secondContrBoxPlotIntersection = 
+                match model.secondControllerId with 
+                | Some i when i = id && secondContrProbeIntersection.IsNone && not model.grabbingHera ->
+                    let intersectionContrTrafoPos = model.secondControllerTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
+                    let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
+                    model.allPlacedBoxPlots
+                    |> HashMap.filter (fun key boxPlot -> controllerSphere.BoundingBox3d.Intersects(boxPlot.positions))
+                    |> HashMap.toSeq
+                    |> Seq.map (fun (key, boxPlot) -> key)
+                    |> Seq.tryLast    
+                | None -> None
+                | _ -> model.secondContrBoxPlotIntersectionId
 
             //CLIPPING PLANE UPDATE
             let currCorners = 
@@ -666,7 +689,9 @@ module AppUpdate =
                 screenHitPoint = hit.Coord
                 screenCoordsHitPos = screenCoordsHitPos
                 mainContrProbeIntersectionId = mainContrProbeIntersection
+                mainContrBoxPlotIntersectionId = mainContrBoxPlotIntersection
                 secondContrProbeIntersectionId = secondContrProbeIntersection
+                secondContrBoxPlotIntersectionId = secondContrBoxPlotIntersection
                 mainTouchpadTexture = tex
                 mainContrScreenTexture = screenTex
                 secondTouchpadTexture = secondTex
@@ -854,7 +879,8 @@ module AppUpdate =
             | Some i when i = id && model.controllerMode = ControllerMode.Analyze && not model.boxPlotProbes.IsEmpty ->
                 let texture = getScreenshot boxPlotClient
                 let currTrafo = defaultBoxPlotsTrafo * model.secondControllerTrafo
-                let boxPlot = createBoxPlot model.currBoxPlotAttrib currTrafo texture model.boxPlotProbes
+                let transformedQuad = currTrafo.Forward.TransformedPosArray(defaultBoxPlotPositions.Points.ToArray(4)) |> Quad3d
+                let boxPlot = createBoxPlot model.currBoxPlotAttrib currTrafo transformedQuad texture model.boxPlotProbes
                 let allPlacedBoxPlots = model.allPlacedBoxPlots.Add(boxPlot.id, boxPlot)
                 let updatedTwoDmodel = 
                     {model.twoDModel with 
@@ -874,7 +900,12 @@ module AppUpdate =
                     twoDModel = updatedTwoDmodel}
             | _ -> model
         | DeleteBoxPlot id ->
-            model
+            match model.secondControllerId with 
+            | Some i when i = id && model.secondContrBoxPlotIntersectionId.IsSome ->
+                let intersectedBoxPlotId = model.secondContrBoxPlotIntersectionId.Value
+                let updateBoxPlots = model.allPlacedBoxPlots.Remove(intersectedBoxPlotId)
+                {model with allPlacedBoxPlots = updateBoxPlots}
+            | _ -> model
         | TakeBoxPlot id ->
             model
         | DeactivateControllerMode id ->

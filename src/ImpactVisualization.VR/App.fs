@@ -59,7 +59,8 @@ module Demo =
             | 0 -> [ToggleMainMenu controllerId; OpenMainMenu controllerId]
             | 1 -> [ActivateControllerMode controllerId; ScaleProbe controllerId; 
                     DeleteProbe controllerId; DeleteClippingPlane controllerId;
-                    SelectBoxPlotProbes controllerId; PlaceBoxPlot controllerId]
+                    SelectBoxPlotProbes controllerId; PlaceBoxPlot controllerId;
+                    DeleteBoxPlot controllerId]
             | _ -> []
         | VrMessage.Unpress(controllerId, buttonId) ->
             match buttonId with 
@@ -298,11 +299,23 @@ module Demo =
             |> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass2
 
-
         let boxPlotsSgs = 
             m.allPlacedBoxPlots |> AMap.toASet |> ASet.choose (fun (key, boxPlot) ->
-                let texture = boxPlot.texture |> AVal.map (fun t -> convertPixImageToITexture t)
+                let pixImage =
+                    AVal.map2 (fun secondId tex  ->
+                        match secondId with 
+                        | Some i when i = key -> createColorPixImage boxPlotClient C4b.Red
+                        | _ -> tex
+                    ) m.secondContrBoxPlotIntersectionId boxPlot.texture 
+                let texture = pixImage |> AVal.map (fun pi ->  convertPixImageToITexture pi)
+                let scaleTrafo = 
+                    m.mainContrBoxPlotIntersectionId 
+                    |> AVal.map (fun mct ->
+                        match mct with 
+                        | Some i when i = key -> Trafo3d.Scale(0.7)
+                        | _ -> Trafo3d.Identity)
                 planeSg defaultBoxPlotPositions
+                |> Sg.trafo scaleTrafo
                 |> Sg.trafo boxPlot.trafo
                 |> Sg.diffuseTexture texture
                 |> Sg.shader {
