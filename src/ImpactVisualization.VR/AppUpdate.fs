@@ -214,6 +214,7 @@ module AppUpdate =
             boxPlotProbes = HashMap.empty
             mainContrBoxPlotIntersectionId = None
             secondContrBoxPlotIntersectionId = None
+            movingBoxPlot = false
             lastProbeId = 0
             currBoxPlotAttribSet = false
             currBoxPlotAttrib = RenderValue.Energy
@@ -705,7 +706,7 @@ module AppUpdate =
                 newProbePlaced = (if model.newProbePlaced then false else model.newProbePlaced)}
         | ActivateControllerMode id ->
             match model.mainControllerId with 
-            | Some i when i = id && not model.mainMenuOpen -> 
+            | Some i when i = id && not model.mainMenuOpen && not model.mainContrBoxPlotIntersectionId.IsSome && not model.movingBoxPlot  -> 
                 match model.controllerMode with
                 | ControllerMode.Probe -> callUpdate (CreateProbe id)
                 | ControllerMode.Ray -> callUpdate (CreateRay id)
@@ -907,7 +908,15 @@ module AppUpdate =
                 {model with allPlacedBoxPlots = updateBoxPlots}
             | _ -> model
         | TakeBoxPlot id ->
-            model
+            match model.mainControllerId with 
+            | Some i when i = id && model.mainContrBoxPlotIntersectionId.IsSome  ->
+                {model with movingBoxPlot = true}
+            | _ -> model
+        | LeaveBoxPlot id ->
+            match model.mainControllerId with 
+            | Some i when i = id && model.movingBoxPlot ->
+                {model with movingBoxPlot = false}
+            | _ -> model
         | DeactivateControllerMode id ->
             if not model.mainMenuOpen then 
                 match model.controllerMode with 

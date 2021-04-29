@@ -102,6 +102,7 @@ type Message =
     | ChangeBoxPlotAttribute of int 
     | DeleteBoxPlot of int
     | TakeBoxPlot of int 
+    | LeaveBoxPlot of int 
     | ScaleProbe of int
     | StopProbeScale of int 
     | DeleteProbe of int 
@@ -185,6 +186,7 @@ type Model =
         allPlacedBoxPlots : HashMap<string, BoxPlot>
         mainContrBoxPlotIntersectionId : Option<string>
         secondContrBoxPlotIntersectionId : Option<string>
+        movingBoxPlot : bool
                         
         //Controller clipping plane
         holdClipping : bool
