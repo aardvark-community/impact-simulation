@@ -59,7 +59,7 @@ module Demo =
             | 0 -> [ToggleMainMenu controllerId; OpenMainMenu controllerId]
             | 1 -> [ActivateControllerMode controllerId; ScaleProbe controllerId; 
                     DeleteProbe controllerId; DeleteClippingPlane controllerId;
-                    SelectBoxPlotProbes controllerId]
+                    SelectBoxPlotProbes controllerId; PlaceBoxPlot controllerId]
             | _ -> []
         | VrMessage.Unpress(controllerId, buttonId) ->
             match buttonId with 
@@ -296,6 +296,30 @@ module Demo =
                 do! DefaultSurfaces.diffuseTexture
             }  
             |> Sg.blendMode (AVal.constant mode)
+            |> Sg.pass pass2
+
+
+        let boxPlotsSgs = 
+            m.allPlacedBoxPlots |> AMap.toASet |> ASet.choose (fun (key, boxPlot) ->
+                let texture = boxPlot.texture |> AVal.map (fun t -> convertPixImageToITexture t)
+                planeSg defaultBoxPlotPositions
+                |> Sg.trafo boxPlot.trafo
+                |> Sg.diffuseTexture texture
+                |> Sg.shader {
+                    do! DefaultSurfaces.trafo
+                    do! DefaultSurfaces.diffuseTexture
+                }  
+                |> Some
+            ) 
+            |> Sg.set
+            |> Sg.shader {
+                do! DefaultSurfaces.trafo
+                do! DefaultSurfaces.diffuseTexture
+                do! DefaultSurfaces.simpleLighting
+            }
+            //|> Sg.cullMode (CullMode.Front |> AVal.constant)
+            //|> Sg.depthTest (AVal.constant DepthTestMode.Always)
+            //|> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass2
 
         let mainSignPos = AVal.constant  [|V3f(-1.0, -1.0, 0.0); V3f(1.0, -1.0, 0.0); V3f(1.0, 1.0, 0.0); V3f(-1.0, 1.0, 0.0)|]
@@ -713,7 +737,7 @@ module Demo =
         //    0
 
         Sg.ofSeq [
-            deviceSgs; currentSphereProbeSg; probesSgs; heraSg; 
+            deviceSgs; currentSphereProbeSg; probesSgs; boxPlotsSgs; heraSg; 
             clipPlaneSg; tvSg; tvPosSphereSg; raySg; browserSg;
             boxSg; mainTouchpadSphereSg; secondTouchpadSphereSg
         ] |> Sg.shader {
@@ -740,7 +764,7 @@ module Demo =
         {
             unpersist = Unpersist.instance
             initial = initial runtime frames
-            update = update runtime client histogramClient viewTrafo projTrafo frames
+            update = update runtime client histogramClient boxPlotClient viewTrafo projTrafo frames
             threads = threads
             input = input 
             ui = ui runtime frames

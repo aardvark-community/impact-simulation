@@ -61,9 +61,11 @@ type Probe = {
     id : string
 }
 
+[<ModelType>]
 type BoxPlot = {
     attribute : RenderValue
     trafo     : Trafo3d
+    texture   : PixImage
     data      : HashMap<int, float[]>
 
     [<NonAdaptive>]
@@ -180,6 +182,8 @@ type Model =
         showCurrBoxPlot : bool 
         currBoxPlot : Option<BoxPlot>
         allPlacedBoxPlots : HashMap<string, BoxPlot>
+        mainContrBoxPlotIntersectionId : Option<string>
+        secondContrBoxPlotIntersectionId : Option<string>
                         
         //Controller clipping plane
         holdClipping : bool

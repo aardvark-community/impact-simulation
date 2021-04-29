@@ -133,11 +133,12 @@ module AppUpdate =
             currBillboard = billboardType
         }
 
-    let createBoxPlot (attribute : RenderValue) (trafo : Trafo3d) (data : HashMap<int, float[]>): BoxPlot =
+    let createBoxPlot (attribute : RenderValue) (trafo : Trafo3d) (texture : PixImage) (data : HashMap<int, float[]>): BoxPlot =
         {   
             id = Guid.NewGuid().ToString()
             attribute = attribute
             trafo = trafo
+            texture = texture 
             data = data
         }
     
@@ -168,6 +169,12 @@ module AppUpdate =
 
 
     let initialScalingHera = 0.05
+
+    let defaultBoxPlotsTrafo = 
+        let scale = Trafo3d.Scale(0.3)
+        let rotation = Trafo3d.RotationXInDegrees(35.0)
+        let translation = Trafo3d.Translation(0.0, 0.25, 0.1)
+        scale * rotation * translation
 
     let initial runtime frames = 
         {   
@@ -202,6 +209,8 @@ module AppUpdate =
             lastFilterProbeId = None
             lastModifiedProbeIntId = -1
             boxPlotProbes = HashMap.empty
+            mainContrBoxPlotIntersectionId = None
+            secondContrBoxPlotIntersectionId = None
             lastProbeId = 0
             currBoxPlotAttribSet = false
             currBoxPlotAttrib = RenderValue.Energy
@@ -254,7 +263,7 @@ module AppUpdate =
         let temp = pixImage.GetMatrix<C4b>().SetByCoord(fun (v : V2l) -> histogramClient.ReadPixel(V2i v) |> C4b) 
         pixImage :> PixImage
 
-    let rec update (runtime : IRuntime) (client : Browser) (histogramClient : Browser) (viewTrafo : aval<Trafo3d>) (projTrafo : aval<Trafo3d>) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
+    let rec update (runtime : IRuntime) (client : Browser) (histogramClient : Browser) (boxPlotClient : Browser) (viewTrafo : aval<Trafo3d>) (projTrafo : aval<Trafo3d>) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
         let mTwoD = model.twoDModel
 
         let defaultTex = allTextures.Item "empty"
@@ -276,7 +285,7 @@ module AppUpdate =
                 | _ -> "initial-attributes", "select-attribute"
             (texture texName), (texture screenTexName)
 
-        let callUpdate (msg : Message) = update runtime client histogramClient viewTrafo projTrafo frames state vr model msg
+        let callUpdate (msg : Message) = update runtime client histogramClient boxPlotClient viewTrafo projTrafo frames state vr model msg
        
         //let currTex =
         //    match histogramClient.Texture |> AVal.force with
@@ -466,6 +475,21 @@ module AppUpdate =
             let mainContrProbeIntersection = 
                 match model.mainControllerId with 
                 | Some i when i = id && not model.currentProbeManipulated && not model.grabbingHera ->
+                    let intersectionContrTrafoPos = model.mainControllerTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
+                    let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
+                    model.allProbes
+                    |> HashMap.filter (fun key probe ->
+                        let sphere = Sphere3d(probe.center, probe.radius)
+                        sphereIntersection controllerSphere sphere)
+                    |> HashMap.toSeq
+                    |> Seq.map (fun (key, probe) -> key)
+                    |> Seq.tryLast    
+                | None -> None
+                | _ -> model.mainContrProbeIntersectionId
+
+            let mainContrBoxPlotIntersection = 
+                match model.mainControllerId with 
+                | Some i when i = id && mainContrProbeIntersection.IsNone && not model.grabbingHera ->
                     let intersectionContrTrafoPos = model.mainControllerTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
                     let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
                     model.allProbes
@@ -816,22 +840,39 @@ module AppUpdate =
                     let update (pr : Option<Probe>) = updatedProbe 
                     let allProbesUpdated = model.allProbes |> HashMap.update probeId update
 
-                    if model.showCurrBoxPlot then
-                        let boxPlot = createBoxPlot model.currBoxPlotAttrib model.secondControllerTrafo newHashmap
-                        {model with 
-                            currBoxPlot = Some boxPlot
-                            boxPlotProbes = newHashmap
-                            currBoxPlotAttribSet = true
-                            allProbes = allProbesUpdated
-                            twoDModel = updatedTwoDmodel
-                            lastProbeId = model.lastProbeId + 1
-                            }
-                    else 
-                        model
+                    {model with 
+                        boxPlotProbes = newHashmap
+                        currBoxPlotAttribSet = true
+                        allProbes = allProbesUpdated
+                        twoDModel = updatedTwoDmodel
+                        lastProbeId = model.lastProbeId + 1
+                        }
                 | None -> model
             | _ -> model
         | PlaceBoxPlot id ->
-            model
+            match model.secondControllerId with 
+            | Some i when i = id && model.controllerMode = ControllerMode.Analyze && not model.boxPlotProbes.IsEmpty ->
+                let texture = getScreenshot boxPlotClient
+                let currTrafo = defaultBoxPlotsTrafo * model.secondControllerTrafo
+                let boxPlot = createBoxPlot model.currBoxPlotAttrib currTrafo texture model.boxPlotProbes
+                let allPlacedBoxPlots = model.allPlacedBoxPlots.Add(boxPlot.id, boxPlot)
+                let updatedTwoDmodel = 
+                    {model.twoDModel with 
+                        boxPlotData = [| |]
+                        boxPlotAttribute = "" }
+                let allProbesUpdated = 
+                    model.allProbes 
+                    |> HashMap.map (fun key probe ->
+                        {probe with 
+                            color = C4b.Blue
+                            numberId = -1
+                            selected = false})
+                {model with 
+                    allProbes = allProbesUpdated
+                    allPlacedBoxPlots = allPlacedBoxPlots
+                    boxPlotProbes = HashMap.empty
+                    twoDModel = updatedTwoDmodel}
+            | _ -> model
         | DeleteBoxPlot id ->
             model
         | TakeBoxPlot id ->
@@ -973,11 +1014,9 @@ module AppUpdate =
                 else 
                     closeMenu
             let screenTex = if not isOpen then model.lastContrScreenModeTexture else model.mainContrScreenTexture
-            let showBoxPlot = if (model.controllerMode = ControllerMode.Analyze) then true else model.showCurrBoxPlot
             {model with 
                 menuLevel = level
-                mainMenuOpen = isOpen
-                showCurrBoxPlot = showBoxPlot}
+                mainMenuOpen = isOpen}
         | OpenMainMenu id ->
             let texture, screenTexture =
                 match model.menuLevel with
@@ -1018,6 +1057,7 @@ module AppUpdate =
                         (texture texName), (texture screenTexName)
                 {model with 
                     controllerMode = newContrlMode
+                    showCurrBoxPlot = (newContrlMode = ControllerMode.Analyze)
                     mainTouchpadTexture = tex
                     lastTouchpadModeTexture = tex
                     mainContrScreenTexture = screenTexture
