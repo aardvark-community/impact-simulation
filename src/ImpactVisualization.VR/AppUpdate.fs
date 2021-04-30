@@ -170,7 +170,7 @@ module AppUpdate =
             currAttribute
 
 
-    let initialScalingHera = 0.05
+    //let initialScalingHera = 0.05
 
     let defaultBoxPlotPositions = Quad3d(V3d(-1.7, -1.0, 0.0), V3d(1.7, -1.0, 0.0), V3d(1.7, 1.0, 0.0), V3d(-1.7, 1.0, 0.0))
 
@@ -193,13 +193,13 @@ module AppUpdate =
             mainContrSignTexture = allTextures.Item "empty"
             mainControllerTrafo = Trafo3d.Identity
             secondControllerTrafo = Trafo3d.Identity
-            heraTrafo = Trafo3d.Identity
+            heraTrafo = Trafo3d(Scale3d(0.05)) * Trafo3d.Translation(0.0, 0.0, 0.7)
             heraToControllerTrafo = Trafo3d.Identity
             grabbingHera = false
             holdingSphere = false
             scalingSphere = false
-            scalingFactorHera = initialScalingHera
-            lastHeraScaleTrafo = Trafo3d(Scale3d(initialScalingHera))
+            scalingFactorHera = 1.0
+            //lastHeraScaleTrafo = Trafo3d(Scale3d(initialScalingHera))
             sphereScale = 1.0
             lastSphereScale = 1.0
             sphereRadius = 0.2
@@ -261,7 +261,7 @@ module AppUpdate =
             showMainTexture = false
             showSecondTexture = false
             heraBox = Box3d.Infinite
-            heraTransformations = Trafo3d(Scale3d(initialScalingHera)) * Trafo3d.Translation(0.0, 0.0, 0.7)
+            //heraTransformations = Trafo3d(Scale3d(initialScalingHera)) * Trafo3d.Translation(0.0, 0.0, 0.7)
         }
 
     let getScreenshot (histogramClient : Browser) = 
@@ -429,7 +429,7 @@ module AppUpdate =
             | Some i when i = id && model.grabbingHera ->
                 if model.mainTouching then
                     if f >= 0.0 then
-                        let maxScale = 1.0
+                        let maxScale = 10.0
                         let currScale = model.scalingFactorHera * (f*f/5.0 + 1.0)
                         let newScale = if currScale >= maxScale then maxScale else currScale
                         {model with 
@@ -437,7 +437,7 @@ module AppUpdate =
                             mainTouchpadTexture = texture "scale-up"
                             mainContrScreenTexture = texture "scaling-up"}
                     else
-                        let minScale = 0.001
+                        let minScale = 0.01
                         let currScale = model.scalingFactorHera * (1.0 - f*f/5.0)
                         let newScale =  if currScale <= minScale then minScale else currScale
                         {model with 
@@ -498,23 +498,24 @@ module AppUpdate =
                 else Ray3d.Invalid, C4b.Red, PixelPosition()
                     
 
-            let newHeraScaleTrafo = 
-                if model.grabbingHera && model.mainTouching then
-                    //printf "UPDATE SCALING \n"
-                    Trafo3d(Scale3d(model.scalingFactorHera))
-                else 
-                    model.lastHeraScaleTrafo
+            //let newHeraScaleTrafo = 
+            //    if model.grabbingHera && model.mainTouching then
+            //        printf "UPDATE SCALING \n"
+            //        Trafo3d(Scale3d(model.scalingFactorHera))
+            //    else 
+            //        Trafo3d.Identity
     
             //HERA TRANSFORMATIONS UPDATE
-            let heraTrafos = 
+            let heraTrafo = 
                 if model.grabbingHera then
                     let heraTrafo = model.heraToControllerTrafo * mainContrTrafo
+                    let newHeraScaleTrafo = if model.mainTouching then Trafo3d(Scale3d(model.scalingFactorHera)) else Trafo3d.Identity
                     //let heraScaleTrafo = Trafo3d(Scale3d(model.scalingFactorHera))
-                    let heraTranslation = Trafo3d.Translation(0.0, 0.0, 0.7)
-                    newHeraScaleTrafo * heraTranslation * heraTrafo
+                    //let heraTranslation = Trafo3d.Translation(0.0, 0.0, 0.7)
+                    newHeraScaleTrafo * heraTrafo
                 else 
-                    model.heraTransformations
-            let heraBBox = model.twoDModel.currHeraBBox.Transformed(heraTrafos)
+                    model.heraTrafo
+            let heraBBox = model.twoDModel.currHeraBBox.Transformed(heraTrafo)
 
             //INTERSECTION OF MAIN CONTROLLER WITH A PROBE
             let mainContrProbeIntersection = 
@@ -651,8 +652,8 @@ module AppUpdate =
                 if model.grabbingHera && not model.allProbes.IsEmpty then 
                     model.allProbes
                     |> HashMap.map (fun key probe -> 
-                        let newCenter = heraTrafos.Forward.TransformPos(probe.centerRelToHera)
-                        let newRadius = probe.radiusRelToHera * heraTrafos.Forward.GetScaleVector3().X
+                        let newCenter = heraTrafo.Forward.TransformPos(probe.centerRelToHera)
+                        let newRadius = probe.radiusRelToHera * heraTrafo.Forward.GetScaleVector3().X
                         //let sphere = Sphere3d(newCenter, newRadius)
                         //let intersection = heraBBox.Intersects(sphere)
                         { probe with 
@@ -749,8 +750,7 @@ module AppUpdate =
                 showSecondTexture = showSecondTexture
                 heraBox = heraBBox
                 allProbes = allProbesUpdated
-                heraTransformations = heraTrafos
-                lastHeraScaleTrafo = newHeraScaleTrafo
+                heraTrafo = heraTrafo
                 newProbePlaced = (if model.newProbePlaced then false else model.newProbePlaced)}
         | ActivateControllerMode id ->
             match model.mainControllerId with 
@@ -991,7 +991,7 @@ module AppUpdate =
                     match model.mainControllerId  with
                     | Some i when i = id -> 
                         let t = model.mainControllerTrafo
-                        let heraInvMatrix = model.heraTransformations.Backward
+                        let heraInvMatrix = model.heraTrafo.Backward
 
                         let spherePos = t.Forward.TransformPos(V3d.OOO)
                         let spherePosTransformed = heraInvMatrix.TransformPos(spherePos)

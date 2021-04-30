@@ -532,7 +532,7 @@ module Demo =
                 Sg.sphere 6 color probe.radiusRelToHera
                 |> Sg.noEvents
                 |> Sg.trafo (probe.centerRelToHera |> AVal.map (fun center -> Trafo3d.Translation(center)))
-                |> Sg.trafo m.heraTransformations // so that it moves with hera!!!
+                |> Sg.trafo m.heraTrafo // so that it moves with hera!!!
                 |> Sg.fillMode (FillMode.Line |> AVal.constant)
                 |> Sg.andAlso billboardSg
                 |> Some
@@ -607,7 +607,7 @@ module Demo =
                 m.cameraState.view viewTrafo viewVector
                 runtime
             |> Sg.noEvents
-            |> Sg.trafo model.heraTransformations
+            |> Sg.trafo model.heraTrafo
             |> Sg.pass pass0
 
         let clipPlaneSg positions (color : aval<C4b>) fillmode blendmode renderPass =
@@ -706,7 +706,7 @@ module Demo =
         let boxSg = 
             Sg.box m.twoDModel.boxColor currentBox
             |> Sg.noEvents
-            |> Sg.trafo m.heraTransformations
+            |> Sg.trafo m.heraTrafo
             |> Sg.fillMode (FillMode.Line |> AVal.constant)
          
         //let unusedParts = 
