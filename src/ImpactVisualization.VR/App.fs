@@ -57,10 +57,10 @@ module Demo =
         | VrMessage.Press(controllerId, buttonId) ->
             match buttonId with 
             | 0 -> [ToggleMainMenu controllerId; OpenMainMenu controllerId]
-            | 1 -> [ActivateControllerMode controllerId; ScaleProbe controllerId; 
-                    DeleteProbe controllerId; DeleteClippingPlane controllerId;
-                    SelectBoxPlotProbes controllerId; PlaceBoxPlot controllerId;
-                    DeleteBoxPlot controllerId; TakeBoxPlot controllerId]
+            | 1 -> [TakeBoxPlot controllerId; ActivateControllerMode controllerId; 
+                    ScaleProbe controllerId; DeleteProbe controllerId; 
+                    DeleteClippingPlane controllerId; SelectBoxPlotProbes controllerId; 
+                    PlaceBoxPlot controllerId;DeleteBoxPlot controllerId]
             | _ -> []
         | VrMessage.Unpress(controllerId, buttonId) ->
             match buttonId with 
@@ -629,10 +629,29 @@ module Demo =
 
         let clipPlaneSg = clipPlaneSg planePositions m.clippingColor FillMode.Fill (AVal.constant mode) pass4
 
+        //let quadPositions = m.tvQuad |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
+        let qp = AVal.constant  [|browserQuad.P0; browserQuad.P1; browserQuad.P2; browserQuad.P3|]
+
+        let browserSg = 
+            Sg.draw IndexedGeometryMode.TriangleList
+            |> Sg.vertexAttribute DefaultSemantic.Positions qp
+            |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
+            |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
+            |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
+            //|> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+            //|> Sg.transform (Trafo3d.RotationXInDegrees(180.0)) 
+            //|> Sg.translate 0.0 0.0 0.013
+            |> Sg.diffuseTexture client.Texture 
+            |> Sg.shader {
+                do! DefaultSurfaces.trafo
+                do! DefaultSurfaces.diffuseTexture
+            }  
+
         let tvSg = 
             Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"tv";"tv.obj"])
             |> Sg.adapter
             |> Sg.transform (Trafo3d.Scale(1.0, 1.0, -1.0))
+            |> Sg.andAlso browserSg
             |> Sg.trafo (tvTrafo |> AVal.constant)
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
@@ -679,19 +698,6 @@ module Demo =
             |> Sg.depthTest (AVal.constant DepthTestMode.LessOrEqual)
             |> Sg.pass pass1
 
-        let quadPositions = m.tvQuad |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
-
-        let browserSg = 
-            Sg.draw IndexedGeometryMode.TriangleList
-            |> Sg.vertexAttribute DefaultSemantic.Positions quadPositions
-            |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
-            |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.OI; V2f.II; V2f.IO |])
-            |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
-            |> Sg.diffuseTexture client.Texture 
-            |> Sg.shader {
-                do! DefaultSurfaces.trafo
-                do! DefaultSurfaces.diffuseTexture
-            }  
 
         let currentBox = 
             m.twoDModel.boxFilter |> AVal.map (fun b ->
@@ -773,7 +779,7 @@ module Demo =
 
         Sg.ofSeq [
             deviceSgs; currentSphereProbeSg; probesSgs; boxPlotsSgs; takenBoxPlotSg;
-            heraSg; clipPlaneSg; tvSg; tvPosSphereSg; raySg; browserSg;
+            heraSg; clipPlaneSg; tvSg; tvPosSphereSg; raySg;
             boxSg; mainTouchpadSphereSg; secondTouchpadSphereSg
         ] |> Sg.shader {
                 do! DefaultSurfaces.trafo

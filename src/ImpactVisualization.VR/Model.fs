@@ -85,6 +85,9 @@ type Message =
     | GrabHera of int
     | UngrabHera of int
     | ScaleHera of int * float
+    | GrabTv of int 
+    | UngrabTv of int
+    | ScaleTv of int 
     | MoveController of int * Trafo3d
     | ToggleMainMenu of int
     | OpenMainMenu of int
@@ -103,6 +106,7 @@ type Message =
     | DeleteBoxPlot of int
     | TakeBoxPlot of int 
     | LeaveBoxPlot of int 
+    | CopyBoxPlot of int
     | ScaleProbe of int
     | StopProbeScale of int 
     | DeleteProbe of int 

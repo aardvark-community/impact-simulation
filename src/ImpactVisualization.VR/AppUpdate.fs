@@ -22,10 +22,11 @@ module AppUpdate =
     open Aardvark.UI.Primitives
     open Aardvark.Base.Rendering
 
-    let quadRightUp   = V3d(0.732, 0.432, -0.013)
-    let quadLeftUp    = V3d(-0.732, 0.432, -0.013)
-    let quadLeftDown  = V3d(-0.732, -0.41483, -0.013)
-    let quadRightDown = V3d(0.732, -0.41483, -0.013)
+    let rd   = V3d(0.732, -0.41483, 0.013)
+    let ld = V3d(-0.732, -0.41483, 0.013)
+    let lu  = V3d(-0.732, 0.432, 0.013)
+    let ru = V3d(0.732, 0.432, 0.013)
+    let browserQuad = Quad3d(lu, ru, rd, ld)
 
     let planePos0 = V3d(-0.7, 0.05, -0.5)
     let planePos1 = V3d(-0.7, 0.05, 0.5)
@@ -38,7 +39,7 @@ module AppUpdate =
         let translation = Trafo3d.Translation(2.5, 1.0, upZ)
         scale * rotation * translation
 
-    let tvQuadTrafo = flatScreenTrafo 180.0 90.0 1.535
+    //let tvQuadTrafo = flatScreenTrafo 180.0 90.0 1.535
     let tvTrafo = flatScreenTrafo 0.0 -90.0 1.5
 
     let screenResolution = V2i(1008,729)
@@ -226,12 +227,7 @@ module AppUpdate =
             ray = Ray3d.Invalid
             rayTriggerClicked = false
             clickPosition = None
-            tvQuad = 
-                let quadRightUpTransf = tvQuadTrafo.Forward.TransformPos(quadRightUp)
-                let quadLeftUpTransf = tvQuadTrafo.Forward.TransformPos(quadLeftUp)
-                let quadLeftDownTransf = tvQuadTrafo.Forward.TransformPos(quadLeftDown)
-                let quadRightDownTransf = tvQuadTrafo.Forward.TransformPos(quadRightDown)
-                Quad3d(quadLeftDownTransf, quadLeftUpTransf, quadRightUpTransf, quadRightDownTransf)
+            tvQuad = tvTrafo.Forward.TransformedPosArray(browserQuad.Points.ToArray(4)) |> Quad3d
             rayColor = C4b.Red
             screenIntersection = false
             hitPoint = V3d.OOO
@@ -453,7 +449,7 @@ module AppUpdate =
             let currRay, rColor, screenCoordsHitPos =
                 if model.rayActive then 
                     if hitPoint then
-                        let screenCoords = (V2d(hit.Coord.Y * screenResolution.ToV2d().X, hit.Coord.X * screenResolution.ToV2d().Y)).ToV2i()
+                        let screenCoords = (V2d(hit.Coord.X * screenResolution.ToV2d().X, hit.Coord.Y * screenResolution.ToV2d().Y)).ToV2i()
                         let screenPos = PixelPosition(screenCoords, screenResolution.X, screenResolution.Y)
                         if model.rayTriggerClicked then
                             client.Mouse.Move(screenPos)
@@ -717,7 +713,7 @@ module AppUpdate =
                 newProbePlaced = (if model.newProbePlaced then false else model.newProbePlaced)}
         | ActivateControllerMode id ->
             match model.mainControllerId with 
-            | Some i when i = id && not model.mainMenuOpen && not model.mainContrBoxPlotIntersectionId.IsSome && not model.movingBoxPlot  -> 
+            | Some i when i = id && not model.mainMenuOpen && model.mainContrBoxPlotIntersectionId.IsNone && not model.movingBoxPlot  -> 
                 match model.controllerMode with
                 | ControllerMode.Probe -> callUpdate (CreateProbe id)
                 | ControllerMode.Ray -> callUpdate (CreateRay id)
@@ -948,10 +944,10 @@ module AppUpdate =
                     takenBoxPlot = None}
             | _ -> model
         | DeactivateControllerMode id ->
-            if not model.mainMenuOpen then 
+            if not model.mainMenuOpen && not model.movingBoxPlot then 
                 match model.controllerMode with 
                 | ControllerMode.Probe -> 
-                    match model.mainControllerId with
+                    match model.mainControllerId  with
                     | Some i when i = id -> 
                         let t = model.mainControllerTrafo
                         let heraInvMatrix = model.heraTransformations.Backward
