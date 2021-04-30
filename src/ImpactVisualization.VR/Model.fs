@@ -163,6 +163,11 @@ type Model =
 
         //TV
         tvQuad : Quad3d
+        tvTrafo : Trafo3d
+        tvToControllerTrafo : Trafo3d
+        grabbingTV : bool
+        tvTransformations : Trafo3d
+        scalingFactorTV : float
         screenIntersection : bool
         hitPoint : V3d
         screenHitPoint : V2d 

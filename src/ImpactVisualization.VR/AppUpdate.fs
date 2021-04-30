@@ -33,14 +33,14 @@ module AppUpdate =
     let planePos2 = V3d(0.7, 0.05, 0.5)
     let planePos3 = V3d(0.7, 0.05, -0.5)
 
-    let flatScreenTrafo rotY rotZ upZ = 
+    let tvTrafo = 
         let scale = Trafo3d(Scale3d(2.0))
-        let rotation = Trafo3d.RotationEulerInDegrees(90.0, rotY, rotZ)
-        let translation = Trafo3d.Translation(2.5, 1.0, upZ)
+        let rotation = Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0)
+        let translation = Trafo3d.Translation(2.5, 1.0, 1.5)
         scale * rotation * translation
 
     //let tvQuadTrafo = flatScreenTrafo 180.0 90.0 1.535
-    let tvTrafo = flatScreenTrafo 0.0 -90.0 1.5
+    //let tvTrafo = flatScreenTrafo 0.0 -90.0 1.5
 
     let screenResolution = V2i(1008,729)
 
@@ -228,6 +228,11 @@ module AppUpdate =
             rayTriggerClicked = false
             clickPosition = None
             tvQuad = tvTrafo.Forward.TransformedPosArray(browserQuad.Points.ToArray(4)) |> Quad3d
+            tvTrafo = tvTrafo
+            tvToControllerTrafo = Trafo3d.Identity
+            grabbingTV = false
+            tvTransformations = Trafo3d.Identity
+            scalingFactorTV = 1.0
             rayColor = C4b.Red
             screenIntersection = false
             hitPoint = V3d.OOO
@@ -368,7 +373,7 @@ module AppUpdate =
             | _ -> model
         | GrabHera id ->
             match model.mainControllerId with
-            | Some i when i = id ->
+            | Some i when i = id && not model.grabbingTV && not ((model.controllerMode = ControllerMode.Ray) && model.screenIntersection) ->
                 let controlT = model.mainControllerTrafo
                 let heraT = model.heraTrafo
                 let controlHeraT = heraT * controlT.Inverse
@@ -382,15 +387,41 @@ module AppUpdate =
                     mainMenuOpen = false
                     secondMenuOpen = false}
             | _ -> model
+        | GrabTv id ->
+            match model.mainControllerId with 
+            | Some i when i = id && (model.controllerMode = ControllerMode.Ray) && model.screenIntersection ->
+                let controlT = model.mainControllerTrafo
+                let tvT = model.tvTrafo
+                let controlerTvTrafo = tvT * controlT.Inverse
+                {model with 
+                    tvToControllerTrafo = controlerTvTrafo
+                    grabbingTV = true
+                    mainTouchpadTexture = texture "initial-scaling"
+                    mainContrScreenTexture = texture "empty"
+                    menuLevel = 0
+                    mainMenuOpen = false
+                    secondMenuOpen = false}
+            | _ -> model
         | UngrabHera id -> 
             match model.mainControllerId with 
-            | Some i when i = id -> 
+            | Some i when i = id && model.grabbingHera -> 
                 let controlT = model.mainControllerTrafo
                 let heraToControlT = model.heraToControllerTrafo
                 let heraT = heraToControlT * controlT
                 {model with 
                     heraTrafo = heraT
                     grabbingHera = false
+                    mainContrScreenTexture = texture "empty"}
+            | _ -> model
+        | UngrabTv id ->
+            match model.mainControllerId with 
+            | Some i when i = id && model.grabbingTV -> 
+                let controlT = model.mainControllerTrafo
+                let tvToControlT = model.tvToControllerTrafo
+                let tvTrafo = tvToControlT * controlT
+                {model with 
+                    tvTrafo = tvTrafo
+                    grabbingTV = false
                     mainContrScreenTexture = texture "empty"}
             | _ -> model
         | ScaleHera (id, f) ->
@@ -435,6 +466,14 @@ module AppUpdate =
                     let distance = contrPos.Distance(scalerPos)
                     let newScale = (4.0/3.0)*Math.PI*Math.Pow((distance + model.sphereRadius), 3.0)
                     newScale + model.sphereRadius/2.0
+
+            let newTvTrafo, updatedTvQuad = 
+                if model.grabbingTV then 
+                    let newTf = model.tvToControllerTrafo * mainContrTrafo
+                    let newTvQuad = newTf.Forward.TransformedPosArray(browserQuad.Points.ToArray(4)) |> Quad3d
+                    newTf, newTvQuad
+                else 
+                    model.tvTrafo, model.tvQuad
             
             //RAY UPDATE
             let initRay = 
@@ -445,7 +484,7 @@ module AppUpdate =
                 else Ray3d.Invalid    
             //let intersect = initRay.Intersects(model.tvQuad)
             let mutable hit = RayHit3d.MaxRange
-            let hitPoint = if model.rayActive then initRay.Hits(model.tvQuad, &hit) else false
+            let hitPoint = if model.rayActive then initRay.Hits(updatedTvQuad, &hit) else false
             let currRay, rColor, screenCoordsHitPos =
                 if model.rayActive then 
                     if hitPoint then
@@ -665,7 +704,7 @@ module AppUpdate =
                     probesUpdate
 
             // UPDATE TEXTURES VISIBILITY
-            let showMainTexture = mainContrProbeIntersection.IsSome || model.grabbingHera || model.mainMenuOpen
+            let showMainTexture = mainContrProbeIntersection.IsSome || model.grabbingHera || model.mainMenuOpen || model.grabbingTV
 
             let showSecondTexture = 
                 secondContrProbeIntersection.IsNone && not secondContrClippingIntersection && 
@@ -694,6 +733,8 @@ module AppUpdate =
                 interesctingClippingPlane = secondContrClippingIntersection
                 hitPoint = hit.Point
                 screenHitPoint = hit.Coord
+                tvTrafo = newTvTrafo
+                tvQuad = updatedTvQuad
                 screenCoordsHitPos = screenCoordsHitPos
                 mainContrProbeIntersectionId = mainContrProbeIntersection
                 mainContrBoxPlotIntersectionId = mainContrBoxPlotIntersection
@@ -1259,7 +1300,7 @@ module AppUpdate =
             | _ -> model
         | ChangeTouchpadPos (id, pos) -> 
             match model.mainControllerId with 
-            | Some i when i = id && model.rayActive && model.screenIntersection && not model.grabbingHera -> 
+            | Some i when i = id && model.rayActive && model.screenIntersection && not model.grabbingHera && not model.grabbingTV -> 
                 client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
             | _ -> ()
 

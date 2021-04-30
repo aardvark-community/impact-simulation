@@ -48,11 +48,11 @@ module Demo =
            // printf "press button: %A " (controllerId, buttonId)
             match buttonId with 
             | 1 -> [ResetHera]
-            | 2 -> [GrabHera controllerId; ToggleBillboardVisibility controllerId]
+            | 2 -> [GrabHera controllerId; ToggleBillboardVisibility controllerId; GrabTv controllerId]
             | _ -> []
         | VrMessage.UnpressButton(controllerId, buttonId) ->
             match buttonId with 
-            | 2 -> [UngrabHera controllerId]
+            | 2 -> [UngrabHera controllerId; UngrabTv controllerId]
             | _ -> []
         | VrMessage.Press(controllerId, buttonId) ->
             match buttonId with 
@@ -638,9 +638,6 @@ module Demo =
             |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
             |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
             |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
-            //|> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
-            //|> Sg.transform (Trafo3d.RotationXInDegrees(180.0)) 
-            //|> Sg.translate 0.0 0.0 0.013
             |> Sg.diffuseTexture client.Texture 
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
@@ -652,7 +649,7 @@ module Demo =
             |> Sg.adapter
             |> Sg.transform (Trafo3d.Scale(1.0, 1.0, -1.0))
             |> Sg.andAlso browserSg
-            |> Sg.trafo (tvTrafo |> AVal.constant)
+            |> Sg.trafo m.tvTrafo
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.diffuseTexture
