@@ -215,6 +215,7 @@ module AppUpdate =
             mainContrBoxPlotIntersectionId = None
             secondContrBoxPlotIntersectionId = None
             movingBoxPlot = false
+            takenBoxPlot = None
             lastProbeId = 0
             currBoxPlotAttribSet = false
             currBoxPlotAttrib = RenderValue.Energy
@@ -674,6 +675,15 @@ module AppUpdate =
                 secondContrProbeIntersection.IsNone && not secondContrClippingIntersection && 
                 (((model.controllerMode = ControllerMode.Probe) && not showMainTexture && model.secondTouching) || 
                     mainContrProbeIntersection.IsSome || model.controllerMode = ControllerMode.Analyze) 
+
+            let updateTakenBoxPlot = 
+                if model.movingBoxPlot then 
+                    let bp = model.takenBoxPlot.Value
+                    let newTrafo = defaultBoxPlotsTrafo * mainContrTrafo
+                    let updateBP = {bp with trafo = newTrafo}
+                    Some updateBP
+                else 
+                    model.takenBoxPlot
         
             {model with 
                 devicesTrafos = newInput
@@ -693,6 +703,7 @@ module AppUpdate =
                 mainContrBoxPlotIntersectionId = mainContrBoxPlotIntersection
                 secondContrProbeIntersectionId = secondContrProbeIntersection
                 secondContrBoxPlotIntersectionId = secondContrBoxPlotIntersection
+                takenBoxPlot = updateTakenBoxPlot
                 mainTouchpadTexture = tex
                 mainContrScreenTexture = screenTex
                 secondTouchpadTexture = secondTex
@@ -910,12 +921,31 @@ module AppUpdate =
         | TakeBoxPlot id ->
             match model.mainControllerId with 
             | Some i when i = id && model.mainContrBoxPlotIntersectionId.IsSome  ->
-                {model with movingBoxPlot = true}
+                let intersectedBoxPlotId = model.mainContrBoxPlotIntersectionId.Value
+                let boxPlot = model.allPlacedBoxPlots.TryFind(intersectedBoxPlotId)
+                match boxPlot with
+                | Some b -> 
+                    let currTrafo = defaultBoxPlotsTrafo * model.mainControllerTrafo
+                    let updatedB = {b with trafo = currTrafo}
+                    let updateBoxPlots = model.allPlacedBoxPlots.Remove(intersectedBoxPlotId)
+                    {model with 
+                        movingBoxPlot = true
+                        allPlacedBoxPlots = updateBoxPlots
+                        takenBoxPlot = Some updatedB}
+                | None -> model 
             | _ -> model
         | LeaveBoxPlot id ->
             match model.mainControllerId with 
             | Some i when i = id && model.movingBoxPlot ->
-                {model with movingBoxPlot = false}
+                let currTakenBoxPlot = model.takenBoxPlot.Value
+                let currTrafo = currTakenBoxPlot.trafo
+                let transformedQuad = currTrafo.Forward.TransformedPosArray(defaultBoxPlotPositions.Points.ToArray(4)) |> Quad3d
+                let updatedBoxPlot = {currTakenBoxPlot with positions = transformedQuad}
+                let updateBoxPlots = model.allPlacedBoxPlots.Add(updatedBoxPlot.id, updatedBoxPlot)
+                {model with 
+                    movingBoxPlot = false
+                    allPlacedBoxPlots = updateBoxPlots
+                    takenBoxPlot = None}
             | _ -> model
         | DeactivateControllerMode id ->
             if not model.mainMenuOpen then 

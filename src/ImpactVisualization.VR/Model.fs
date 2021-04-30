@@ -187,6 +187,7 @@ type Model =
         mainContrBoxPlotIntersectionId : Option<string>
         secondContrBoxPlotIntersectionId : Option<string>
         movingBoxPlot : bool
+        takenBoxPlot : Option<BoxPlot>
                         
         //Controller clipping plane
         holdClipping : bool

@@ -60,11 +60,11 @@ module Demo =
             | 1 -> [ActivateControllerMode controllerId; ScaleProbe controllerId; 
                     DeleteProbe controllerId; DeleteClippingPlane controllerId;
                     SelectBoxPlotProbes controllerId; PlaceBoxPlot controllerId;
-                    DeleteBoxPlot controllerId]
+                    DeleteBoxPlot controllerId; TakeBoxPlot controllerId]
             | _ -> []
         | VrMessage.Unpress(controllerId, buttonId) ->
             match buttonId with 
-            | 1 ->  [DeactivateControllerMode controllerId; StopProbeScale controllerId]
+            | 1 ->  [DeactivateControllerMode controllerId; StopProbeScale controllerId; LeaveBoxPlot controllerId]
             | _ -> []
         | VrMessage.Touch(controllerId, buttonId) ->
             //match buttonId with 
@@ -299,6 +299,28 @@ module Demo =
             |> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass2
 
+        let trafoBP = 
+            m.takenBoxPlot |> AVal.bind (fun bp -> 
+                match bp with 
+                | AdaptiveSome b -> b.trafo
+                | AdaptiveNone -> (AVal.constant Trafo3d.Identity))
+
+        let texBP = 
+            m.takenBoxPlot |> AVal.bind (fun bp -> 
+                match bp with 
+                | AdaptiveSome b -> (b.texture |> AVal.map (fun pi -> convertPixImageToITexture pi))
+                | AdaptiveNone -> DefaultTextures.blackTex)
+
+        let takenBoxPlotSg = 
+            planeSg defaultBoxPlotPositions
+            |> Sg.trafo trafoBP
+            |> Sg.onOff m.movingBoxPlot
+            |> Sg.diffuseTexture texBP
+            |> Sg.shader {
+                do! DefaultSurfaces.trafo
+                do! DefaultSurfaces.diffuseTexture
+            }  
+
         let boxPlotsSgs = 
             m.allPlacedBoxPlots |> AMap.toASet |> ASet.choose (fun (key, boxPlot) ->
                 let pixImage =
@@ -312,7 +334,7 @@ module Demo =
                     m.mainContrBoxPlotIntersectionId 
                     |> AVal.map (fun mct ->
                         match mct with 
-                        | Some i when i = key -> Trafo3d.Scale(0.7)
+                        | Some i when i = key -> Trafo3d.Scale(0.95)
                         | _ -> Trafo3d.Identity)
                 planeSg defaultBoxPlotPositions
                 |> Sg.trafo scaleTrafo
@@ -750,8 +772,8 @@ module Demo =
         //    0
 
         Sg.ofSeq [
-            deviceSgs; currentSphereProbeSg; probesSgs; boxPlotsSgs; heraSg; 
-            clipPlaneSg; tvSg; tvPosSphereSg; raySg; browserSg;
+            deviceSgs; currentSphereProbeSg; probesSgs; boxPlotsSgs; takenBoxPlotSg;
+            heraSg; clipPlaneSg; tvSg; tvPosSphereSg; raySg; browserSg;
             boxSg; mainTouchpadSphereSg; secondTouchpadSphereSg
         ] |> Sg.shader {
                 do! DefaultSurfaces.trafo
