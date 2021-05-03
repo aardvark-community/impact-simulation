@@ -547,8 +547,6 @@ module AppUpdate =
                 | None -> None
                 | _ -> model.mainContrBoxPlotIntersectionId
 
-
-
             //INTERSECTION OF SECOND CONTROLLER WITH A PROBE
             let secondContrProbeIntersection = 
                 match model.secondControllerId with 

@@ -24,10 +24,12 @@ let main args =
         Reflection.assemblyWebPart typeof<AardVolume.EmbeddedRessource>.Assembly
     ] |> ignore
     
+
     Aardium.run {
         title "Aardvark rocks \\o/"
         width 1024
         height 768
+        //url "http://localhost:4321/?page=controllersPage"
         url "http://localhost:4321/?page=mainPage"
     }
 
