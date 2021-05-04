@@ -679,8 +679,6 @@ module Demo =
             |> Sg.trafo (Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0) |> AVal.constant)
             |> Sg.translate 2.5 2.0 0.5
 
-
-
         let lines = m.ray |> AVal.map (fun r -> [|Line3d(r.Origin, r.Direction)|]) 
 
         let raySg =
@@ -695,7 +693,6 @@ module Demo =
                 ]
             |> Sg.depthTest (AVal.constant DepthTestMode.LessOrEqual)
             |> Sg.pass pass1
-
 
         let currentBox = 
             m.twoDModel.boxFilter |> AVal.map (fun b ->
