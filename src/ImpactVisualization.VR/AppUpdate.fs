@@ -94,6 +94,10 @@ module AppUpdate =
                         "statistics", fromStreamToTexture "statistics.png";
                         "delete-object", fromStreamToTexture "delete-object.png";
                         "analyze-probes", fromStreamToTexture "analyze-probes.png";
+                        "analyze-region", fromStreamToTexture "analyze-region.png";
+                        "analyze-region-screen", fromStreamToTexture "analyze-region-screen.png";
+                        "analyze-time", fromStreamToTexture "analyze-time.png";
+                        "analyze-time-screen", fromStreamToTexture "analyze-time-screen.png";
                         "main-controller", fromStreamToTexture "main-controller.png"]
     
     let trafoOrIdentity trafo = Option.defaultValue Trafo3d.Identity trafo
