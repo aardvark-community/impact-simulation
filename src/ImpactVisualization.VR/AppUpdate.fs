@@ -33,11 +33,7 @@ module AppUpdate =
     let planePos2 = V3d(0.7, 0.05, 0.5)
     let planePos3 = V3d(0.7, 0.05, -0.5)
 
-    let tvTrafo = 
-        let scale = Trafo3d(Scale3d(2.0))
-        let rotation = Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0)
-        let translation = Trafo3d.Translation(2.5, 1.0, 1.5)
-        scale * rotation * translation
+
 
     //let tvQuadTrafo = flatScreenTrafo 180.0 90.0 1.535
     //let tvTrafo = flatScreenTrafo 0.0 -90.0 1.5
@@ -173,6 +169,13 @@ module AppUpdate =
 
 
     let initialScalingHera = 0.05
+    let initialScalingTv = 2.0
+
+    let tvTrafos = 
+        let scale = Trafo3d(Scale3d(initialScalingTv))
+        let rotation = Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0)
+        let translation = Trafo3d.Translation(2.5, 1.0, 1.5)
+        scale * rotation * translation
 
     let defaultBoxPlotPositions = Quad3d(V3d(-1.7, -1.0, 0.0), V3d(1.7, -1.0, 0.0), V3d(1.7, 1.0, 0.0), V3d(-1.7, 1.0, 0.0))
 
@@ -201,6 +204,8 @@ module AppUpdate =
             holdingSphere = false
             scalingSphere = false
             scalingFactorHera = initialScalingHera
+            scalingFactorTv = initialScalingTv
+            lastTvScaleTrafo = Trafo3d(Scale3d(initialScalingTv))
             lastHeraScaleTrafo = Trafo3d(Scale3d(initialScalingHera))
             sphereScale = 1.0
             lastSphereScale = 1.0
@@ -230,12 +235,11 @@ module AppUpdate =
             ray = Ray3d.Invalid
             rayTriggerClicked = false
             clickPosition = None
-            tvQuad = tvTrafo.Forward.TransformedPosArray(browserQuad.Points.ToArray(4)) |> Quad3d
-            tvTrafo = tvTrafo
+            tvQuad = tvTrafos.Forward.TransformedPosArray(browserQuad.Points.ToArray(4)) |> Quad3d
+            tvTrafo = Trafo3d.Identity
             tvToControllerTrafo = Trafo3d.Identity
             grabbingTV = false
-            tvTransformations = Trafo3d.Identity
-            scalingFactorTV = 1.0
+            tvTransformations = tvTrafos
             rayColor = C4b.Red
             screenIntersection = false
             hitPoint = V3d.OOO
@@ -452,6 +456,31 @@ module AppUpdate =
                         mainTouchpadTexture = texture "initial-scaling"
                         mainContrScreenTexture = texture "empty"}
             | _ -> model
+        | ScaleTv (id, f) ->
+            match model.mainControllerId with 
+            | Some i when i = id && model.grabbingTV ->
+                if model.mainTouching then
+                    if f >= 0.0 then
+                        let maxScale = 4.0
+                        let currScale = model.scalingFactorTv * (f*f/5.0 + 1.0)
+                        let newScale = if currScale >= maxScale then maxScale else currScale
+                        {model with 
+                            scalingFactorTv = newScale
+                            mainTouchpadTexture = texture "scale-up"
+                            mainContrScreenTexture = texture "scaling-up"}
+                    else
+                        let minScale = 0.001
+                        let currScale = model.scalingFactorTv * (1.0 - f*f/5.0)
+                        let newScale =  if currScale <= minScale then minScale else currScale
+                        {model with 
+                            scalingFactorTv = newScale
+                            mainTouchpadTexture = texture "scale-down"
+                            mainContrScreenTexture = texture "scaling-down"}
+                else 
+                    {model with 
+                        mainTouchpadTexture = texture "initial-scaling"
+                        mainContrScreenTexture = texture "empty"}
+            | _ -> model
         | MoveController (id, (trafo : Trafo3d)) -> 
             let newInput = model.devicesTrafos.Add(id, trafo)
             let mainContrTrafo = newOrOldTrafo id trafo model.mainControllerId model.mainControllerTrafo
@@ -470,13 +499,25 @@ module AppUpdate =
                     let newScale = (4.0/3.0)*Math.PI*Math.Pow((distance + model.sphereRadius), 3.0)
                     newScale + model.sphereRadius/2.0
 
-            let newTvTrafo, updatedTvQuad = 
-                if model.grabbingTV then 
-                    let newTf = model.tvToControllerTrafo * mainContrTrafo
-                    let newTvQuad = newTf.Forward.TransformedPosArray(browserQuad.Points.ToArray(4)) |> Quad3d
-                    newTf, newTvQuad
+            let newTvScaleTrafo = 
+                if model.grabbingTV && model.mainTouching then
+                    //printf "UPDATE SCALING \n"
+                    Trafo3d(Scale3d(model.scalingFactorTv))
                 else 
-                    model.tvTrafo, model.tvQuad
+                    model.lastTvScaleTrafo
+
+            let newTvTransformations, updatedTvQuad = 
+                if model.grabbingTV then 
+                    let tvTrafo = model.tvToControllerTrafo * mainContrTrafo
+                    let rotation = Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0)
+                    let translation = Trafo3d.Translation(2.5, 1.0, 1.5)
+
+                    let newTvTrafos = newTvScaleTrafo * rotation * translation * tvTrafo
+                    let newTvQuad = newTvTrafos.Forward.TransformedPosArray(browserQuad.Points.ToArray(4)) |> Quad3d
+
+                    newTvTrafos, newTvQuad
+                else 
+                    model.tvTransformations, model.tvQuad
             
             //RAY UPDATE
             let initRay = 
@@ -735,7 +776,8 @@ module AppUpdate =
                 interesctingClippingPlane = secondContrClippingIntersection
                 hitPoint = hit.Point
                 screenHitPoint = hit.Coord
-                tvTrafo = newTvTrafo
+                tvTransformations = newTvTransformations
+                lastTvScaleTrafo = newTvScaleTrafo
                 tvQuad = updatedTvQuad
                 screenCoordsHitPos = screenCoordsHitPos
                 mainContrProbeIntersectionId = mainContrProbeIntersection

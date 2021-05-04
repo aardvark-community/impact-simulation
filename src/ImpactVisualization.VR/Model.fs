@@ -88,7 +88,7 @@ type Message =
     | ScaleHera of int * float
     | GrabTv of int 
     | UngrabTv of int
-    | ScaleTv of int 
+    | ScaleTv of int * float
     | MoveController of int * Trafo3d
     | ToggleMainMenu of int
     | OpenMainMenu of int
@@ -150,6 +150,8 @@ type Model =
 
         //Scaling factors
         scalingFactorHera : float
+        scalingFactorTv : float
+        lastTvScaleTrafo : Trafo3d
         sphereScale : float 
         lastSphereScale : float
         sphereRadius : float 
@@ -168,7 +170,6 @@ type Model =
         tvToControllerTrafo : Trafo3d
         grabbingTV : bool
         tvTransformations : Trafo3d
-        scalingFactorTV : float
         screenIntersection : bool
         hitPoint : V3d
         screenHitPoint : V2d 

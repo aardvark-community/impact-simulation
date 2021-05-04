@@ -80,6 +80,7 @@ module Demo =
             match buttonId with 
             | 0 ->  [ChangeTouchpadPos (controllerId, value); 
                      ScaleHera (controllerId, value.X); 
+                     ScaleTv (controllerId, value.X); 
                      ChangeMainControllerMode controllerId; 
                      ChangeBoxPlotAttribute controllerId;
                      SelectGlobalAttribute controllerId;
@@ -649,7 +650,7 @@ module Demo =
             |> Sg.adapter
             |> Sg.transform (Trafo3d.Scale(1.0, 1.0, -1.0))
             |> Sg.andAlso browserSg
-            |> Sg.trafo m.tvTrafo
+            |> Sg.trafo m.tvTransformations
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.diffuseTexture
