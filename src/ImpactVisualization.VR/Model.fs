@@ -139,10 +139,10 @@ type Model =
         //Hera
         heraTrafo : Trafo3d
         heraToControllerTrafo : Trafo3d
-        //lastHeraScaleTrafo : Trafo3d
+        lastHeraScaleTrafo : Trafo3d
         grabbingHera : bool
         heraBox : Box3d
-        //heraTransformations : Trafo3d
+        heraTransformations : Trafo3d
 
         holdingSphere : bool 
         scalingSphere : bool
