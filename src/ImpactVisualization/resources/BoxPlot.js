@@ -228,10 +228,17 @@ function refreshBoxPlot(data){
     // Setup a series axis on the top
     var axisBottom = d3.axisBottom(xScale)
         .tickFormat(d => "Probe " + d);
+
     axisBottomG.append("g")
         .style("font", "16px sans-serif")
         .style("font-weight", "bold")
         .call(axisBottom);
+
+    axisBottomG.selectAll('.tick')
+        .each((d, i, n) => {
+           let currNode = n[i].getScreenCTM();
+           console.log("Position: x: " + currNode.e + ", y: " + currNode.f);
+        });
 }
 
 function resetContainers(){

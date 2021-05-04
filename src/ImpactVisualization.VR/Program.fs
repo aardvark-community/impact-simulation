@@ -70,10 +70,9 @@ let main argv =
     client.LoadUrl "http://localhost:4321/?page=mainPage" |> ignore
     histogramClient.LoadUrl "http://localhost:4321/?page=histogramPage" |> ignore
     boxPlotClient.LoadUrl "http://localhost:4321/?page=boxPlotPage" |> ignore
-    //boxPlotClient1.LoadUrl "http://localhost:4321/?page=boxPlotPage1" |> ignore
     
     Aardium.run {
-        url "http://localhost:4321/?page=mainPage"
+        url "http://localhost:4321/?page=boxPlotPage"
     }
 
     Aardvark.Cef.Internal.Cef.shutdown()
