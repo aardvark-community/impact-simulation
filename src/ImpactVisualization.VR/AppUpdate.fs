@@ -134,7 +134,8 @@ module AppUpdate =
             currBillboard = billboardType
         }
 
-    let createBoxPlot (attribute : RenderValue) (trafo : Trafo3d) (corners : Quad3d) (texture : PixImage) (data : HashMap<int, float[]>): BoxPlot =
+    let createBoxPlot (attribute : RenderValue) (trafo : Trafo3d) (corners : Quad3d) 
+        (texture : PixImage) (data : HashMap<int, float[]>) (allSelectedProbes : HashMap<int, string>) : BoxPlot =
         {   
             id = Guid.NewGuid().ToString()
             attribute = attribute
@@ -142,6 +143,7 @@ module AppUpdate =
             positions = corners
             texture = texture 
             data = data
+            probeIds = allSelectedProbes
         }
     
     let convertCartesianToPolar (cartCoords : V2d) = 
@@ -223,6 +225,7 @@ module AppUpdate =
             showCurrBoxPlot = false
             currBoxPlot = None
             allPlacedBoxPlots = HashMap.empty
+            allCurrSelectedProbesIds = HashMap.empty
             rayActive = false
             ray = Ray3d.Invalid
             rayTriggerClicked = false
@@ -500,7 +503,7 @@ module AppUpdate =
 
             let newHeraScaleTrafo = 
                 if model.grabbingHera && model.mainTouching then
-                    printf "UPDATE SCALING \n"
+                    //printf "UPDATE SCALING \n"
                     Trafo3d(Scale3d(model.scalingFactorHera))
                 else 
                     model.lastHeraScaleTrafo
@@ -881,13 +884,13 @@ module AppUpdate =
 
                     let arrayBoxPlot, statsBoxPlot = intersectedProbe.allData.Item model.currBoxPlotAttrib
 
-                    let newHashmap = 
+                    let newHashmap, allProbesIds = 
                         if not isSelected then 
-                            model.boxPlotProbes.Add(model.lastProbeId, arrayBoxPlot) 
+                            model.boxPlotProbes.Add(model.lastProbeId, arrayBoxPlot), model.allCurrSelectedProbesIds.Add(model.lastProbeId, probeId)
                         else 
                             let currProbe = model.allProbes.Item probeId
                             let intId = currProbe.numberId
-                            model.boxPlotProbes.Remove(intId)
+                            model.boxPlotProbes.Remove(intId), model.allCurrSelectedProbesIds.Remove(intId)
 
                     let dataForBoxPlot = newHashmap |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
 
@@ -917,6 +920,7 @@ module AppUpdate =
                         boxPlotProbes = newHashmap
                         currBoxPlotAttribSet = true
                         allProbes = allProbesUpdated
+                        allCurrSelectedProbesIds = allProbesIds
                         twoDModel = updatedTwoDmodel
                         lastProbeId = model.lastProbeId + 1
                         }
@@ -928,7 +932,7 @@ module AppUpdate =
                 let texture = getScreenshot boxPlotClient
                 let currTrafo = defaultBoxPlotsTrafo * model.secondControllerTrafo
                 let transformedQuad = currTrafo.Forward.TransformedPosArray(defaultBoxPlotPositions.Points.ToArray(4)) |> Quad3d
-                let boxPlot = createBoxPlot model.currBoxPlotAttrib currTrafo transformedQuad texture model.boxPlotProbes
+                let boxPlot = createBoxPlot model.currBoxPlotAttrib currTrafo transformedQuad texture model.boxPlotProbes model.allCurrSelectedProbesIds
                 let allPlacedBoxPlots = model.allPlacedBoxPlots.Add(boxPlot.id, boxPlot)
                 let updatedTwoDmodel = 
                     {model.twoDModel with 
@@ -945,6 +949,7 @@ module AppUpdate =
                     allProbes = allProbesUpdated
                     allPlacedBoxPlots = allPlacedBoxPlots
                     boxPlotProbes = HashMap.empty
+                    allCurrSelectedProbesIds = HashMap.empty
                     twoDModel = updatedTwoDmodel}
             | _ -> model
         | DeleteBoxPlot id ->
@@ -953,6 +958,50 @@ module AppUpdate =
                 let intersectedBoxPlotId = model.secondContrBoxPlotIntersectionId.Value
                 let updateBoxPlots = model.allPlacedBoxPlots.Remove(intersectedBoxPlotId)
                 {model with allPlacedBoxPlots = updateBoxPlots}
+            | _ -> model
+        | CopyBoxPlot id ->
+            match model.secondControllerId with 
+            | Some i when i = id && model.secondContrBoxPlotIntersectionId.IsSome ->
+                let intersectedBoxPlotId = model.secondContrBoxPlotIntersectionId.Value
+                let boxPlot = model.allPlacedBoxPlots.TryFind(intersectedBoxPlotId)
+                match boxPlot with
+                | Some b -> 
+                    let attrib = b.attribute
+                    let dataForBoxPlot = b.data |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
+                    let allSelected = b.probeIds
+
+                    let allProbesUpdated = 
+                        model.allProbes
+                        |> HashMap.map (fun key probe ->
+                            let probeSelected = 
+                                model.allCurrSelectedProbesIds
+                                |> HashMap.filter (fun numberId stringId -> 
+                                    stringId = key
+                                ) 
+                            if not probeSelected.IsEmpty then 
+                                {probe with 
+                                    color = C4b.Yellow
+                                    numberId = probeSelected |> HashMap.toSeq |> Seq.exactlyOne |> fst
+                                    selected = true}
+                            else 
+                                {probe with 
+                                    color = C4b.Blue
+                                    numberId = -1
+                                    selected = false})
+                    
+                    let updatedTwoDmodel = 
+                        { mTwoD with
+                            boxPlotData = dataForBoxPlot
+                            boxPlotAttribute = renderValueToString attrib
+                        }
+
+                    {model with 
+                        boxPlotProbes = b.data
+                        currBoxPlotAttrib = attrib
+                        allCurrSelectedProbesIds = allSelected
+                        twoDModel = updatedTwoDmodel
+                        allProbes = allProbesUpdated}
+                | None -> model 
             | _ -> model
         | TakeBoxPlot id ->
             match model.mainControllerId with 
@@ -1361,4 +1410,7 @@ module AppUpdate =
             //| Some i when i = id -> 
             //    {model with touchpadDeviceId = None} 
             //| _ -> model
-        | ResetHera -> initial runtime frames
+        | ResetHera id ->
+            match model.mainControllerId with 
+            | Some i when i = id -> initial runtime frames
+            | _ -> model

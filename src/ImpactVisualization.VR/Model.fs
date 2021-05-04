@@ -68,6 +68,7 @@ type BoxPlot = {
     positions : Quad3d
     texture   : PixImage
     data      : HashMap<int, float[]>
+    probeIds  : HashMap<int, string>
 
     [<NonAdaptive>]
     id : string
@@ -116,7 +117,7 @@ type Message =
     | UntouchDevice of int 
     | MouseClick
     | SetTexture of PixImage * Probe
-    | ResetHera 
+    | ResetHera of int
 
 [<ModelType>]
 type Model = 
@@ -197,6 +198,7 @@ type Model =
         secondContrBoxPlotIntersectionId : Option<string>
         movingBoxPlot : bool
         takenBoxPlot : Option<BoxPlot>
+        allCurrSelectedProbesIds : HashMap<int, string>
                         
         //Controller clipping plane
         holdClipping : bool

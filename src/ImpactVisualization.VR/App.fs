@@ -47,7 +47,7 @@ module Demo =
         | VrMessage.PressButton(controllerId, buttonId) ->
            // printf "press button: %A " (controllerId, buttonId)
             match buttonId with 
-            | 1 -> [ResetHera]
+            | 1 -> [ResetHera controllerId; CopyBoxPlot controllerId]
             | 2 -> [GrabHera controllerId; ToggleBillboardVisibility controllerId; GrabTv controllerId]
             | _ -> []
         | VrMessage.UnpressButton(controllerId, buttonId) ->
