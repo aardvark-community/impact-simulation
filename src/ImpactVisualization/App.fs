@@ -52,6 +52,7 @@ type Message =
     | ResetFilter 
     | Brushed of Range
     | BrushedParallCoords of RenderValue * Range * bool
+    | UpdatedBoxPlotProbes of float * float
     
 module App =    
 
@@ -68,6 +69,18 @@ module App =
                 (t, text)
                 )
         |> HashMap.ofList
+
+    let scheme10Colors = 
+        HashMap.ofList [1, C4b(31, 119, 180, 1);
+                        2, C4b(255, 127, 14, 1);
+                        3, C4b(44, 160, 44, 1);
+                        4, C4b(214, 39, 40, 1);
+                        5, C4b(148, 103, 189, 1);
+                        6, C4b(140, 86, 75, 1);
+                        7, C4b(227, 119, 194, 1);
+                        8, C4b(127, 127, 127, 1);
+                        9, C4b(188, 189, 34, 1);
+                        10, C4b(23, 190, 207, 1)]
 
 
     //TODO: definitely not the best solution
@@ -403,334 +416,337 @@ module App =
         let numOfFrames = frames.Length
         let positions = frames.[m.frame].positions
         match msg with
-            | SetPointSize s -> { m with pointSize = s }
-            | TogglePointSize -> 
-                let newPointSize = if m.pointSize = 8.0 then 20.0 elif m.pointSize = 20.0 then 8.0 else m.pointSize
-                { m with pointSize = newPointSize }
-            | TogglePointDiscarded -> {m with discardPoints = not m.discardPoints}
-            | NormalizeData -> {m with normalizeData = not m.normalizeData}
-            | EnableShading -> {m with enableShading = not m.enableShading}
-            | ReconstructNormal -> {m with reconstructNormal = not m.reconstructNormal}
-            | ReconstructDepth -> {m with reconstructDepth = not m.reconstructDepth}
-            | EnableTransparency -> {m with enableTransparency = not m.enableTransparency}
-            | SetTransparencyAttribute a ->     
-                let renderValues = 
-                    match a with
-                    | RenderValue.Energy ->  frames.[m.frame].energies
-                    | RenderValue.CubicRoot -> frames.[m.frame].cubicRoots
-                    | RenderValue.Strain -> frames.[m.frame].strains
-                    | RenderValue.AlphaJutzi -> frames.[m.frame].alphaJutzis
-                    | RenderValue.Pressure -> frames.[m.frame].pressures
-                    | RenderValue.Mass -> frames.[m.frame].masses
-                    | RenderValue.Density -> frames.[m.frame].densities
-                    | _ -> frames.[m.frame].energies
-                let range = renderValues.GetBoundingRange()
-                let minValue = range.Min
-                let maxValue = range.Max
-                let newDataRange = {
-                    min = minValue
-                    max = maxValue
-                    }            
-                {m with 
-                    transparencyAttribute = a
-                    transparencyDataRange = newDataRange}
-            | SetAlphaStrength s -> {m with alphaStrength = s}
-            | SetTransferFunction t -> {m with transferFunction = t}
-            | InvertTransferFunction -> {m with invertTF = not m.invertTF}
-            | SetCenter c -> 
-                let wholeRange = m.endValue - m.startValue
-                let newCenter = m.startValue + c * wholeRange
-                {m with 
-                    center = newCenter
-                    centerNormalized = c}
-            | SetStartValue sv -> 
-                let startValueRange = m.center - m.transparencyDataRange.min
-                let newStartValue = m.transparencyDataRange.min + sv * startValueRange
-                {m with 
-                    startValue = newStartValue
-                    startValueNormalized = sv}
-            | SetEndValue ev -> 
-                let endValueRange = m.transparencyDataRange.max - m.center
-                let newEndValue = m.center + ev * endValueRange
-                {m with 
-                    endValue = newEndValue
-                    endValueNormalized = ev}
-            | DisplayLowerOutliers -> 
-                let currData = m.values.arr
-                let lowerOutlierBoundary = findOutliers currData |> fst
-                let range = m.outliersRange
-                let newMin = if m.lowerOutliers then -infinity else lowerOutlierBoundary
-                let newOutliersRange = {range with min = newMin}
-                {m with 
-                    lowerOutliers = not m.lowerOutliers
-                    outliersRange = newOutliersRange}
-            | DisplayHigherOutliers -> 
-                let currData = m.values.arr
-                let higherOutlierBoundary = findOutliers currData |> snd
-                let range = m.outliersRange
-                let newMax = if m.higherOutliers then infinity else higherOutlierBoundary
-                let newOutliersRange = {range with max = newMax}
-                {m with 
-                    higherOutliers = not m.higherOutliers
-                    outliersRange = newOutliersRange}
-            | ChangeAnimation -> { m with playAnimation = not m.playAnimation}
-            | AnimateAllFrames -> 
-                let filteredDataAllFrames = filterDataForAllFramesBox frames m.boxFilter m.renderValue
+        | SetPointSize s -> { m with pointSize = s }
+        | TogglePointSize -> 
+            let newPointSize = if m.pointSize = 8.0 then 20.0 elif m.pointSize = 20.0 then 8.0 else m.pointSize
+            { m with pointSize = newPointSize }
+        | TogglePointDiscarded -> {m with discardPoints = not m.discardPoints}
+        | NormalizeData -> {m with normalizeData = not m.normalizeData}
+        | EnableShading -> {m with enableShading = not m.enableShading}
+        | ReconstructNormal -> {m with reconstructNormal = not m.reconstructNormal}
+        | ReconstructDepth -> {m with reconstructDepth = not m.reconstructDepth}
+        | EnableTransparency -> {m with enableTransparency = not m.enableTransparency}
+        | SetTransparencyAttribute a ->     
+            let renderValues = 
+                match a with
+                | RenderValue.Energy ->  frames.[m.frame].energies
+                | RenderValue.CubicRoot -> frames.[m.frame].cubicRoots
+                | RenderValue.Strain -> frames.[m.frame].strains
+                | RenderValue.AlphaJutzi -> frames.[m.frame].alphaJutzis
+                | RenderValue.Pressure -> frames.[m.frame].pressures
+                | RenderValue.Mass -> frames.[m.frame].masses
+                | RenderValue.Density -> frames.[m.frame].densities
+                | _ -> frames.[m.frame].energies
+            let range = renderValues.GetBoundingRange()
+            let minValue = range.Min
+            let maxValue = range.Max
+            let newDataRange = {
+                min = minValue
+                max = maxValue
+                }            
+            {m with 
+                transparencyAttribute = a
+                transparencyDataRange = newDataRange}
+        | SetAlphaStrength s -> {m with alphaStrength = s}
+        | SetTransferFunction t -> {m with transferFunction = t}
+        | InvertTransferFunction -> {m with invertTF = not m.invertTF}
+        | SetCenter c -> 
+            let wholeRange = m.endValue - m.startValue
+            let newCenter = m.startValue + c * wholeRange
+            {m with 
+                center = newCenter
+                centerNormalized = c}
+        | SetStartValue sv -> 
+            let startValueRange = m.center - m.transparencyDataRange.min
+            let newStartValue = m.transparencyDataRange.min + sv * startValueRange
+            {m with 
+                startValue = newStartValue
+                startValueNormalized = sv}
+        | SetEndValue ev -> 
+            let endValueRange = m.transparencyDataRange.max - m.center
+            let newEndValue = m.center + ev * endValueRange
+            {m with 
+                endValue = newEndValue
+                endValueNormalized = ev}
+        | DisplayLowerOutliers -> 
+            let currData = m.values.arr
+            let lowerOutlierBoundary = findOutliers currData |> fst
+            let range = m.outliersRange
+            let newMin = if m.lowerOutliers then -infinity else lowerOutlierBoundary
+            let newOutliersRange = {range with min = newMin}
+            {m with 
+                lowerOutliers = not m.lowerOutliers
+                outliersRange = newOutliersRange}
+        | DisplayHigherOutliers -> 
+            let currData = m.values.arr
+            let higherOutlierBoundary = findOutliers currData |> snd
+            let range = m.outliersRange
+            let newMax = if m.higherOutliers then infinity else higherOutlierBoundary
+            let newOutliersRange = {range with max = newMax}
+            {m with 
+                higherOutliers = not m.higherOutliers
+                outliersRange = newOutliersRange}
+        | ChangeAnimation -> { m with playAnimation = not m.playAnimation}
+        | AnimateAllFrames -> 
+            let filteredDataAllFrames = filterDataForAllFramesBox frames m.boxFilter m.renderValue
 
-                {m with 
-                    animateAllFrames = not m.animateAllFrames
-                    transition = not m.transition
-                    filteredAllFrames = filteredDataAllFrames}
-            | StepTime -> 
-                let frameId =  (sw.Elapsed.TotalSeconds / 0.5) |> int
-                let currFrame = frameId % numOfFrames
-                // update filtered data using frameId and filter
-                let isCurrentFilterSet = 
-                    match m.boxFilter with 
-                    | None -> false
-                    | Some(_) -> true
+            {m with 
+                animateAllFrames = not m.animateAllFrames
+                transition = not m.transition
+                filteredAllFrames = filteredDataAllFrames}
+        | StepTime -> 
+            let frameId =  (sw.Elapsed.TotalSeconds / 0.5) |> int
+            let currFrame = frameId % numOfFrames
+            // update filtered data using frameId and filter
+            let isCurrentFilterSet = 
+                match m.boxFilter with 
+                | None -> false
+                | Some(_) -> true
 
-                let currBBox = frames.[currFrame].pointSet.BoundingBox
+            let currBBox = frames.[currFrame].pointSet.BoundingBox
 
-                let currData = 
-                    if isCurrentFilterSet && m.animateAllFrames then  
-                        let filteredData = m.filteredAllFrames.[currFrame]
-                        filteredData
-                    else 
-                        m.data.arr
+            let currData = 
+                if isCurrentFilterSet && m.animateAllFrames then  
+                    let filteredData = m.filteredAllFrames.[currFrame]
+                    filteredData
+                else 
+                    m.data.arr
 
-                if m.playAnimation then sw.Start() else sw.Stop()
-                { m with 
-                    frame = currFrame 
-                    currHeraBBox = currBBox
-                    data = { version = m.data.version + 1; arr = currData }
+            if m.playAnimation then sw.Start() else sw.Stop()
+            { m with 
+                frame = currFrame 
+                currHeraBBox = currBBox
+                data = { version = m.data.version + 1; arr = currData }
+            }
+        | CameraMessage msg ->
+            { m with cameraState = FreeFlyController.update m.cameraState msg }
+        | SetRenderValue v -> 
+            let renderValues = 
+                match v with
+                | RenderValue.Energy ->  frames.[m.frame].energies
+                | RenderValue.CubicRoot -> frames.[m.frame].cubicRoots
+                | RenderValue.Strain -> frames.[m.frame].strains
+                | RenderValue.AlphaJutzi -> frames.[m.frame].alphaJutzis
+                | RenderValue.Pressure -> frames.[m.frame].pressures
+                | RenderValue.Mass -> frames.[m.frame].masses
+                | RenderValue.Density -> frames.[m.frame].densities
+                | _ -> frames.[m.frame].energies
+            let range = renderValues.GetBoundingRange()
+            let minValue = range.Min
+            let maxValue = range.Max
+            let newDataRange = {
+                min = minValue
+                max = maxValue
                 }
-            | CameraMessage msg ->
-                { m with cameraState = FreeFlyController.update m.cameraState msg }
-            | SetRenderValue v -> 
-                let renderValues = 
-                    match v with
-                    | RenderValue.Energy ->  frames.[m.frame].energies
-                    | RenderValue.CubicRoot -> frames.[m.frame].cubicRoots
-                    | RenderValue.Strain -> frames.[m.frame].strains
-                    | RenderValue.AlphaJutzi -> frames.[m.frame].alphaJutzis
-                    | RenderValue.Pressure -> frames.[m.frame].pressures
-                    | RenderValue.Mass -> frames.[m.frame].masses
-                    | RenderValue.Density -> frames.[m.frame].densities
-                    | _ -> frames.[m.frame].energies
-                let range = renderValues.GetBoundingRange()
-                let minValue = range.Min
-                let maxValue = range.Max
-                let newDataRange = {
-                    min = minValue
-                    max = maxValue
+
+            let filteredData = filterDataForOneFrameBox frames.[m.frame] m.boxFilter v
+
+            let filteredDataAllFrames = 
+                if m.animateAllFrames then
+                    let filtered = filterDataForAllFramesBox frames m.boxFilter v
+                    filtered
+                else
+                    let temp : float[] [] = Array.empty
+                    temp
+
+            let newCenter = (minValue - maxValue)/2.0
+
+            {m with 
+                renderValue = v
+                values = { version = m.values.version + 1; arr = renderValues }
+                dataRange = newDataRange
+                initDataRange = newDataRange
+                center = newCenter
+                centerNormalized = 0.5
+                startValue = minValue
+                startValueNormalized = 0.0
+                endValue = maxValue
+                endValueNormalized = 1.0
+                data = { version = m.data.version + 1; arr = filteredData }
+                filteredAllFrames = filteredDataAllFrames}
+        | SetColorValue a -> 
+            let c = ColorPicker.update m.colorValue a
+            {m with colorValue = c}
+        | SetTransferFunc t -> 
+            match t with    
+            | None -> m
+            | Some(s) -> {m with currentMap = s} 
+        | SetDomainRange (d, r, v) -> 
+            let range = m.domainRange
+            let newDomainRange = 
+                match d with
+                | X ->
+                    {range with
+                        x =  
+                        match r with 
+                        | Min -> {range.x with min = v}
+                        | Max -> {range.x with max = v}
                     }
+                | Y ->
+                    {range with
+                        y =  
+                        match r with 
+                        | Min -> {range.y with min = v}
+                        | Max -> {range.y with max = v}
+                    }
+                | Z ->
+                    {range with
+                        z =  
+                        match r with 
+                        | Min -> {range.z with min = v}
+                        | Max -> {range.z with max = v}
+                    }
+            {m with domainRange = newDomainRange}
+        | SetDataRange (r, v) ->
+            let dRange = m.dataRange
+            let newDataRange = 
+                match r with
+                | Min -> {dRange with min = v}
+                | Max -> {dRange with max = v}
+            {m with dataRange = newDataRange}
+        | SetClippingPlane (d, v) ->
+            let clipPlane = m.clippingPlane
+            let newClipPlane = 
+                match d with
+                | X -> {clipPlane with x = v}
+                | Y -> {clipPlane with y = v}
+                | Z -> {clipPlane with z = v}
+            {m with clippingPlane = newClipPlane}
+        | SetFilter i ->
+            let newFilter =
+                match i with
+                | 1 -> Some(Box3f(V3f(-3.0, -3.0, -3.0), V3f(3.0, 30.0, 3.0)))
+                | 2 -> Some(Box3f(V3f(-4.0, -4.0, -4.0), V3f(4.0, 30.0, 4.0)))
+                | 3 -> Some(Box3f(V3f(-16.0, -16.0, -16.0), V3f(16.0, 30.0, 16.0)))
+                | _ -> None
 
-                let filteredData = filterDataForOneFrameBox frames.[m.frame] m.boxFilter v
+            let newDataPath =
+                match i with
+                | 1 -> "dataFilter1.csv"
+                | 2 -> "dataFilter2.csv"
+                | 3 -> "dataFilter3.csv"
+                | _ -> "data.csv"
 
-                let filteredDataAllFrames = 
-                    if m.animateAllFrames then
-                        let filtered = filterDataForAllFramesBox frames m.boxFilter v
-                        filtered
-                    else
-                        let temp : float[] [] = Array.empty
-                        temp
-
-                let newCenter = (minValue - maxValue)/2.0
-
-                {m with 
-                    renderValue = v
-                    values = { version = m.values.version + 1; arr = renderValues }
-                    dataRange = newDataRange
-                    initDataRange = newDataRange
-                    center = newCenter
-                    centerNormalized = 0.5
-                    startValue = minValue
-                    startValueNormalized = 0.0
-                    endValue = maxValue
-                    endValueNormalized = 1.0
-                    data = { version = m.data.version + 1; arr = filteredData }
-                    filteredAllFrames = filteredDataAllFrames}
-            | SetColorValue a -> 
-                let c = ColorPicker.update m.colorValue a
-                {m with colorValue = c}
-            | SetTransferFunc t -> 
-                match t with    
-                | None -> m
-                | Some(s) -> {m with currentMap = s} 
-            | SetDomainRange (d, r, v) -> 
-                let range = m.domainRange
-                let newDomainRange = 
-                    match d with
-                    | X ->
-                        {range with
-                            x =  
-                            match r with 
-                            | Min -> {range.x with min = v}
-                            | Max -> {range.x with max = v}
-                        }
-                    | Y ->
-                        {range with
-                            y =  
-                            match r with 
-                            | Min -> {range.y with min = v}
-                            | Max -> {range.y with max = v}
-                        }
-                    | Z ->
-                        {range with
-                            z =  
-                            match r with 
-                            | Min -> {range.z with min = v}
-                            | Max -> {range.z with max = v}
-                        }
-                {m with domainRange = newDomainRange}
-            | SetDataRange (r, v) ->
-                let dRange = m.dataRange
-                let newDataRange = 
-                    match r with
-                    | Min -> {dRange with min = v}
-                    | Max -> {dRange with max = v}
-                {m with dataRange = newDataRange}
-            | SetClippingPlane (d, v) ->
-                let clipPlane = m.clippingPlane
-                let newClipPlane = 
-                    match d with
-                    | X -> {clipPlane with x = v}
-                    | Y -> {clipPlane with y = v}
-                    | Z -> {clipPlane with z = v}
-                {m with clippingPlane = newClipPlane}
-            | SetFilter i ->
-                let newFilter =
-                    match i with
-                    | 1 -> Some(Box3f(V3f(-3.0, -3.0, -3.0), V3f(3.0, 30.0, 3.0)))
-                    | 2 -> Some(Box3f(V3f(-4.0, -4.0, -4.0), V3f(4.0, 30.0, 4.0)))
-                    | 3 -> Some(Box3f(V3f(-16.0, -16.0, -16.0), V3f(16.0, 30.0, 16.0)))
-                    | _ -> None
-
-                let newDataPath =
-                    match i with
-                    | 1 -> "dataFilter1.csv"
-                    | 2 -> "dataFilter2.csv"
-                    | 3 -> "dataFilter3.csv"
-                    | _ -> "data.csv"
-
-                let filteredDataAllFrames = 
-                    if m.animateAllFrames then
-                        let filtered = filterDataForAllFramesBox frames newFilter m.renderValue
-                        filtered
-                    else
-                        let temp : float[] [] = Array.empty
-                        temp
+            let filteredDataAllFrames = 
+                if m.animateAllFrames then
+                    let filtered = filterDataForAllFramesBox frames newFilter m.renderValue
+                    filtered
+                else
+                    let temp : float[] [] = Array.empty
+                    temp
                         
-                let filteredData = filterDataForOneFrameBox frames.[m.frame] newFilter m.renderValue
+            let filteredData = filterDataForOneFrameBox frames.[m.frame] newFilter m.renderValue
 
-                {m with 
-                    boxFilter = newFilter
-                    data = { version = m.data.version + 1 ; arr = filteredData }
-                    filteredAllFrames = filteredDataAllFrames
-                    dataPath = newDataPath}
-            | ResetFilter -> {m with 
-                                currFilter = None
-                                boxFilter = None
-                                sphereFilter = None
-                                data = VersionedArray.ofArray [||]
-                                dataRange = m.initDataRange
-                                dataPath = "data.csv"
-                                currFilters = m.initFilters}
-            | Brushed r -> { m with dataRange = r}
-            | BrushedParallCoords (v, r, b) ->
-                let filters = m.currFilters
-                let initFilters = m.initFilters
-                let newFilters = 
-                    match v with
-                    | RenderValue.Energy ->  
-                        if b then 
-                            {filters with
-                                filterEnergy =
-                                {
-                                    min = initFilters.filterEnergy.min
-                                    max = initFilters.filterEnergy.max
-                                }
+            {m with 
+                boxFilter = newFilter
+                data = { version = m.data.version + 1 ; arr = filteredData }
+                filteredAllFrames = filteredDataAllFrames
+                dataPath = newDataPath}
+        | ResetFilter -> {m with 
+                            currFilter = None
+                            boxFilter = None
+                            sphereFilter = None
+                            data = VersionedArray.ofArray [||]
+                            dataRange = m.initDataRange
+                            dataPath = "data.csv"
+                            currFilters = m.initFilters}
+        | Brushed r -> { m with dataRange = r}
+        | BrushedParallCoords (v, r, b) ->
+            let filters = m.currFilters
+            let initFilters = m.initFilters
+            let newFilters = 
+                match v with
+                | RenderValue.Energy ->  
+                    if b then 
+                        {filters with
+                            filterEnergy =
+                            {
+                                min = initFilters.filterEnergy.min
+                                max = initFilters.filterEnergy.max
                             }
-                        else
-                            {filters with
-                                filterEnergy =
-                                {
-                                    min = r.min
-                                    max = r.max
-                                }
+                        }
+                    else
+                        {filters with
+                            filterEnergy =
+                            {
+                                min = r.min
+                                max = r.max
                             }
-                    | RenderValue.CubicRoot -> 
-                        if b then 
-                            {filters with
-                                filterCubicRoot =
-                                {
-                                    min = initFilters.filterCubicRoot.min
-                                    max = initFilters.filterCubicRoot.max
-                                }
+                        }
+                | RenderValue.CubicRoot -> 
+                    if b then 
+                        {filters with
+                            filterCubicRoot =
+                            {
+                                min = initFilters.filterCubicRoot.min
+                                max = initFilters.filterCubicRoot.max
                             }
-                        else
-                            {filters with
-                                filterCubicRoot =
-                                {
-                                    min = r.min
-                                    max = r.max
-                                }
+                        }
+                    else
+                        {filters with
+                            filterCubicRoot =
+                            {
+                                min = r.min
+                                max = r.max
                             }
-                    | RenderValue.Strain -> 
-                        if b then 
-                            {filters with
-                                filterStrain =
-                                {
-                                    min = initFilters.filterStrain.min
-                                    max = initFilters.filterStrain.max
-                                }
+                        }
+                | RenderValue.Strain -> 
+                    if b then 
+                        {filters with
+                            filterStrain =
+                            {
+                                min = initFilters.filterStrain.min
+                                max = initFilters.filterStrain.max
                             }
-                        else
-                            {filters with
-                                filterStrain =
-                                {
-                                    min = r.min
-                                    max = r.max
-                                }
+                        }
+                    else
+                        {filters with
+                            filterStrain =
+                            {
+                                min = r.min
+                                max = r.max
                             }
-                    | RenderValue.AlphaJutzi ->
-                        if b then 
-                            {filters with
-                                filterAlphaJutzi =
-                                {
-                                    min = initFilters.filterAlphaJutzi.min
-                                    max = initFilters.filterAlphaJutzi.max
-                                }
+                        }
+                | RenderValue.AlphaJutzi ->
+                    if b then 
+                        {filters with
+                            filterAlphaJutzi =
+                            {
+                                min = initFilters.filterAlphaJutzi.min
+                                max = initFilters.filterAlphaJutzi.max
                             }
-                        else
-                            {filters with
-                                filterAlphaJutzi =
-                                {
-                                    min = r.min
-                                    max = r.max
-                                }
+                        }
+                    else
+                        {filters with
+                            filterAlphaJutzi =
+                            {
+                                min = r.min
+                                max = r.max
                             }
-                    | RenderValue.Pressure -> 
-                        if b then 
-                            {filters with
-                                filterPressure =
-                                {
-                                    min = initFilters.filterPressure.min
-                                    max = initFilters.filterPressure.max
-                                }
+                        }
+                | RenderValue.Pressure -> 
+                    if b then 
+                        {filters with
+                            filterPressure =
+                            {
+                                min = initFilters.filterPressure.min
+                                max = initFilters.filterPressure.max
                             }
-                        else
-                            {filters with
-                                filterPressure =
-                                {
-                                    min = r.min
-                                    max = r.max
-                                }
+                        }
+                    else
+                        {filters with
+                            filterPressure =
+                            {
+                                min = r.min
+                                max = r.max
                             }
-                    | _ -> filters
-                {m with currFilters = newFilters}
-                | _ -> m
+                        }
+                | _ -> filters
+            {m with currFilters = newFilters}
+        | UpdatedBoxPlotProbes (x, y) -> m
+        | _ -> m
+
+             
 
     let renderValues = AMap.ofArray((Enum.GetValues typeof<RenderValue> :?> (RenderValue [])) |> Array.map (fun c -> (c, text (Enum.GetName(typeof<RenderValue>, c)) )))
     let transparencyValues = AMap.ofArray((Enum.GetValues typeof<RenderValue> :?> (RenderValue [])) |> Array.map (fun c -> (c, text (Enum.GetName(typeof<RenderValue>, c)) )))
@@ -888,64 +904,69 @@ module App =
                 ]
             }
 
-        let createSlider valueText (value : aval<float>) (normalizedValue : aval<float>) updateFunc = 
+        let createSlider bigger valueText (value : aval<float>) (normalizedValue : aval<float>) updateFunc = 
             div [] [
-                span [style "padding: 2px"] [text valueText] 
-                Incremental.text (value |> AVal.map (fun f -> f.Round(3).ToString()))
+                let biggerStyle = if bigger then "font-size: large" else ""
+                span [style ("padding: 2px; " + biggerStyle)] [text valueText] 
+                span [style biggerStyle] [Incremental.text (value |> AVal.map (fun f -> f.Round(3).ToString()))]
                 slider { min = 0.0; max = 1.0; step = 0.0001 } [clazz "ui slider"; style "padding: 3px"] normalizedValue updateFunc
             ]
 
-        let allSliders visibilityStyle = 
+        let allSliders visibilityStyle bigger = 
             div [style visibilityStyle ] [
-                createSlider "Center: " m.center m.centerNormalized (fun c -> SetCenter c) 
-                createSlider "Start: " m.startValue m.startValueNormalized (fun sv -> SetStartValue sv) 
-                createSlider "End: " m.endValue m.endValueNormalized (fun ev -> SetEndValue ev)
+                createSlider bigger "Center: " m.center m.centerNormalized (fun c -> SetCenter c) 
+                createSlider bigger "Start: " m.startValue m.startValueNormalized (fun sv -> SetStartValue sv) 
+                createSlider bigger "End: " m.endValue m.endValueNormalized (fun ev -> SetEndValue ev)
             ]
 
-        let dynamicActiveTentOptions = 
+        let dynamicActiveTentOptions bigger = 
             alist {
                 let! tf = m.transferFunction
 
                 if tf = TransferFunction.Tent then 
-                    yield allSliders "pointer-events: all; opacity: 1.0"
+                    yield allSliders "pointer-events: all; opacity: 1.0" bigger
                 else 
-                    yield allSliders "pointer-events: none; opacity: 0.1"
+                    yield allSliders "pointer-events: none; opacity: 0.1" bigger
             }
 
-        let transparencySettings visibilityStyle openAccordion = 
+        let transparencySettings visibilityStyle openAccordion bigger = 
             div [style visibilityStyle] [  
                 Html.SemUi.accordion "Transparency Settings" "plus" openAccordion [
                     Incremental.div (AttributeMap.ofAMap (amap {
                         yield clazz "transparency"
                         yield style "width: 100%"
                     })) (alist {
-                        dropdown1 [ clazz "ui selection"; style "margin-top: 5px; margin-bottom: 5px; min-width: 100%"] transparencyValues m.transparencyAttribute SetTransparencyAttribute
-                        span [style "padding: 2px"] [text "Alpha Strength: "] 
-                        Incremental.text (m.alphaStrength |> AVal.map (fun f -> f.ToString()))
+                        let biggerStyle = if bigger then "font-size: large" else ""
+                        let dropdownStyle = if bigger then "margin: 10px; min-width: 90%; font-size: large" else "margin-top: 5px; margin-bottom: 5px; min-width: 100%"
+                        dropdown1 [ clazz "ui selection"; style dropdownStyle] transparencyValues m.transparencyAttribute SetTransparencyAttribute
+                        span [style ("padding: 2px; " + biggerStyle)] [text "Alpha Strength: "] 
+                        span [style biggerStyle] [Incremental.text (m.alphaStrength |> AVal.map (fun f -> f.ToString()))]
                         slider { min = 0.0; max = 1.0; step = 0.025 } [clazz "ui slider"; style "padding: 3px"] m.alphaStrength (fun s -> SetAlphaStrength s)
-                        dropdown1 [ clazz "ui selection"; style "margin-top: 5px; margin-bottom: 5px; min-width: 100%"] opacityTFs m.transferFunction SetTransferFunction
+                        dropdown1 [ clazz "ui selection"; style dropdownStyle] opacityTFs m.transferFunction SetTransferFunction
                         div [style "margin-top: 5px; margin-bottom: 5px"] [ 
                             simplecheckbox { 
-                                attributes [clazz "ui inverted checkbox"]
+                                attributes [clazz "ui inverted checkbox"; style biggerStyle]
                                 state m.invertTF
                                 toggle InvertTransferFunction
                                 content [ text "Invert Transfer Function"]  
                             }
                         ]
-                        Incremental.div AttributeMap.empty dynamicActiveTentOptions
+                        Incremental.div AttributeMap.empty (dynamicActiveTentOptions bigger)
                         }
                         )
                     ]
             ]
 
-        let dynamicTransparencyOptions = 
+        let dynamicTransparencyOptions bigger = 
             alist {
                 let! transparencyActive = m.enableTransparency
 
+                let transpStyle = if bigger then "margin: 10px; " else "width : 90%; "
+
                 if transparencyActive then 
-                    yield transparencySettings "margin: 15px; pointer-events: all; opacity: 1.0" true
+                    yield transparencySettings (transpStyle + "pointer-events: all; opacity: 1.0") true bigger
                 else 
-                    yield transparencySettings "margin: 15px; pointer-events: none; opacity: 0.5" false
+                    yield transparencySettings (transpStyle + "pointer-events: none; opacity: 0.5") false bigger
 
             }
 
@@ -1025,12 +1046,23 @@ module App =
                     BrushedParallCoords (renderValue, range, reset)
                 | _ -> failwith ""
             ))
+
+        let onBoxPlotUpdated =
+            onEvent ("boxplot") [] ((fun args -> 
+                match args with 
+                | [x; y] -> 
+                    let posX = float x
+                    let posY = float y
+                    UpdatedBoxPlotProbes (posX, posY)
+                | _ -> failwith ""
+            ))
  
-        let inputView dispText inValue updateFunc minV maxV = 
+        let inputView bigger dispText inValue updateFunc minV maxV = 
             span [] [
-            span [style "padding: 3px"] [text dispText]
+            let biggerStyle = if bigger then "; font-size: large" else ""
+            span [style ("padding: 3px" + biggerStyle)] [text dispText]
             simplenumeric {
-                attributes [style "width: 38%; padding: 5px"]
+                attributes [style ("width: 38%; padding: 5px" + biggerStyle)]
                 value inValue
                 update updateFunc
                 step 1.0
@@ -1041,10 +1073,10 @@ module App =
 
         let headerStyle = "margin: 10px; margin-bottom: 25px; color: palegoldenrod; font-size: 30px; text-align: center; display: flex; justify-content: center; align-items: center"
 
-        let rangeView (dim : Dim) (inRange : aval<Range>) minV maxV = 
+        let rangeView (bigger : bool) (dim : Dim) (inRange : aval<Range>) minV maxV = 
             div [] [ 
-                inputView (string dim + ":") (inRange |> AVal.map (fun r -> r.min)) (fun v -> SetDomainRange (dim, Min, v)) minV 0.0
-                inputView (string dim + ":") (inRange |> AVal.map (fun r -> r.max)) (fun v -> SetDomainRange (dim, Max, v)) 0.0 maxV
+                inputView bigger (string dim + ":") (inRange |> AVal.map (fun r -> r.min)) (fun v -> SetDomainRange (dim, Min, v)) minV 0.0
+                inputView bigger (string dim + ":") (inRange |> AVal.map (fun r -> r.max)) (fun v -> SetDomainRange (dim, Max, v)) 0.0 maxV
                 br []
             ]
         page (fun request -> 
@@ -1115,7 +1147,7 @@ module App =
                                         }
                                     ]
 
-                                    Incremental.div AttributeMap.empty dynamicTransparencyOptions
+                                    Incremental.div AttributeMap.empty (dynamicTransparencyOptions false)
 
                                     div [style "width: 90%; margin-top: 5px; margin-bottom: 5px"] [  
                                         Html.SemUi.accordion "Clipping Box" "plus" false [
@@ -1126,9 +1158,9 @@ module App =
                                                 span [style "padding: 3px; padding-inline-start: 0px; padding-inline-end: 50px"] [text "Min:"]
                                                 span [style "padding: 3px; padding-inline-start: 15px; padding-inline-end: 50px"] [text "Max:"]
                                                 br []
-                                                rangeView X (m.domainRange |> AVal.map (fun r -> r.x)) -25.0 25.0 
-                                                rangeView Y (m.domainRange |> AVal.map (fun r -> r.y)) -25.0 30.0 
-                                                rangeView Z (m.domainRange |> AVal.map (fun r -> r.z)) -25.0 25.0 
+                                                rangeView false X (m.domainRange |> AVal.map (fun r -> r.x)) -25.0 25.0 
+                                                rangeView false Y (m.domainRange |> AVal.map (fun r -> r.y)) -25.0 30.0 
+                                                rangeView false Z (m.domainRange |> AVal.map (fun r -> r.z)) -25.0 25.0 
                                                 }
                                                 )
                                             ]
@@ -1298,7 +1330,7 @@ module App =
                             //div[style "margin: 7px"] [
                             div [] [
 
-                                div [style "transform: scale(1.2); position: fixed; top: 60px; left: 80px"] [
+                                div [] [
                                     div [style "float: left; display: inline-grid"] [
                                         div [style "margin: 7px; color: white; width: 250px; background-color: rgba(150, 150, 200, 0.15); border-radius: 10px" ] [
                                             span [style headerStyle] [text "Appearance"]
@@ -1355,23 +1387,6 @@ module App =
                                         ]
                                     ]
 
-                                    div [style "margin: 7px; color: white; width: 260px; float: left; display: inline-block; background-color: rgba(150, 150, 200, 0.15); border-radius: 10px" ] [
-
-                                        span [style headerStyle] [text "Transparency"]
-
-                                        div [style "margin: 15px"] [ 
-                                            simplecheckbox { 
-                                                attributes [clazz "ui inverted checkbox"; style "font-size: large"]
-                                                state m.enableTransparency
-                                                toggle EnableTransparency
-                                                content [ text "Enable Transparency"]  
-                                            }
-                                        ]
-
-                                        Incremental.div AttributeMap.empty dynamicTransparencyOptions
-
-                                    ]
-
                                     div [style "float: left; display: inline-grid"] [
 
                                         div [style "margin: 7px; color: white; width: 260px; background-color: rgba(150, 150, 200, 0.15); border-radius: 10px" ] [
@@ -1384,12 +1399,12 @@ module App =
                                                         yield clazz "item"
                                                         yield style "width: 100%; font-size: large"
                                                     })) (alist {
-                                                        span [style "padding: 3px; padding-inline-start: 0px; padding-inline-end: 50px"] [text "Min:"]
-                                                        span [style "padding: 3px; padding-inline-start: 15px; padding-inline-end: 50px"] [text "Max:"]
+                                                        span [style "padding: 3px; padding-inline-start: 0px; padding-inline-end: 50px; font-size: large"] [text "Min:"]
+                                                        span [style "padding: 3px; padding-inline-start: 15px; padding-inline-end: 50px; font-size: large"] [text "Max:"]
                                                         br []
-                                                        rangeView X (m.domainRange |> AVal.map (fun r -> r.x)) -25.0 25.0 
-                                                        rangeView Y (m.domainRange |> AVal.map (fun r -> r.y)) -25.0 30.0 
-                                                        rangeView Z (m.domainRange |> AVal.map (fun r -> r.z)) -25.0 25.0 
+                                                        rangeView true X (m.domainRange |> AVal.map (fun r -> r.x)) -25.0 25.0 
+                                                        rangeView true Y (m.domainRange |> AVal.map (fun r -> r.y)) -25.0 30.0 
+                                                        rangeView true Z (m.domainRange |> AVal.map (fun r -> r.z)) -25.0 25.0 
                                                         }
                                                         )
                                                     ]
@@ -1499,6 +1514,24 @@ module App =
                                             )    
                                         ]   
                                     ]
+
+                                    div [style "margin: 7px; color: white; width: 260px; float: left; display: inline-block; background-color: rgba(150, 150, 200, 0.15); border-radius: 10px" ] [
+
+                                        span [style headerStyle] [text "Transparency"]
+
+                                        div [style "margin: 15px"] [ 
+                                            simplecheckbox { 
+                                                attributes [clazz "ui inverted checkbox"; style "font-size: large"]
+                                                state m.enableTransparency
+                                                toggle EnableTransparency
+                                                content [ text "Enable Transparency"]  
+                                            }
+                                        ]
+
+                                        Incremental.div AttributeMap.empty (dynamicTransparencyOptions true) 
+
+                                    ]
+
                                 ]
 
                                 Incremental.div (AttributeMap.ofAMap (amap {
@@ -1513,19 +1546,19 @@ module App =
 
                                     yield img [
                                         attribute "src" currImage
-                                        style "width: 350px; height: 40px"
+                                        style "width: 300px; height: 30px"
                                     ]            
                         
                                     yield hr [
-                                        style "width: 348px; height: 0px; background-color: #ffffff; margin-block-start: 3px; margin-block-end: 0px; margin-inline-start: 0px"
+                                        style "width: 298px; height: 0px; background-color: #ffffff; margin-block-start: 3px; margin-block-end: 0px; margin-inline-start: 0px"
                                     ]
 
-                                    yield span [style "position: relative; font-size: 1.5em; right: 40px; top: 5px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.min).ToString()))] 
-                                    yield span [style "position: inherit; font-size: 1.5em; right: 5px; top: 70px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.max).ToString()))]
+                                    yield span [style "position: relative; font-size: 1.3em; right: 40px; top: 5px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.min).ToString()))] 
+                                    yield span [style "position: inherit; font-size: 1.3em; right: 5px; top: 58px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.max).ToString()))]
                                     }
                                 )
 
-                                div [style "position: fixed; bottom: 420px; right: 20px"] [
+                                div [style "position: fixed; bottom: 320px; right: 20px"] [
                                     div [style "margin-top: 5px; margin-bottom: 5px"] [
                                         button [onClick (fun _ -> SetFilter 1); style "font-size: x-large; margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 1"]
                                         button [onClick (fun _ -> SetFilter 2); style "font-size: x-large; margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 2"]
@@ -1537,16 +1570,16 @@ module App =
                         
                                 let histogram = 
                                         onBoot' [("data", dataChannel); ("transition", transitionChannel)] updateChart ( // when div [histogram etc] is constructed updateChart is called.
-                                                    div [onBrushed; clazz "histogram"; style "position: fixed; bottom: 20px; right: 20px; width:500px; height: 290px; z-index: 1000"] []          
+                                                    div [onBrushed; clazz "histogram"; style "position: fixed; bottom: 20px; right: 20px; width: 400px; height: 230px; z-index: 1000"] []          
                                         )
                             
 
                                 let parallCoords = 
                                         onBoot' [("dataPath", pathChannel)] updateParallCoords (
-                                                div [onParallCoordsBrushed; clazz "parallCoords"; style "position: fixed; bottom: 20px; right: 20px; width:500px; height: 290px; z-index: 1000"] []          
+                                                div [onParallCoordsBrushed; clazz "parallCoords"; style "position: fixed; bottom: 20px; right: 20px; width: 400px; height: 230px; z-index: 1000"] []          
                                         )
 
-                                Html.SemUi.tabbed [clazz "temp"; style "position: fixed; bottom: 320px; right: 20px" ] [
+                                Html.SemUi.tabbed [clazz "temp"; style "position: fixed; bottom: 220px; right: 20px" ] [
                                     ("Histogram", histogram)
                                     ("ParallCoords", parallCoords)
                                 ] "Histogram"
@@ -1578,7 +1611,7 @@ module App =
                         }"))
                     require dependencies (
                         onBoot' [("boxPlotAttribute", attributeChannel); ("boxPlotData", boxPlotChannel)] updateBoxPlot (
-                            div [clazz "boxPlot"; style "width: 100%; height: 100%"] [] 
+                            div [onBoxPlotUpdated; clazz "boxPlot"; style "width: 100%; height: 100%"] [] 
                         )
                     )
                 ]

@@ -18,9 +18,13 @@ let svg_container = undefined;
 let axisG = undefined;
 let axisBottomG = undefined;
 let g_b = undefined;
+let boxPlotId = undefined;
 //let attribute = undefined;
 
 function initBoxPlot(id) {
+
+    boxPlotId = id;
+
     // Setup the svg and group we will draw the box plot in
     svg_b = d3.select(".boxPlot").append("svg")
         .attr("id","boxPlotSvg")
@@ -236,8 +240,11 @@ function refreshBoxPlot(data){
 
     axisBottomG.selectAll('.tick')
         .each((d, i, n) => {
-           let currNode = n[i].getScreenCTM();
-           console.log("Position: x: " + currNode.e + ", y: " + currNode.f);
+            let currNode = n[i].getScreenCTM();
+            let xpos = currNode.e;
+            let ypos = currNode.f;
+            aardvark.processEvent(boxPlotId.id, "boxplot", xpos, ypos);
+            console.log("Position: x: " + xpos + ", y: " + ypos);
         });
 }
 
