@@ -1346,51 +1346,6 @@ module App =
                                         ]
                                 
                                         div [style "margin: 7px; color: white; width: 250px; background-color: rgba(150, 150, 200, 0.15); border-radius: 10px" ] [
-
-                                            span [style headerStyle] [text "Shading"]
-
-                                            div [style "margin: 15px"] [ 
-                                                simplecheckbox { 
-                                                    attributes [clazz "ui inverted checkbox"; style "font-size: large"]
-                                                    state m.normalizeData
-                                                    toggle NormalizeData
-                                                    content [ text "Normalize Data"]  
-                                                }
-                                            ]
-
-                                            div [style "margin: 15px"] [ 
-                                                simplecheckbox { 
-                                                    attributes [clazz "ui inverted checkbox"; style "font-size: large"]
-                                                    state m.enableShading
-                                                    toggle EnableShading
-                                                    content [ text "Enable Shading"]  
-                                                }
-                                            ]
-
-                                            div [style "margin: 15px"] [ 
-                                                simplecheckbox { 
-                                                    attributes [clazz "ui inverted checkbox"; style "font-size: large"]
-                                                    state m.reconstructNormal
-                                                    toggle ReconstructNormal
-                                                    content [ text "Reconstruct Normal"]  
-                                                }
-                                            ]
-
-                                            div [style "margin: 15px"] [ 
-                                                simplecheckbox { 
-                                                    attributes [clazz "ui inverted checkbox"; style "font-size: large"]
-                                                    state m.reconstructDepth
-                                                    toggle ReconstructDepth
-                                                    content [ text "Reconstruct Depth"]  
-                                                }
-                                            ]
-                                        ]
-                                    ]
-
-                                    div [style "float: left; display: inline-grid"] [
-
-                                        div [style "margin: 7px; color: white; width: 260px; background-color: rgba(150, 150, 200, 0.15); border-radius: 10px" ] [
-
                                             span [style headerStyle] [text "Clipping Options"]
 
                                             div [style "margin: 15px"] [  
@@ -1422,120 +1377,151 @@ module App =
 
                                             ]
                                         ]
+                                    ]
+
+                                    div [style "float: left; display: inline-grid"] [
 
                                         div [style "margin: 7px; color: white; width: 260px; background-color: rgba(150, 150, 200, 0.15); border-radius: 10px" ] [
 
-                                            span [style headerStyle] [text "Discard Options"]
+                                            span [style headerStyle] [text "Shading"]
 
                                             div [style "margin: 15px"] [ 
                                                 simplecheckbox { 
                                                     attributes [clazz "ui inverted checkbox"; style "font-size: large"]
-                                                    state m.discardPoints
-                                                    toggle TogglePointDiscarded
-                                                    content [ text "Discard Out of Range?"]  
-                                                }
-                                            ]
-
-                                            //br []
-
-                                            div [clazz "colorRange"; style "margin: 15px"] [ 
-                                                span [style "padding: 2px; padding-inline-end: 20px; font-size: large"] [text "Out of Range Color:"]
-                                                ColorPicker.view m.colorValue |> UI.map SetColorValue
-                                            ]
-
-                                            //br []
-
-                                            div [style "margin: 15px"] [ 
-                                                simplecheckbox { 
-                                                    attributes [clazz "ui inverted checkbox"; style "font-size: large"]
-                                                    state m.lowerOutliers
-                                                    toggle DisplayLowerOutliers
-                                                    content [ text "Lower Outliers"]  
+                                                    state m.normalizeData
+                                                    toggle NormalizeData
+                                                    content [ text "Normalize Data"]  
                                                 }
                                             ]
 
                                             div [style "margin: 15px"] [ 
                                                 simplecheckbox { 
                                                     attributes [clazz "ui inverted checkbox"; style "font-size: large"]
-                                                    state m.higherOutliers
-                                                    toggle DisplayHigherOutliers
-                                                    content [ text "Higher Outliers"]  
+                                                    state m.enableShading
+                                                    toggle EnableShading
+                                                    content [ text "Enable Shading"]  
                                                 }
                                             ]
 
-                                            Incremental.div (AttributeMap.ofAMap (amap {
-                                                yield style "margin: 15px"
-                                            })) (alist {
-                                                let! initRange = m.initDataRange
-                            
-                                                //TODO: not very good way... loosing some precision this way!!!
-                                                let steps = 
-                                                    let range = Math.Abs(initRange.max - initRange.min)
-                                    
-                                                    if range <= 0.01 then
-                                                        0.001, 0.005
-                                                    else if range <= 0.1 then
-                                                        0.01, 0.05
-                                                    else if range <= 1.0 then
-                                                        0.1, 1.0
-                                                    else if (range <= 1000.0) then
-                                                        1.0, 5.0
-                                                    else if (range <= 10000.0) then
-                                                        10.0, 50.0
-                                                    else if (range <= 100000.0) then
-                                                        100.0, 500.0
-                                                    else if (range <= 1000000.0) then
-                                                        1000.0, 5000.0
-                                                    else 
-                                                        10000.0, 50000.0
-
-                                                yield span [style "padding: 4px; font-size: large"] [text "Min: "]
-                                                yield simplenumeric {
-                                                        attributes [style "width: 70%; padding: 2px; font-size: large"]
-                                                        value (m.dataRange |> AVal.map (fun r -> (roundDecimal r.min)))
-                                                        update (fun v -> SetDataRange (Min, (roundDecimal v)))
-                                                        step (fst steps)
-                                                        largeStep (snd steps)
-                                                        min (roundDecimal initRange.min)
-                                                        max (roundDecimal initRange.max)
-                                                        }
-
-                                                yield span [style "padding: 3px; font-size: large"] [text "Max: "]
-                                                yield simplenumeric {
-                                                        attributes [style "width: 70%; padding: 2px; font-size: large"]
-                                                        value (m.dataRange |> AVal.map (fun r -> (roundDecimal r.max)))
-                                                        update (fun v -> SetDataRange (Max, (roundDecimal v)))
-                                                        step (fst steps)
-                                                        largeStep (snd steps)
-                                                        min (roundDecimal initRange.min)
-                                                        max (roundDecimal initRange.max)
-                                                        }    
+                                            div [style "margin: 15px"] [ 
+                                                simplecheckbox { 
+                                                    attributes [clazz "ui inverted checkbox"; style "font-size: large"]
+                                                    state m.reconstructDepth
+                                                    toggle ReconstructDepth
+                                                    content [ text "Reconstruct Depth"]  
                                                 }
-                                            )    
-                                        ]   
+                                            ]
+                                        ]
+
+                                        div [style "margin: 7px; color: white; width: 260px; background-color: rgba(150, 150, 200, 0.15); border-radius: 10px" ] [
+                                            span [style headerStyle] [text "Transparency"]
+
+                                            div [style "margin: 15px"] [ 
+                                                simplecheckbox { 
+                                                    attributes [clazz "ui inverted checkbox"; style "font-size: large"]
+                                                    state m.enableTransparency
+                                                    toggle EnableTransparency
+                                                    content [ text "Enable Transparency"]  
+                                                }
+                                            ]
+
+                                            Incremental.div AttributeMap.empty (dynamicTransparencyOptions true) 
+                                        ]
                                     ]
 
                                     div [style "margin: 7px; color: white; width: 260px; float: left; display: inline-block; background-color: rgba(150, 150, 200, 0.15); border-radius: 10px" ] [
-
-                                        span [style headerStyle] [text "Transparency"]
+                                        span [style headerStyle] [text "Discard Options"]
 
                                         div [style "margin: 15px"] [ 
                                             simplecheckbox { 
                                                 attributes [clazz "ui inverted checkbox"; style "font-size: large"]
-                                                state m.enableTransparency
-                                                toggle EnableTransparency
-                                                content [ text "Enable Transparency"]  
+                                                state m.discardPoints
+                                                toggle TogglePointDiscarded
+                                                content [ text "Discard Out of Range?"]  
                                             }
                                         ]
 
-                                        Incremental.div AttributeMap.empty (dynamicTransparencyOptions true) 
+                                        //br []
 
-                                    ]
+                                        div [clazz "colorRange"; style "margin: 15px"] [ 
+                                            span [style "padding: 2px; padding-inline-end: 20px; font-size: large"] [text "Out of Range Color:"]
+                                            ColorPicker.view m.colorValue |> UI.map SetColorValue
+                                        ]
 
+                                        //br []
+
+                                        div [style "margin: 15px"] [ 
+                                            simplecheckbox { 
+                                                attributes [clazz "ui inverted checkbox"; style "font-size: large"]
+                                                state m.lowerOutliers
+                                                toggle DisplayLowerOutliers
+                                                content [ text "Lower Outliers"]  
+                                            }
+                                        ]
+
+                                        div [style "margin: 15px"] [ 
+                                            simplecheckbox { 
+                                                attributes [clazz "ui inverted checkbox"; style "font-size: large"]
+                                                state m.higherOutliers
+                                                toggle DisplayHigherOutliers
+                                                content [ text "Higher Outliers"]  
+                                            }
+                                        ]
+
+                                        Incremental.div (AttributeMap.ofAMap (amap {
+                                            yield style "margin: 15px"
+                                        })) (alist {
+                                            let! initRange = m.initDataRange
+                            
+                                            //TODO: not very good way... loosing some precision this way!!!
+                                            let steps = 
+                                                let range = Math.Abs(initRange.max - initRange.min)
+                                             
+                                                if range <= 0.01 then
+                                                    0.001, 0.005
+                                                else if range <= 0.1 then
+                                                    0.01, 0.05
+                                                else if range <= 1.0 then
+                                                    0.1, 1.0
+                                                else if (range <= 1000.0) then
+                                                    1.0, 5.0
+                                                else if (range <= 10000.0) then
+                                                    10.0, 50.0
+                                                else if (range <= 100000.0) then
+                                                    100.0, 500.0
+                                                else if (range <= 1000000.0) then
+                                                    1000.0, 5000.0
+                                                else 
+                                                    10000.0, 50000.0
+
+                                            yield span [style "padding: 4px; font-size: large"] [text "Min: "]
+                                            yield simplenumeric {
+                                                    attributes [style "width: 70%; padding: 2px; font-size: large"]
+                                                    value (m.dataRange |> AVal.map (fun r -> (roundDecimal r.min)))
+                                                    update (fun v -> SetDataRange (Min, (roundDecimal v)))
+                                                    step (fst steps)
+                                                    largeStep (snd steps)
+                                                    min (roundDecimal initRange.min)
+                                                    max (roundDecimal initRange.max)
+                                                    }
+
+                                            yield span [style "padding: 3px; font-size: large"] [text "Max: "]
+                                            yield simplenumeric {
+                                                    attributes [style "width: 70%; padding: 2px; font-size: large"]
+                                                    value (m.dataRange |> AVal.map (fun r -> (roundDecimal r.max)))
+                                                    update (fun v -> SetDataRange (Max, (roundDecimal v)))
+                                                    step (fst steps)
+                                                    largeStep (snd steps)
+                                                    min (roundDecimal initRange.min)
+                                                    max (roundDecimal initRange.max)
+                                                    }    
+                                            }
+                                        )    
+                                    ]   
                                 ]
 
                                 Incremental.div (AttributeMap.ofAMap (amap {
-                                    yield style "position: fixed; top: 20px; right: 20px"
+                                    yield style "position: fixed; bottom: 345px; right: 20px"
                                 })) (alist {
                                     let! src = m.currentMap
 
@@ -1554,11 +1540,11 @@ module App =
                                     ]
 
                                     yield span [style "position: relative; font-size: 1.3em; right: 40px; top: 5px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.min).ToString()))] 
-                                    yield span [style "position: inherit; font-size: 1.3em; right: 5px; top: 58px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.max).ToString()))]
+                                    yield span [style "position: inherit; font-size: 1.3em; right: 10px; top: 370px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.max).ToString()))]
                                     }
                                 )
 
-                                div [style "position: fixed; bottom: 320px; right: 20px"] [
+                                div [style "position: fixed; bottom: 0px; right: 20px"] [
                                     div [style "margin-top: 5px; margin-bottom: 5px"] [
                                         button [onClick (fun _ -> SetFilter 1); style "font-size: x-large; margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 1"]
                                         button [onClick (fun _ -> SetFilter 2); style "font-size: x-large; margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 2"]
@@ -1570,16 +1556,16 @@ module App =
                         
                                 let histogram = 
                                         onBoot' [("data", dataChannel); ("transition", transitionChannel)] updateChart ( // when div [histogram etc] is constructed updateChart is called.
-                                                    div [onBrushed; clazz "histogram"; style "position: fixed; bottom: 20px; right: 20px; width: 400px; height: 230px; z-index: 1000"] []          
+                                                    div [onBrushed; clazz "histogram"; style "position: fixed; bottom: 50px; right: 20px; width: 400px; height: 230px; z-index: 1000"] []          
                                         )
                             
 
                                 let parallCoords = 
                                         onBoot' [("dataPath", pathChannel)] updateParallCoords (
-                                                div [onParallCoordsBrushed; clazz "parallCoords"; style "position: fixed; bottom: 20px; right: 20px; width: 400px; height: 230px; z-index: 1000"] []          
+                                                div [onParallCoordsBrushed; clazz "parallCoords"; style "position: fixed; bottom: 50px; right: 20px; width: 400px; height: 230px; z-index: 1000"] []          
                                         )
 
-                                Html.SemUi.tabbed [clazz "temp"; style "position: fixed; bottom: 220px; right: 20px" ] [
+                                Html.SemUi.tabbed [clazz "temp"; style "position: fixed; bottom: 250px; right: 20px" ] [
                                     ("Histogram", histogram)
                                     ("ParallCoords", parallCoords)
                                 ] "Histogram"
