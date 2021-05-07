@@ -173,7 +173,7 @@ module AppUpdate =
 
 
     let initialScalingHera = 0.05
-    let initialScalingTv = 2.0
+    let initialScalingTv = 2.2
 
     let tvTrafos = 
         let scale = Trafo3d(Scale3d(initialScalingTv))
@@ -465,7 +465,7 @@ module AppUpdate =
             | Some i when i = id && model.grabbingTV ->
                 if model.mainTouching then
                     if f >= 0.0 then
-                        let maxScale = 4.0
+                        let maxScale = 6.0
                         let currScale = model.scalingFactorTv * (f*f/5.0 + 1.0)
                         let newScale = if currScale >= maxScale then maxScale else currScale
                         {model with 
@@ -473,7 +473,7 @@ module AppUpdate =
                             mainTouchpadTexture = texture "scale-up"
                             mainContrScreenTexture = texture "scaling-up"}
                     else
-                        let minScale = 0.001
+                        let minScale = 0.1
                         let currScale = model.scalingFactorTv * (1.0 - f*f/5.0)
                         let newScale =  if currScale <= minScale then minScale else currScale
                         {model with 

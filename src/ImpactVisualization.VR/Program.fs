@@ -67,12 +67,12 @@ let main argv =
         Reflection.assemblyWebPart typeof<AardVolume.EmbeddedRessource>.Assembly
     ] |> ignore
     
-    client.LoadUrl "http://localhost:4321/?page=mainPage" |> ignore
+    client.LoadUrl "http://localhost:4321/?page=controllersPage" |> ignore
     histogramClient.LoadUrl "http://localhost:4321/?page=histogramPage" |> ignore
     boxPlotClient.LoadUrl "http://localhost:4321/?page=boxPlotPage" |> ignore
     
     Aardium.run {
-        url "http://localhost:4321/?page=boxPlotPage"
+        url "http://localhost:4321/?page=controllersPage"
     }
 
     Aardvark.Cef.Internal.Cef.shutdown()
