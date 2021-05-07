@@ -665,6 +665,28 @@ module Demo =
             |> Sg.translate' m.hitPoint
             |> Sg.onOff m.screenIntersection
 
+        let boxPlotProbesPositionsSg =
+            m.twoDModel.allProbesScreenPositions 
+            |> AVal.map (fun positions -> 
+                positions 
+                |> Array.map (fun pos ->
+                    let normalizeX = pos.X / 1024.0
+                    let normalizeY = pos.Y / 768.0
+                    let pos = V3d(normalizeX, normalizeY, 0.0)
+                    Sg.sphere' 9 C4b.Red 0.02
+                    |> Sg.noEvents
+                    |> Sg.translate pos.X pos.Y pos.Z
+                    //|> Sg.scale 0.2
+                    |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+                    |> Sg.transform (Trafo3d.RotationXInDegrees(35.0))
+                    |> Sg.translate 0.0 0.25 0.1
+                    |> Sg.trafo m.secondControllerTrafo
+                    |> Sg.onOff m.showCurrBoxPlot
+                )
+                |> Sg.ofArray
+            )
+            |> AVal.force
+
         // TODO: X and Y must be swapped for some reason !! Find why??!!
         let message = 
             m.screenHitPoint |> AVal.map (fun p ->
@@ -775,7 +797,7 @@ module Demo =
         Sg.ofSeq [
             deviceSgs; currentSphereProbeSg; probesSgs; boxPlotsSgs; takenBoxPlotSg;
             heraSg; clipPlaneSg; tvSg; tvPosSphereSg; raySg;
-            boxSg; mainTouchpadSphereSg; secondTouchpadSphereSg
+            boxSg; mainTouchpadSphereSg; secondTouchpadSphereSg; boxPlotProbesPositionsSg
         ] |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting

@@ -162,6 +162,8 @@ type Model =
         frame : int
         currHeraBBox : Box3d
 
+        allProbesScreenPositions : V2d[]
+
         pointSize : float
         playAnimation : bool
         animateAllFrames : bool

@@ -52,7 +52,7 @@ type Message =
     | ResetFilter 
     | Brushed of Range
     | BrushedParallCoords of RenderValue * Range * bool
-    | UpdatedBoxPlotProbes of float * float
+    | UpdatedBoxPlotProbes of float[] * float[]
     
 module App =    
 
@@ -138,6 +138,7 @@ module App =
             cameraState = FreeFlyController.initial; 
             frame = 0;
             currHeraBBox = Box3d.Infinite
+            allProbesScreenPositions = Array.empty
             pointSize = 8.0
             playAnimation = false
             animateAllFrames = false
@@ -743,7 +744,12 @@ module App =
                         }
                 | _ -> filters
             {m with currFilters = newFilters}
-        | UpdatedBoxPlotProbes (x, y) -> m
+        | UpdatedBoxPlotProbes (x, y) -> 
+            let allScreenPositions = 
+                x |> Array.mapi (fun idx xPos ->
+                    let yPos = y.[idx]
+                    V2d(xPos, yPos))
+            {m with allProbesScreenPositions = allScreenPositions}
         | _ -> m
 
              
@@ -1047,13 +1053,19 @@ module App =
                 | _ -> failwith ""
             ))
 
+        let convertStringToFloatArray (array : string) =
+            array.Replace("[", "") 
+            |> (fun s -> s.Replace("]", "")) 
+            |> (fun s -> s.Split ',')
+            |> Array.map (fun s -> float s)
+
         let onBoxPlotUpdated =
             onEvent ("boxplot") [] ((fun args -> 
                 match args with 
-                | [x; y] -> 
-                    let posX = float x
-                    let posY = float y
-                    UpdatedBoxPlotProbes (posX, posY)
+                | [xPos; yPos] -> 
+                    let x = convertStringToFloatArray xPos
+                    let y = convertStringToFloatArray yPos
+                    UpdatedBoxPlotProbes (x, y)
                 | _ -> failwith ""
             ))
  

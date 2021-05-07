@@ -238,14 +238,20 @@ function refreshBoxPlot(data){
         .style("font-weight", "bold")
         .call(axisBottom);
 
+    var xPositions = []
+    var yPositions = []
     axisBottomG.selectAll('.tick')
         .each((d, i, n) => {
-            let currNode = n[i].getScreenCTM();
-            let xpos = currNode.e;
-            let ypos = currNode.f;
-            aardvark.processEvent(boxPlotId.id, "boxplot", xpos, ypos);
+            var currNode = n[i].getScreenCTM();
+            var xpos = currNode.e;
+            var ypos = currNode.f;
+            xPositions.push(xpos);
+            yPositions.push(ypos);
             console.log("Position: x: " + xpos + ", y: " + ypos);
         });
+
+    aardvark.processEvent(boxPlotId.id, "boxplot", xPositions, yPositions);
+
 }
 
 function resetContainers(){
