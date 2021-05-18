@@ -17,6 +17,9 @@ open Aardvark.Data.Points
 open Aardvark.Geometry.Points
 open Uncodium.SimpleStore
 
+open Aardvark.Cef
+
+
 type EmbeddedRessource = EmbeddedRessource // THIS IS NECESSARY
 
 type Message =
@@ -56,6 +59,11 @@ type Message =
     
 module App =    
 
+    type System.Random with
+    /// Generates an infinite sequence of random numbers within the given range.
+        member this.GetValues(minValue, maxValue) =
+            Seq.initInfinite (fun _ -> this.Next(minValue, maxValue))
+
     let tfsDir = @"..\..\..\src\ImpactVisualization\resources\transfer"
 
     let transferFunctions = 
@@ -71,16 +79,16 @@ module App =
         |> HashMap.ofList
 
     let scheme10Colors = 
-        HashMap.ofList [1, C4b(31, 119, 180, 1);
-                        2, C4b(255, 127, 14, 1);
-                        3, C4b(44, 160, 44, 1);
-                        4, C4b(214, 39, 40, 1);
-                        5, C4b(148, 103, 189, 1);
-                        6, C4b(140, 86, 75, 1);
-                        7, C4b(227, 119, 194, 1);
-                        8, C4b(127, 127, 127, 1);
-                        9, C4b(188, 189, 34, 1);
-                        10, C4b(23, 190, 207, 1)]
+        HashMap.ofList [0, C4b(0.121, 0.466, 0.705, 1.0);
+                        1, C4b(1.0, 0.498, 0.054, 1.0);
+                        2, C4b(0.172, 0.627, 0.172, 1.0);
+                        3, C4b(0.839, 0.152, 0.156, 1.0);
+                        4, C4b(0.580, 0.403, 0.741, 1.0);
+                        5, C4b(0.549, 0.337, 0.294, 1.0);
+                        6, C4b(0.890, 0.466, 0.760, 1.0);
+                        7, C4b(0.498, 0.498, 0.498, 1.0);
+                        8, C4b(0.737, 0.741, 0.133, 1.0);
+                        9, C4b(0.090, 0.745, 0.811, 1.0)]
 
 
     //TODO: definitely not the best solution
@@ -638,7 +646,13 @@ module App =
                         
             let filteredData = filterDataForOneFrameBox frames.[m.frame] newFilter m.renderValue
 
+            let r = System.Random()
+            let newRandomData = r.GetValues(1, 100) |> Seq.take 10 |> Seq.map (fun n -> float n) |> Seq.toArray
+            let bpData = m.boxPlotData |> Array.append [|newRandomData|]
+
             {m with 
+                boxPlotData = bpData
+                boxPlotAttribute = "Energy"
                 boxFilter = newFilter
                 data = { version = m.data.version + 1 ; arr = filteredData }
                 filteredAllFrames = filteredDataAllFrames
@@ -758,7 +772,7 @@ module App =
     let transparencyValues = AMap.ofArray((Enum.GetValues typeof<RenderValue> :?> (RenderValue [])) |> Array.map (fun c -> (c, text (Enum.GetName(typeof<RenderValue>, c)) )))
     let opacityTFs = AMap.ofArray((Enum.GetValues typeof<TransferFunction> :?> (TransferFunction [])) |> Array.map (fun t -> (t, text (Enum.GetName(typeof<TransferFunction>, t)) )))
 
-    let view (runtime : IRuntime) (data : Frame[]) (m : AdaptiveModel) =
+    let view (runtime : IRuntime) (data : Frame[]) (bpClient : Browser) (m : AdaptiveModel) =
         let shuffleR (r : Random) xs = xs |> Seq.sortBy (fun _ -> r.Next())
 
         let temp = findOutliers data.[0].energies  
@@ -852,13 +866,89 @@ module App =
             Sg.box m.boxColor currentBox
             |> Sg.noEvents
             |> Sg.fillMode (FillMode.Line |> AVal.constant)
-
-        let sg = 
-            Sg.ofSeq [heraSg; boxSg; sphereSg]
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
                 do! DefaultSurfaces.constantColor C4f.White
+            }
+
+        let testPlaneTrafo = 
+            let scale = Trafo3d(Scale3d(2.0))
+            let flip = Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI)
+            let translate = Trafo3d.Translation(2.0, -5.0, 3.0)
+            let rotate = Trafo3d.RotationEulerInDegrees(90.0, 0.0, 180.0)
+            scale * flip * rotate * translate 
+
+        let convertRange (currPos : V2d)= 
+            let oldMin = 0.0
+            let oldMax = 1.0
+            let oldRange = oldMax - oldMin
+            let newMax = 3.4
+            let newMin = -3.4
+            let newRange = newMax - newMin
+            let x = currPos.X
+            let y = oldMax - currPos.Y
+            let newX = (x * newRange) + newMin
+            let newMax = 2.0
+            let newMin = -2.0
+            let newRange = newMax - newMin
+            let newY = (y * newRange) + newMin
+            V2d(newX, newY)
+
+        //let temp = m.allProbesScreenPositions |> AVal.map (fun array -> if array.IsEmpty() then V2d(0.0, 0.0) else array.[0])
+
+        let testPlaneSg = 
+            Sg.draw IndexedGeometryMode.TriangleList
+            |> Sg.vertexAttribute DefaultSemantic.Positions (AVal.constant  [|V3f(-1.7, -1.0, 0.0); V3f(1.7, -1.0, 0.0); V3f(1.7, 1.0, 0.0); V3f(-1.7, 1.0, 0.0)|])
+            |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
+            |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
+            |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
+            |> Sg.trafo (AVal.constant testPlaneTrafo)
+            |> Sg.diffuseTexture bpClient.Texture 
+            |> Sg.shader {
+                do! DefaultSurfaces.trafo
+                do! DefaultSurfaces.simpleLighting
+                do! DefaultSurfaces.diffuseTexture
+            }
+
+        let testSphereSg = 
+            m.allProbesScreenPositions
+            |> AVal.map (fun positions ->
+                positions 
+                |> Array.mapi (fun idx pos ->
+                    let newPos = testPlaneTrafo.Forward.TransformPos(V3d.OOO)
+                    let finalPos = newPos + V3d(-(convertRange pos).X, 0.0, (convertRange pos).Y)
+                    let currColor =
+                        match scheme10Colors.TryFind(idx) with
+                        | Some c -> c
+                        | None -> C4b.Black
+                    let sphere = 
+                        Sg.sphere' 6 currColor 0.05
+                        |> Sg.noEvents
+                        |> Sg.trafo (AVal.constant (Trafo3d.Translation(finalPos)))
+                    let origin = V3d.OOO
+                    let currLine = AVal.constant [|Line3d(finalPos, origin)|]
+                    currLine
+                    |> Sg.lines (AVal.constant currColor)
+                    |> Sg.noEvents
+                    |> Sg.uniform "LineWidth" (AVal.constant 5)
+                    |> Sg.effect [
+                        toEffect DefaultSurfaces.trafo
+                        toEffect DefaultSurfaces.vertexColor
+                        toEffect DefaultSurfaces.thickLine
+                        ]
+                    |> Sg.andAlso sphere
+                )
+                |> Sg.ofArray
+            )
+            |> Sg.dynamic
+
+
+        let sg = 
+            Sg.ofSeq [testPlaneSg; boxSg; sphereSg; testSphereSg]
+            |> Sg.shader {
+                do! DefaultSurfaces.trafo
+                do! DefaultSurfaces.simpleLighting
             }
 
 
@@ -1633,13 +1723,13 @@ module App =
 
          ThreadPool.add "timer" (time()) pool
 
-    let app (runtime : IRuntime) =
+    let app (runtime : IRuntime) (bpClient : Browser) =
         // load data
         let frames = DataLoader.loadDataAllFrames runtime
         {
             initial = initial frames // store data Hera frame as array to model....
             update = update frames
-            view = view runtime frames
+            view = view runtime frames bpClient
             threads = threads
             unpersist = Unpersist.instance
         }

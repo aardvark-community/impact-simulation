@@ -245,9 +245,15 @@ function refreshBoxPlot(data){
             var currNode = n[i].getScreenCTM();
             var xpos = currNode.e;
             var ypos = currNode.f;
-            xPositions.push(xpos);
-            yPositions.push(ypos);
+            var w = window.innerWidth;
+            var h = window.innerHeight;
+            var normX = xpos / w;
+            var normY = ypos / h;
+            xPositions.push(normX);
+            yPositions.push(normY);
+            console.log("Width: " + w + ", Height: " + h);
             console.log("Position: x: " + xpos + ", y: " + ypos);
+            console.log("Normalized Position: x: " + normX + ", y: " + normY);
         });
 
     aardvark.processEvent(boxPlotId.id, "boxplot", xPositions, yPositions);

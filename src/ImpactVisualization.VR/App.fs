@@ -92,8 +92,8 @@ module Demo =
             if pose.isValid then [MoveController (controllerId, pose.deviceToWorld); SetController controllerId] else []
         | _ -> []
 
-    let ui (runtime : IRuntime) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : DomNode<Message> = // 2D UI
-        div [] [AardVolume.App.view runtime data m.twoDModel |> UI.map TwoD]
+    let ui (runtime : IRuntime) (data : Frame[]) (boxPlotClient : Browser) (info : VrSystemInfo) (m : AdaptiveModel) : DomNode<Message> = // 2D UI
+        div [] [AardVolume.App.view runtime data boxPlotClient m.twoDModel |> UI.map TwoD]
 
     let planeSg positions : ISg<Message> = 
         Sg.draw IndexedGeometryMode.TriangleList
@@ -825,7 +825,7 @@ module Demo =
             update = update runtime client histogramClient boxPlotClient viewTrafo projTrafo frames
             threads = threads
             input = input 
-            ui = ui runtime frames
+            ui = ui runtime frames boxPlotClient
             vr = vr runtime client histogramClient boxPlotClient viewTrafo frames
             pauseScene = Some pause
         }

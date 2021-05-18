@@ -28,4 +28,7 @@ Aardvark.Geometry.PointTree
 Aardvark.Geometry.Intersection
 Aardvark.Data.Points.Ascii
 
+Aardvark.Cef
+Another.Unofficial.Xilium.CefGlue.UnpackNativeDependencies
+
 sharpcompress

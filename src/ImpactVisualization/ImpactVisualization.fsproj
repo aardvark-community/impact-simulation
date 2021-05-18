@@ -216,6 +216,7 @@
     <EmbeddedResource Include="resources\textures\analyze-time-screen.png">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
+    <Compile Include="TempCef.fs" />
     <Compile Include="Hera.fs" />
     <Compile Include="HeraExtensions.fs" />
     <Compile Include="Model.fs" />
