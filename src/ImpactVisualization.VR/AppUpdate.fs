@@ -134,8 +134,8 @@ module AppUpdate =
             currBillboard = billboardType
         }
 
-    let createBoxPlot (attribute : RenderValue) (trafo : Trafo3d) (corners : Quad3d) 
-        (texture : PixImage) (data : HashMap<int, float[]>) (allSelectedProbes : HashMap<int, string>) : BoxPlot =
+    let createBoxPlot (attribute : RenderValue) (trafo : Trafo3d) (corners : Quad3d) (texture : PixImage) 
+        (data : HashMap<int, float[]>) (allSelectedProbes : HashMap<int, Probe>) (screenPos : V2d []) (probesPositions : V3d []) : BoxPlot =
         {   
             id = Guid.NewGuid().ToString()
             attribute = attribute
@@ -144,6 +144,8 @@ module AppUpdate =
             texture = texture 
             data = data
             probeIds = allSelectedProbes
+            screenPos = screenPos
+            probesPositions = probesPositions
         }
     
     let convertCartesianToPolar (cartCoords : V2d) = 
@@ -235,6 +237,7 @@ module AppUpdate =
             currBoxPlot = None
             allPlacedBoxPlots = HashMap.empty
             allCurrSelectedProbesIds = HashMap.empty
+            selectedProbesPositions = Array.empty
             rayActive = false
             ray = Ray3d.Invalid
             rayTriggerClicked = false
@@ -932,13 +935,15 @@ module AppUpdate =
 
                     let newHashmap, allProbesIds = 
                         if not isSelected then 
-                            model.boxPlotProbes.Add(model.lastProbeId, arrayBoxPlot), model.allCurrSelectedProbesIds.Add(model.lastProbeId, probeId)
+                            model.boxPlotProbes.Add(model.lastProbeId, arrayBoxPlot), model.allCurrSelectedProbesIds.Add(model.lastProbeId, intersectedProbe)
                         else 
                             let currProbe = model.allProbes.Item probeId
                             let intId = currProbe.numberId
                             model.boxPlotProbes.Remove(intId), model.allCurrSelectedProbesIds.Remove(intId)
 
                     let dataForBoxPlot = newHashmap |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
+
+                    let probesPositions = allProbesIds |> HashMap.toSeq |> Seq.map (fun result -> (snd result).center) |> Seq.toArray
 
                     let updatedTwoDmodel = 
                         { mTwoD with
@@ -967,6 +972,7 @@ module AppUpdate =
                         currBoxPlotAttribSet = true
                         allProbes = allProbesUpdated
                         allCurrSelectedProbesIds = allProbesIds
+                        selectedProbesPositions = probesPositions
                         twoDModel = updatedTwoDmodel
                         lastProbeId = model.lastProbeId + 1
                         }
@@ -978,7 +984,9 @@ module AppUpdate =
                 let texture = getScreenshot boxPlotClient
                 let currTrafo = defaultBoxPlotsTrafo * model.secondControllerTrafo
                 let transformedQuad = currTrafo.Forward.TransformedPosArray(defaultBoxPlotPositions.Points.ToArray(4)) |> Quad3d
-                let boxPlot = createBoxPlot model.currBoxPlotAttrib currTrafo transformedQuad texture model.boxPlotProbes model.allCurrSelectedProbesIds
+                let boxPlot = createBoxPlot model.currBoxPlotAttrib currTrafo transformedQuad 
+                                    texture model.boxPlotProbes model.allCurrSelectedProbesIds 
+                                    model.twoDModel.allProbesScreenPositions model.selectedProbesPositions
                 let allPlacedBoxPlots = model.allPlacedBoxPlots.Add(boxPlot.id, boxPlot)
                 let updatedTwoDmodel = 
                     {model.twoDModel with 
@@ -996,6 +1004,7 @@ module AppUpdate =
                     allPlacedBoxPlots = allPlacedBoxPlots
                     boxPlotProbes = HashMap.empty
                     allCurrSelectedProbesIds = HashMap.empty
+                    selectedProbesPositions = Array.empty
                     twoDModel = updatedTwoDmodel}
             | _ -> model
         | DeleteBoxPlot id ->
@@ -1021,8 +1030,8 @@ module AppUpdate =
                         |> HashMap.map (fun key probe ->
                             let probeSelected = 
                                 model.allCurrSelectedProbesIds
-                                |> HashMap.filter (fun numberId stringId -> 
-                                    stringId = key
+                                |> HashMap.filter (fun numberId selProbe -> 
+                                    selProbe.id = key
                                 ) 
                             if not probeSelected.IsEmpty then 
                                 {probe with 
@@ -1034,6 +1043,8 @@ module AppUpdate =
                                     color = C4b.Blue
                                     numberId = -1
                                     selected = false})
+
+                    let probesPositions = allProbesUpdated |> HashMap.toSeq |> Seq.map (fun result -> (snd result).center) |> Seq.toArray
                     
                     let updatedTwoDmodel = 
                         { mTwoD with
@@ -1045,6 +1056,7 @@ module AppUpdate =
                         boxPlotProbes = b.data
                         currBoxPlotAttrib = attrib
                         allCurrSelectedProbesIds = allSelected
+                        selectedProbesPositions = probesPositions
                         twoDModel = updatedTwoDmodel
                         allProbes = allProbesUpdated}
                 | None -> model 
