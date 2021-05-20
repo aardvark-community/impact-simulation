@@ -42,7 +42,7 @@ function initBoxPlot(id) {
        // .attr("y", 0)
         .attr("text-anchor", "middle")  
         .style("font", "42px sans-serif")
-        .text("Attribute");
+        .text("Select probes with main controller!");
 
     svg_container = svg_b.append("g")
         .attr("transform", "translate(" + margin_b.left + "," + margin_b.top + ")");

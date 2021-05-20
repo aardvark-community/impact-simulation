@@ -525,16 +525,17 @@ module Demo =
         
         let probeHistogramPositions = AVal.constant  [|V3f(-1.77, -1.0, 0.0); V3f(1.77, -1.0, 0.0); V3f(1.77, 1.0, 0.0); V3f(-1.77, 1.0, 0.0)|]
 
-        let createStatisticsSg (p : AdaptiveProbe) = 
+        let createStatisticsSg (p : AdaptiveProbe) (intersected : aval<bool>)= 
             let text = 
                  let allData = p.allData |> AMap.toAVal
                  (allData, p.currAttribute) ||> AVal.map2 (fun data attrib -> 
                     let array, stats = data.Item attrib
                     stats)
             let statisticsScaleTrafo = 
-                (m.sphereRadius, p.radius) ||> AVal.map2 (fun r radius -> 
+                (m.sphereRadius, p.radius, intersected) |||> AVal.map3 (fun r radius intr -> 
                     let sphereScale = radius / r
-                    let statScale = 0.04 * sphereScale
+                    let newScale = if (intr && sphereScale < 1.0) then 1.0 else sphereScale
+                    let statScale = 0.04 * newScale
                     Trafo3d(Scale3d(statScale)))
             let showStatistics = 
                 (p.showStatistics, p.currBillboard) ||> AVal.map2 (fun showStats billboardType ->
@@ -559,11 +560,12 @@ module Demo =
             |> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass3
 
-        let createHistogramSg (p : AdaptiveProbe) = 
+        let createHistogramSg (p : AdaptiveProbe) (intersected : aval<bool>) = 
             let histogramScaleTrafo = 
-                (m.sphereRadius, p.radius) ||> AVal.map2 (fun r radius -> 
+                (m.sphereRadius, p.radius, intersected) |||> AVal.map3 (fun r radius intr -> 
                     let sphereScale = radius / r
-                    let statScale = 0.12 * sphereScale
+                    let newScale = if (intr && sphereScale < 1.0) then 1.0 else sphereScale
+                    let statScale = 0.12 * newScale
                     Trafo3d(Scale3d(statScale)))
             let showCurrHistogram = 
                 (p.showHistogram, p.currHistogram, p.currBillboard) |||> AVal.map3 (fun showHisto currHisto billboardType -> 
@@ -603,17 +605,19 @@ module Demo =
         //TODO: Probably causing overhead due to the complexity, especially when grabbing hera
         let probesSgs = 
             m.allProbes |> AMap.toASet |> ASet.choose (fun (key, probe) ->
-                let color =
+                let colorAndIntersect =
                     AVal.map3 (fun mainId secondId col ->
                         match secondId with 
-                        | Some i when i = key -> C4b.Red
+                        | Some i when i = key -> C4b.Red, false
                         | _ ->
                             match mainId with 
-                            | Some i when i = key -> C4b.LightGreen
-                            | _ -> col
+                            | Some i when i = key -> C4b.LightGreen, true
+                            | _ -> col, false
                     ) m.mainContrProbeIntersectionId m.secondContrProbeIntersectionId probe.color
-                let statisticsSg = createStatisticsSg probe
-                let probeHistogramSg = createHistogramSg probe
+                let color = colorAndIntersect |> AVal.map (fun ci -> fst ci)
+                let intersected = colorAndIntersect |> AVal.map (fun ci -> snd ci)
+                let statisticsSg = createStatisticsSg probe intersected
+                let probeHistogramSg = createHistogramSg probe intersected
                 let billboardSg = 
                     statisticsSg
                     |> Sg.andAlso probeHistogramSg

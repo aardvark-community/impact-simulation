@@ -991,7 +991,7 @@ module AppUpdate =
                 let updatedTwoDmodel = 
                     {model.twoDModel with 
                         boxPlotData = [| |]
-                        boxPlotAttribute = "" }
+                        boxPlotAttribute = "Select probes with main controller!" }
                 let allProbesUpdated = 
                     model.allProbes 
                     |> HashMap.map (fun key probe ->
