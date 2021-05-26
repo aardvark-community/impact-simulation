@@ -968,12 +968,12 @@ module AppUpdate =
                     let allProbesUpdated = model.allProbes |> HashMap.update probeId update
 
                     {model with 
+                        twoDModel = updatedTwoDmodel
                         boxPlotProbes = newHashmap
                         currBoxPlotAttribSet = true
                         allProbes = allProbesUpdated
                         allCurrSelectedProbesIds = allProbesIds
                         selectedProbesPositions = probesPositions
-                        twoDModel = updatedTwoDmodel
                         lastProbeId = model.lastProbeId + 1
                         }
                 | None -> model
@@ -1053,11 +1053,11 @@ module AppUpdate =
                         }
 
                     {model with 
+                        twoDModel = updatedTwoDmodel
                         boxPlotProbes = b.data
                         currBoxPlotAttrib = attrib
                         allCurrSelectedProbesIds = allSelected
                         selectedProbesPositions = probesPositions
-                        twoDModel = updatedTwoDmodel
                         allProbes = allProbesUpdated}
                 | None -> model 
             | _ -> model

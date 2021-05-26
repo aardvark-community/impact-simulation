@@ -284,9 +284,9 @@ module Demo =
         let maxBoxPlotY = 1.0
         let boxPlotScale = 0.2
         
-        let activeBoxPlotTrafo =
+        let activeBoxPlotTrafo (flipped : bool) =
             let scale = Trafo3d(Scale3d(boxPlotScale))
-            let flip = Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI)
+            let flip = if flipped then Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI) else Trafo3d.Identity
             let rotate = Trafo3d.RotationXInDegrees(35.0)
             let translate = Trafo3d.Translation(0.0, 0.25, 0.1)
             scale * flip * rotate * translate
@@ -299,11 +299,7 @@ module Demo =
                     | Some id when id = dId -> show
                     | _ -> false)
             planeSg defaultBoxPlotPositions
-            //|> Sg.scale 0.2
-            //|> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
-            //|> Sg.transform (Trafo3d.RotationXInDegrees(35.0))
-            //|> Sg.translate 0.0 0.25 0.1
-            |> Sg.trafo (AVal.constant activeBoxPlotTrafo)
+            |> Sg.trafo (AVal.constant (activeBoxPlotTrafo true))
             |> Sg.onOff showTexture
             |> Sg.diffuseTexture boxPlotClient.Texture 
             |> Sg.shader {
@@ -314,62 +310,69 @@ module Demo =
             |> Sg.pass pass2
 
         let convertRange (currPos : V2d) = 
-            let newMaxX = maxBoxPlotX * boxPlotScale
-            let newMinX = -maxBoxPlotX * boxPlotScale
+            let newMaxX = maxBoxPlotX 
+            let newMinX = -maxBoxPlotX 
             let newRange = newMaxX - newMinX
             let x = currPos.X
             let newX = (x * newRange) + newMinX
 
-            let newMaxY = maxBoxPlotY * boxPlotScale
-            let newMinY = -maxBoxPlotY * boxPlotScale
+            let newMaxY = maxBoxPlotY
+            let newMinY = -maxBoxPlotY
             let newRange = newMaxY - newMinY
             let y = 1.0 - currPos.Y
             let newY = (y * newRange) + newMinY
             V2d(newX, newY)
 
         let createVisualConnectionsSg (screenPositions : aval<V2d []>) (probesPositions : aval<V3d []>) 
-                                      (trafo : aval<Trafo3d>) (contrTrafo : aval<Trafo3d>) (showConnections : aval<bool>) = 
+                                      (trafo : aval<Trafo3d>) (showConnections : aval<bool>) = 
             (screenPositions, probesPositions)
             ||> AVal.map2 (fun screenPos probePos ->
-                let positions = Array.zip screenPos probePos
-                positions 
-                |> Array.mapi (fun idx pos ->
-                    let screenp = fst pos
-                    let probep = snd pos
-                    let boxPlotSpacePos = 
-                        trafo |> AVal.map (fun t ->
-                            let newPos = t.Forward.TransformPos(V3d.OOO)
-                            newPos + V3d(-(convertRange screenp).X, 0.0, (convertRange screenp).Y))
-                    let finalPos =  
-                        (contrTrafo, boxPlotSpacePos) 
-                        ||> AVal.map2 (fun mt bpsp -> mt.Forward.TransformPos(bpsp))
-                    let currColor =
-                        match scheme10Colors.TryFind(idx) with
-                        | Some c -> c
-                        | None -> C4b.Black
-                    let sphere = 
-                        Sg.sphere' 6 currColor 0.05
+                if screenPos.Length = probePos.Length then 
+                    let positions = Array.zip screenPos probePos
+                    positions 
+                    |> Array.mapi (fun idx pos ->
+                        let screenp = fst pos
+                        let probep = snd pos
+                        let finalPos =  
+                            trafo
+                            |> AVal.map (fun t ->
+                                let convertedRange = convertRange screenp |> V3d
+                                t.Forward.TransformPos(convertedRange))
+                        let currColor =
+                            match scheme10Colors.TryFind(idx) with
+                            | Some c -> c
+                            | None -> C4b.Black
+                        let sphere = 
+                            Sg.sphere' 6 currColor 0.008
+                            |> Sg.noEvents
+                            |> Sg.trafo (finalPos |> AVal.map (fun fp -> Trafo3d.Translation(fp)))
+                        let currLine = finalPos |> AVal.map (fun fp -> [|Line3d(fp, probep)|]) 
+                        currLine
+                        |> Sg.lines (AVal.constant currColor)
                         |> Sg.noEvents
-                        |> Sg.trafo (finalPos |> AVal.map (fun fp -> Trafo3d.Translation(fp)))
-                    let currLine = finalPos |> AVal.map (fun fp -> [|Line3d(fp, probep)|]) 
-                    currLine
-                    |> Sg.lines (AVal.constant currColor)
-                    |> Sg.noEvents
-                    |> Sg.uniform "LineWidth" (AVal.constant 5)
-                    |> Sg.effect [
-                        toEffect DefaultSurfaces.trafo
-                        toEffect DefaultSurfaces.vertexColor
-                        toEffect DefaultSurfaces.thickLine
-                        ]
-                    |> Sg.andAlso sphere
-                )
-                |> Sg.ofArray
-                |> Sg.onOff showConnections
+                        |> Sg.uniform "LineWidth" (AVal.constant 5)
+                        |> Sg.effect [
+                            toEffect DefaultSurfaces.trafo
+                            toEffect DefaultSurfaces.vertexColor
+                            toEffect DefaultSurfaces.thickLine
+                            ]
+                        |> Sg.andAlso sphere
+                    )
+                    |> Sg.ofArray
+                    |> Sg.onOff showConnections
+                else 
+                    Sg.empty
             )
             |> Sg.dynamic
+
+        let currentBPtrafo = 
+            m.secondControllerTrafo
+            |> AVal.map (fun t -> 
+                let bpTF = activeBoxPlotTrafo false
+                bpTF * t)
             
         let currBPvisualConnectionsSg = 
-            createVisualConnectionsSg m.twoDModel.allProbesScreenPositions m.selectedProbesPositions (AVal.constant activeBoxPlotTrafo) m.secondControllerTrafo m.showCurrBoxPlot
+            createVisualConnectionsSg m.twoDModel.allProbesScreenPositions m.selectedProbesPositions currentBPtrafo m.showCurrBoxPlot
 
         let trafoBP = 
             m.takenBoxPlot |> AVal.bind (fun bp -> 
@@ -397,7 +400,7 @@ module Demo =
 
         let takenBoxPlotSg = 
             let visualConnections = 
-                createVisualConnectionsSg boxPlotScreenPos boxPlotProbePos trafoBP m.mainControllerTrafo m.movingBoxPlot
+                createVisualConnectionsSg boxPlotScreenPos boxPlotProbePos trafoBP m.movingBoxPlot
             planeSg defaultBoxPlotPositions
             |> Sg.trafo trafoBP
             |> Sg.onOff m.movingBoxPlot
@@ -424,7 +427,7 @@ module Demo =
                         | Some i when i = key -> Trafo3d.Scale(0.95)
                         | _ -> Trafo3d.Identity)
                 let bpTrafo = (scaleTrafo, boxPlot.trafo) ||> AVal.map2 (fun st bt -> st * bt)
-                let visualConnections = createVisualConnectionsSg boxPlot.screenPos boxPlot.probesPositions bpTrafo (AVal.constant Trafo3d.Identity) (AVal.constant true)
+                let visualConnections = createVisualConnectionsSg boxPlot.screenPos boxPlot.probesPositions bpTrafo (AVal.constant true)
                 planeSg defaultBoxPlotPositions
                 |> Sg.trafo bpTrafo
                 |> Sg.diffuseTexture texture
@@ -438,7 +441,6 @@ module Demo =
             |> Sg.set
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
-                do! DefaultSurfaces.diffuseTexture
                 do! DefaultSurfaces.simpleLighting
             }
             //|> Sg.cullMode (CullMode.Front |> AVal.constant)

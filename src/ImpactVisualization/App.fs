@@ -767,6 +767,7 @@ module App =
             let allScreenPositions = 
                 x |> Array.mapi (fun idx xPos ->
                     let yPos = y.[idx]
+                    printf "Y Pos: %A \n" yPos
                     V2d(xPos, yPos))
             {m with allProbesScreenPositions = allScreenPositions}
         | _ -> m
@@ -878,7 +879,7 @@ module App =
             }
 
         let testPlaneTrafo = 
-            let scale = Trafo3d(Scale3d(2.0))
+            let scale = Trafo3d(Scale3d(0.2))
             let flip = Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI)
             let translate = Trafo3d.Translation(2.0, -5.0, 3.0)
             let rotate = Trafo3d.RotationEulerInDegrees(90.0, 0.0, 180.0)
@@ -888,14 +889,14 @@ module App =
             let oldMin = 0.0
             let oldMax = 1.0
             let oldRange = oldMax - oldMin
-            let newMax = 3.4
-            let newMin = -3.4
+            let newMax = 0.34
+            let newMin = -0.34
             let newRange = newMax - newMin
             let x = currPos.X
             let y = oldMax - currPos.Y
             let newX = (x * newRange) + newMin
-            let newMax = 2.0
-            let newMin = -2.0
+            let newMax = 0.2
+            let newMin = -0.2
             let newRange = newMax - newMin
             let newY = (y * newRange) + newMin
             V2d(newX, newY)
@@ -928,7 +929,7 @@ module App =
                         | Some c -> c
                         | None -> C4b.Black
                     let sphere = 
-                        Sg.sphere' 6 currColor 0.05
+                        Sg.sphere' 6 currColor 0.005
                         |> Sg.noEvents
                         |> Sg.trafo (AVal.constant (Trafo3d.Translation(finalPos)))
                     let origin = V3d.OOO
