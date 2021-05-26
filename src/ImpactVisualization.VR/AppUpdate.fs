@@ -175,7 +175,7 @@ module AppUpdate =
 
 
     let initialScalingHera = 0.05
-    let initialScalingTv = 2.2
+    let initialScalingTv = 2.5
 
     let tvTrafos = 
         let scale = Trafo3d(Scale3d(initialScalingTv))
