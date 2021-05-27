@@ -96,7 +96,19 @@ module AppUpdate =
                         "analyze-region-screen", fromStreamToTexture "analyze-region-screen.png";
                         "analyze-time", fromStreamToTexture "analyze-time.png";
                         "analyze-time-screen", fromStreamToTexture "analyze-time-screen.png";
-                        "main-controller", fromStreamToTexture "main-controller.png"]
+                        "main-controller", fromStreamToTexture "main-controller.png";
+                        "play-raw", fromStreamToTexture "play-raw.png";
+                        "play-play", fromStreamToTexture "play-play.png";
+                        "play-forward", fromStreamToTexture "play-forward.png";
+                        "play-backward", fromStreamToTexture "play-backward.png";
+                        "play-stop", fromStreamToTexture "play-stop.png";
+                        "play-screenshot", fromStreamToTexture "play-screenshot.png";
+                        "pause-raw", fromStreamToTexture "pause-raw.png";
+                        "pause-pause", fromStreamToTexture "pause-pause.png";
+                        "pause-forward", fromStreamToTexture "pause-forward.png";
+                        "pause-backward", fromStreamToTexture "pause-backward.png";
+                        "pause-stop", fromStreamToTexture "pause-stop.png";
+                        "pause-screenshot", fromStreamToTexture "pause-screenshot.png"]
     
     let trafoOrIdentity trafo = Option.defaultValue Trafo3d.Identity trafo
 
