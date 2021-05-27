@@ -41,8 +41,8 @@ let main args =
         title "Aardvark rocks \\o/"
         width 1024
         height 768
-        url "http://localhost:4321/?page=mainPage"
-        //url "http://localhost:4321/?page=controllersPage"
+        // "http://localhost:4321/?page=mainPage"
+        url "http://localhost:4321/?page=controllersPage"
     }
 
     Aardvark.Cef.Internal.TempCef.shutdown()

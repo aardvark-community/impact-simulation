@@ -28,17 +28,15 @@ module AppUpdate =
     let ru = V3d(0.732, 0.432, 0.013)
     let browserQuad = Quad3d(lu, ru, rd, ld)
 
-    let planePos0 = V3d(-0.7, 0.05, -0.5)
-    let planePos1 = V3d(-0.7, 0.05, 0.5)
-    let planePos2 = V3d(0.7, 0.05, 0.5)
-    let planePos3 = V3d(0.7, 0.05, -0.5)
-
-
+    let planePos0 = V3d(-0.732, 0.05, -0.5)
+    let planePos1 = V3d(-0.732, 0.05, 0.5)
+    let planePos2 = V3d(0.732, 0.05, 0.5)
+    let planePos3 = V3d(0.732, 0.05, -0.5)
 
     //let tvQuadTrafo = flatScreenTrafo 180.0 90.0 1.535
     //let tvTrafo = flatScreenTrafo 0.0 -90.0 1.5
 
-    let screenResolution = V2i(1008,729)
+    let screenResolution = V2i(1200,790)
 
     let texturesPath = @"..\..\..\src\ImpactVisualization\resources\textures\"
     

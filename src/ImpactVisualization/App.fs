@@ -993,16 +993,16 @@ module App =
                 let! animation = m.playAnimation
                 let! allFramesAnimation = m.animateAllFrames
 
-                div [style "margin: 15px"] [
+                div [style "margin: 12px"] [
                     if animation = true then
-                        yield button [onClick (fun _ -> ChangeAnimation); style "font-size: large"] [ text "Pause"]
+                        yield button [onClick (fun _ -> ChangeAnimation); style "font-size: x-large"] [ text "Pause"]
                     else 
-                        yield button [onClick (fun _ -> ChangeAnimation); style "font-size: large"] [text "Play"]
+                        yield button [onClick (fun _ -> ChangeAnimation); style "font-size: x-large"] [text "Play"]
 
                     if allFramesAnimation = true then
-                        yield button [onClick (fun _ -> AnimateAllFrames); style "margin: 5px; margin-inline-start: 10px; font-size: large"] [text "One Frame"]
+                        yield button [onClick (fun _ -> AnimateAllFrames); style "margin: 5px; margin-inline-start: 10px; font-size: x-large"] [text "One Frame"]
                     else 
-                        yield button [onClick (fun _ -> AnimateAllFrames); style "margin: 5px; margin-inline-start: 10px; font-size: large"] [text "All Frames"]
+                        yield button [onClick (fun _ -> AnimateAllFrames); style "margin: 5px; margin-inline-start: 10px; font-size: x-large"] [text "All Frames"]
                 ]
             }
 
@@ -1038,7 +1038,7 @@ module App =
                         yield clazz "transparency"
                         yield style "width: 100%"
                     })) (alist {
-                        let biggerStyle = if bigger then "font-size: large" else ""
+                        let biggerStyle = if bigger then "font-size: large; line-height: 25px; min-width: 25px" else ""
                         let dropdownStyle = if bigger then "margin: 10px; min-width: 90%; font-size: large" else "margin-top: 5px; margin-bottom: 5px; min-width: 100%"
                         dropdown1 [ clazz "ui selection"; style dropdownStyle] transparencyValues m.transparencyAttribute SetTransparencyAttribute
                         span [style ("padding: 2px; " + biggerStyle)] [text "Alpha Strength: "] 
@@ -1179,7 +1179,7 @@ module App =
                 max maxV
             }]
 
-        let headerStyle = "margin: 10px; margin-bottom: 25px; color: palegoldenrod; font-size: 30px; text-align: center; display: flex; justify-content: center; align-items: center"
+        let headerStyle = "margin: 10px; margin-bottom: 20px; color: palegoldenrod; font-size: 30px; text-align: center; display: flex; justify-content: center; align-items: center"
 
         let rangeView (bigger : bool) (dim : Dim) (inRange : aval<Range>) minV maxV = 
             div [] [ 
@@ -1434,6 +1434,46 @@ module App =
             | Some "controllersPage" ->
                 require Html.semui (
                     body [style "background-color: black"] [
+                        DomNode.Text ("style", Option.None, AttributeMap.Empty, (AVal.constant "
+                            #histogramSvg {
+                                width: 100%;
+                                height: 100%;
+                                }
+
+                            #parallcoordsSvg {
+                                width: 100%;
+                                height: 100%;
+                                }
+
+                            .ui.checkbox .box:before,
+                            .ui.checkbox label:before {
+                                width: 25px;
+                                height: 25px;
+                                }
+
+                            .ui.checkbox .box:after,
+                            .ui.checkbox label:after {
+                                font-size: 22px;
+                                width: 25px;
+                                height: 25px;
+                                }
+
+                            .ui.selection.dropdown .menu > .item {
+                                font-size: large;
+                                }
+
+                            .ui.inverted.accordion .title:not(.ui) {
+                                font-size: large;
+                                }
+
+                            .ui.inverted.menu .item,
+                            .ui.inverted.menu .item > a:not(.ui) {
+                                font-size: large;
+                                }
+
+                            .ui.inverted.menu .active.item {
+                                font-size: large;
+                                }"))
                         require dependencies ( // here we execute Histogram.js.... all values, functions defined in Histogram.js are further down accessible...
                             //div[style "margin: 7px"] [
                             div [] [
@@ -1495,7 +1535,7 @@ module App =
 
                                             div [style "margin: 15px"] [ 
                                                 simplecheckbox { 
-                                                    attributes [clazz "ui inverted checkbox"; style "font-size: large"]
+                                                    attributes [clazz "ui inverted checkbox"; style "font-size: large; line-height: 25px; min-width: 25px"]
                                                     state m.normalizeData
                                                     toggle NormalizeData
                                                     content [ text "Normalize Data"]  
@@ -1504,7 +1544,7 @@ module App =
 
                                             div [style "margin: 15px"] [ 
                                                 simplecheckbox { 
-                                                    attributes [clazz "ui inverted checkbox"; style "font-size: large"]
+                                                    attributes [clazz "ui inverted checkbox"; style "font-size: large; line-height: 25px; min-width: 25px"]
                                                     state m.enableShading
                                                     toggle EnableShading
                                                     content [ text "Enable Shading"]  
@@ -1513,7 +1553,7 @@ module App =
 
                                             div [style "margin: 15px"] [ 
                                                 simplecheckbox { 
-                                                    attributes [clazz "ui inverted checkbox"; style "font-size: large"]
+                                                    attributes [clazz "ui inverted checkbox"; style "font-size: large; line-height: 25px; min-width: 25px"]
                                                     state m.reconstructDepth
                                                     toggle ReconstructDepth
                                                     content [ text "Reconstruct Depth"]  
@@ -1526,7 +1566,7 @@ module App =
 
                                             div [style "margin: 15px"] [ 
                                                 simplecheckbox { 
-                                                    attributes [clazz "ui inverted checkbox"; style "font-size: large"]
+                                                    attributes [clazz "ui inverted checkbox"; style "font-size: large; line-height: 25px; min-width: 25px"]
                                                     state m.enableTransparency
                                                     toggle EnableTransparency
                                                     content [ text "Enable Transparency"]  
@@ -1542,7 +1582,7 @@ module App =
 
                                         div [style "margin: 15px"] [ 
                                             simplecheckbox { 
-                                                attributes [clazz "ui inverted checkbox"; style "font-size: large"]
+                                                attributes [clazz "ui inverted checkbox"; style "font-size: large; line-height: 25px; min-width: 25px"]
                                                 state m.discardPoints
                                                 toggle TogglePointDiscarded
                                                 content [ text "Discard Out of Range?"]  
@@ -1560,7 +1600,7 @@ module App =
 
                                         div [style "margin: 15px"] [ 
                                             simplecheckbox { 
-                                                attributes [clazz "ui inverted checkbox"; style "font-size: large"]
+                                                attributes [clazz "ui inverted checkbox"; style "font-size: large; line-height: 25px; min-width: 25px"]
                                                 state m.lowerOutliers
                                                 toggle DisplayLowerOutliers
                                                 content [ text "Lower Outliers"]  
@@ -1569,7 +1609,7 @@ module App =
 
                                         div [style "margin: 15px"] [ 
                                             simplecheckbox { 
-                                                attributes [clazz "ui inverted checkbox"; style "font-size: large"]
+                                                attributes [clazz "ui inverted checkbox"; style "font-size: large; line-height: 25px; min-width: 25px"]
                                                 state m.higherOutliers
                                                 toggle DisplayHigherOutliers
                                                 content [ text "Higher Outliers"]  
@@ -1629,7 +1669,7 @@ module App =
                                 ]
 
                                 Incremental.div (AttributeMap.ofAMap (amap {
-                                    yield style "position: fixed; bottom: 345px; right: 20px"
+                                    yield style "position: fixed; bottom: 5px; left: 25px"
                                 })) (alist {
                                     let! src = m.currentMap
 
@@ -1647,8 +1687,8 @@ module App =
                                         style "width: 298px; height: 0px; background-color: #ffffff; margin-block-start: 3px; margin-block-end: 0px; margin-inline-start: 0px"
                                     ]
 
-                                    yield span [style "position: relative; font-size: 1.3em; right: 40px; top: 5px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.min).ToString()))] 
-                                    yield span [style "position: inherit; font-size: 1.3em; right: 10px; top: 370px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.max).ToString()))]
+                                    yield span [style "position: relative; font-size: 1.3em; right: 15px; top: 0px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.min).ToString()))] 
+                                    yield span [style "position: absolute; font-size: 1.3em; right: -10px; top: 45px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.max).ToString()))]
                                     }
                                 )
 
@@ -1664,16 +1704,16 @@ module App =
                         
                                 let histogram = 
                                         onBoot' [("data", dataChannel); ("transition", transitionChannel)] updateChart ( // when div [histogram etc] is constructed updateChart is called.
-                                                    div [onBrushed; clazz "histogram"; style "position: fixed; bottom: 50px; right: 20px; width: 400px; height: 230px; z-index: 1000"] []          
+                                                    div [onBrushed; clazz "histogram"; style "position: fixed; bottom: 50px; right: 20px; width: 560px; height: 322px; z-index: 1000"] []          
                                         )
                             
 
                                 let parallCoords = 
                                         onBoot' [("dataPath", pathChannel)] updateParallCoords (
-                                                div [onParallCoordsBrushed; clazz "parallCoords"; style "position: fixed; bottom: 50px; right: 20px; width: 400px; height: 230px; z-index: 1000"] []          
+                                                div [onParallCoordsBrushed; clazz "parallCoords"; style "position: fixed; bottom: 50px; right: 20px; width: 560px; height: 322px; z-index: 1000"] []          
                                         )
 
-                                Html.SemUi.tabbed [clazz "temp"; style "position: fixed; bottom: 250px; right: 20px" ] [
+                                Html.SemUi.tabbed [clazz "temp"; style "position: fixed; bottom: 342px; right: 20px" ] [
                                     ("Histogram", histogram)
                                     ("ParallCoords", parallCoords)
                                 ] "Histogram"
