@@ -70,7 +70,7 @@ type BoxPlot = {
     data            : HashMap<int, float[]>
     probeIds        : HashMap<int, Probe>
     screenPos       : V2d []
-    probesPositions : V3d []
+    probesPositions : (string * V3d) []
 
     [<NonAdaptive>]
     id : string
@@ -185,6 +185,7 @@ type Model =
         secondContrProbeIntersectionId : Option<string>
         lastFilterProbe : Option<Probe>
         lastFilterProbeId : Option<string>
+        lastDeletedProbe : string
         lastModifiedProbeIntId : int
         newProbePlaced : bool
         existingProbeModified : bool
@@ -202,7 +203,7 @@ type Model =
         movingBoxPlot : bool
         takenBoxPlot : Option<BoxPlot>
         allCurrSelectedProbesIds : HashMap<int, Probe>
-        selectedProbesPositions : V3d []
+        selectedProbesPositions : (string * V3d) []
                         
         //Controller clipping plane
         holdClipping : bool

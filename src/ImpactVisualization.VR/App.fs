@@ -323,16 +323,16 @@ module Demo =
             let newY = (y * newRange) + newMinY
             V2d(newX, newY)
 
-        let createVisualConnectionsSg (screenPositions : aval<V2d []>) (probesPositions : aval<V3d []>) 
+        let createVisualConnectionsSg (screenPositions : aval<V2d []>) (probesPositions : aval<(string * V3d) []>) 
                                       (trafo : aval<Trafo3d>) (showConnections : aval<bool>) = 
             (screenPositions, probesPositions)
-            ||> AVal.map2 (fun screenPos probePos ->
-                if screenPos.Length = probePos.Length then 
-                    let positions = Array.zip screenPos probePos
+            ||> AVal.map2 (fun screenPos probe ->
+                if screenPos.Length = probe.Length then 
+                    let positions = Array.zip screenPos probe
                     positions 
                     |> Array.mapi (fun idx pos ->
                         let screenp = fst pos
-                        let probep = snd pos
+                        let probep = pos |> snd |> snd
                         let finalPos =  
                             trafo
                             |> AVal.map (fun t ->
@@ -468,8 +468,6 @@ module Demo =
             }  
             |> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass2
-
-
 
         let deviceSgs = 
             info.state.devices |> AMap.toASet |> ASet.chooseA (fun (_,d) ->
