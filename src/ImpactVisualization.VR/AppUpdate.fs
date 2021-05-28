@@ -654,7 +654,9 @@ module AppUpdate =
                     let intersectionContrTrafoPos = model.secondControllerTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
                     let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
                     controllerSphere.BoundingBox3d.Intersects(currCorners)
-                | _ -> false
+                | _ -> 
+                    if model.holdClipping || not currCorners.IsValid then false else 
+                        model.interesctingClippingPlane
 
             ////UPDATE MAIN CONTROLLER TEXTURES WHEN INTERSECTING WITH A PROBE
             let tex, screenTex = 
