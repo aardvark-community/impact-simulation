@@ -22,6 +22,7 @@ open AardVolume.Model
 open AardVolume.App
 open ImpactVisualization
 open ImpactVisualization.AppUpdate
+open ImpactVisualization.UpdateFunctions
 open Aardvark.Cef
 open Touchpad
  
