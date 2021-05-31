@@ -256,7 +256,9 @@ function refreshBoxPlot(data){
             console.log("Normalized Position: x: " + normX + ", y: " + normY);
         });
 
-    aardvark.processEvent(boxPlotId.id, "boxplot", xPositions, yPositions);
+    if (xPositions.length > 0 && yPositions.length > 0) { 
+        aardvark.processEvent(boxPlotId.id, "boxplot", xPositions, yPositions);
+    }
 
 }
 

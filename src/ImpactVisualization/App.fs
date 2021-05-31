@@ -767,7 +767,7 @@ module App =
             let allScreenPositions = 
                 x |> Array.mapi (fun idx xPos ->
                     let yPos = y.[idx]
-                    printf "Y Pos: %A \n" yPos
+                    //printf "Y Pos: %A \n" yPos
                     V2d(xPos, yPos))
             {m with allProbesScreenPositions = allScreenPositions}
         | _ -> m

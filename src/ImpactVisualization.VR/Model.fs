@@ -42,7 +42,9 @@ type BillboardType =
 [<ModelType>]
 type Probe = {
     numberId        : int
+    currSelected    : bool 
     selected        : bool
+    timesSelected   : int 
     color           : C4b
     center          : V3d
     radius          : float
@@ -56,7 +58,6 @@ type Probe = {
     currAttribute   : RenderValue
     allData         : HashMap<RenderValue, (float[] * string)>
     
-
     [<NonAdaptive>]
     id : string
 }
@@ -179,6 +180,7 @@ type Model =
         clickPosition : Option<V2d>
 
         //Probes manipulation
+        createProbe : bool
         currentProbeManipulated : bool 
         allProbes : HashMap<string, Probe>
         mainContrProbeIntersectionId : Option<string> 

@@ -338,6 +338,10 @@ module Demo =
                             |> AVal.map (fun t ->
                                 let convertedRange = convertRange screenp |> V3d
                                 t.Forward.TransformPos(convertedRange))
+                        let finalProbePos =
+                            m.heraTransformations
+                            |> AVal.map (fun t ->
+                                t.Forward.TransformPos(probep))
                         let currColor =
                             match scheme10Colors.TryFind(idx) with
                             | Some c -> c
@@ -346,7 +350,7 @@ module Demo =
                             Sg.sphere' 6 currColor 0.008
                             |> Sg.noEvents
                             |> Sg.trafo (finalPos |> AVal.map (fun fp -> Trafo3d.Translation(fp)))
-                        let currLine = finalPos |> AVal.map (fun fp -> [|Line3d(fp, probep)|]) 
+                        let currLine = (finalPos, finalProbePos) ||> AVal.map2 (fun fp fpp -> [|Line3d(fp, fpp)|]) 
                         currLine
                         |> Sg.lines (AVal.constant currColor)
                         |> Sg.noEvents

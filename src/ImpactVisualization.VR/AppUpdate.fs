@@ -122,14 +122,16 @@ module AppUpdate =
     let sphereIntersection (controllerSphere : Sphere3d) (probe : Sphere3d) = controllerSphere.Intersects(probe)
     
 
-    let createProbe (numberId : int) (selected : bool) (color : C4b) (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) 
+    let createProbe (numberId : int) (currSelected : bool) (selected : bool) (timesSelected : int) (color : C4b) (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) 
                     (inside : bool) (allData : HashMap<RenderValue, (float[] * string)>) 
                     (attribute : RenderValue) (showStats : bool) (showHisto : bool) 
                     (billboardType : BillboardType) : Probe = 
         {
             id = Guid.NewGuid().ToString()
             numberId = numberId
+            currSelected = currSelected
             selected = selected
+            timesSelected = timesSelected
             color = color
             center = pos
             radius = rad
@@ -226,6 +228,7 @@ module AppUpdate =
             sphereScale = 1.0
             lastSphereScale = 1.0
             sphereRadius = 0.2
+            createProbe = false
             currentProbeManipulated = false
             newProbePlaced = false
             existingProbeModified = false
@@ -727,64 +730,64 @@ module AppUpdate =
                 else 
                     model.allProbes      
 
-            let updateCurrSelectedProbesPositions = 
-                if model.grabbingHera && not (model.selectedProbesPositions.IsEmpty()) then 
-                    let selectedProbes = probesUpdate |> HashMap.filter (fun id probe -> probe.selected) 
-                    selectedProbes |> HashMap.toSeq |> Seq.map (fun result -> (fst result), (snd result).center) |> Seq.toArray
-                else 
-                    model.selectedProbesPositions
+            //let updateCurrSelectedProbesPositions = 
+            //    if model.grabbingHera && not (model.selectedProbesPositions.IsEmpty()) then 
+            //        let selectedProbes = probesUpdate |> HashMap.filter (fun id probe -> probe.selected) 
+            //        selectedProbes |> HashMap.toSeq |> Seq.map (fun result -> (fst result), (snd result).center) |> Seq.toArray
+            //    else 
+            //        model.selectedProbesPositions
 
-            let updateBoxPlotProbesPositions =
-                if model.grabbingHera && not model.allPlacedBoxPlots.IsEmpty then 
-                    model.allPlacedBoxPlots
-                    |> HashMap.map (fun key boxPlot -> 
-                        let allSelected = boxPlot.probeIds
-                        let updateAllSelected = 
-                            allSelected
-                            |> HashMap.map(fun id probe ->
-                                let newCenter = 
-                                    match probesUpdate.TryFind(probe.id) with
-                                    | Some p -> p.center
-                                    | None -> probe.center
-                                {probe with center = newCenter}
-                            )
-                        let newProbesPositions = updateAllSelected |> HashMap.toSeq |> Seq.map (fun result -> (snd result).id, (snd result).center) |> Seq.toArray
-                        {boxPlot with probesPositions = newProbesPositions}
-                    )
-                else model.allPlacedBoxPlots
+            //let updateBoxPlotProbesPositions =
+            //    if model.grabbingHera && not model.allPlacedBoxPlots.IsEmpty then 
+            //        model.allPlacedBoxPlots
+            //        |> HashMap.map (fun key boxPlot -> 
+            //            let allSelected = boxPlot.probeIds
+            //            let updateAllSelected = 
+            //                allSelected
+            //                |> HashMap.map(fun id probe ->
+            //                    let newCenter = 
+            //                        match probesUpdate.TryFind(probe.id) with
+            //                        | Some p -> p.center
+            //                        | None -> probe.center
+            //                    {probe with center = newCenter}
+            //                )
+            //            let newProbesPositions = updateAllSelected |> HashMap.toSeq |> Seq.map (fun result -> (snd result).id, (snd result).center) |> Seq.toArray
+            //            {boxPlot with probesPositions = newProbesPositions}
+            //        )
+            //    else model.allPlacedBoxPlots
 
 
-            let updateCurrVisualLinks = 
-                if model.currentProbeManipulated && model.lastFilterProbeId.IsSome then
-                    let newCurrProbeCenter = model.mainControllerTrafo.Forward.TransformPos(V3d.OOO)
-                    let probeId = model.lastFilterProbeId.Value
-                    updateCurrSelectedProbesPositions
-                    |> Array.map(fun (id, pos) ->
-                        if id = probeId then    
-                            id, newCurrProbeCenter
-                        else id, pos
-                        )
-                else    
-                    updateCurrSelectedProbesPositions
+            //let updateCurrVisualLinks = 
+            //    if model.currentProbeManipulated && model.lastFilterProbeId.IsSome then
+            //        let newCurrProbeCenter = model.mainControllerTrafo.Forward.TransformPos(V3d.OOO)
+            //        let probeId = model.lastFilterProbeId.Value
+            //        updateCurrSelectedProbesPositions
+            //        |> Array.map(fun (id, pos) ->
+            //            if id = probeId then    
+            //                id, newCurrProbeCenter
+            //            else id, pos
+            //            )
+            //    else    
+            //        updateCurrSelectedProbesPositions
                     
                 
-            let updateBoxPlotVisualLinks = 
-                if model.currentProbeManipulated && model.lastFilterProbeId.IsSome then
-                    let newCurrProbeCenter = model.mainControllerTrafo.Forward.TransformPos(V3d.OOO)
-                    let probeId = model.lastFilterProbeId.Value
-                    updateBoxPlotProbesPositions
-                    |> HashMap.map (fun key boxPlot ->
-                        let newPositions = 
-                            boxPlot.probesPositions
-                            |> Array.map(fun (id, pos) ->
-                                if id = probeId then    
-                                    id, newCurrProbeCenter
-                                else id, pos
-                            )
-                        {boxPlot with probesPositions = newPositions}
-                    )
-                else    
-                    updateBoxPlotProbesPositions
+            //let updateBoxPlotVisualLinks = 
+            //    if model.currentProbeManipulated && model.lastFilterProbeId.IsSome then
+            //        let newCurrProbeCenter = model.mainControllerTrafo.Forward.TransformPos(V3d.OOO)
+            //        let probeId = model.lastFilterProbeId.Value
+            //        updateBoxPlotProbesPositions
+            //        |> HashMap.map (fun key boxPlot ->
+            //            let newPositions = 
+            //                boxPlot.probesPositions
+            //                |> Array.map(fun (id, pos) ->
+            //                    if id = probeId then    
+            //                        id, newCurrProbeCenter
+            //                    else id, pos
+            //                )
+            //            {boxPlot with probesPositions = newPositions}
+            //        )
+            //    else    
+            //        updateBoxPlotProbesPositions
 
 
 
@@ -876,8 +879,8 @@ module AppUpdate =
                 allProbes = allProbesUpdated
                 heraTransformations = heraTrafos
                 lastHeraScaleTrafo = newHeraScaleTrafo
-                selectedProbesPositions = updateCurrVisualLinks
-                allPlacedBoxPlots = updateBoxPlotVisualLinks
+                //selectedProbesPositions = updateCurrVisualLinks
+                //allPlacedBoxPlots = updateBoxPlotVisualLinks
                 newProbePlaced = (if model.newProbePlaced then false else model.newProbePlaced)}
         | ActivateControllerMode id ->
             match model.mainControllerId with 
@@ -897,31 +900,35 @@ module AppUpdate =
                     | Some pr -> (pr.radius / model.sphereRadius), Some pr.id
                     | None -> model.sphereScale, None
                 let pr = model.allProbes.Item probe
-                let intId = pr.numberId
+                if not pr.selected && not pr.currSelected then 
+                    let intId = pr.numberId
 
-                let newHashmap, updatedTwoDmodel = 
-                    if intId <> -1 then 
-                        let hm = model.boxPlotProbes.Remove(intId)
-                        let dataForBoxPlot = hm |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
-                        hm, { mTwoD with boxPlotData = dataForBoxPlot}
-                    else 
-                        model.boxPlotProbes, model.twoDModel
+                    let newHashmap, updatedTwoDmodel = 
+                        if intId <> -1 then 
+                            let hm = model.boxPlotProbes.Remove(intId)
+                            let dataForBoxPlot = hm |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
+                            hm, { mTwoD with boxPlotData = dataForBoxPlot}
+                        else 
+                            model.boxPlotProbes, model.twoDModel
 
-                {model with 
-                    allProbes = model.allProbes.Remove(probe)
-                    boxPlotProbes = newHashmap
-                    lastFilterProbe = currProbe
-                    lastFilterProbeId = probeId
-                    currentProbeManipulated = true
-                    newProbePlaced = false
-                    existingProbeModified = true
-                    lastModifiedProbeIntId = intId
-                    holdingSphere = true
-                    sphereScale = currScale
-                    mainContrProbeIntersectionId = None
-                    twoDModel = updatedTwoDmodel}
+                    {model with 
+                        createProbe = true
+                        allProbes = model.allProbes.Remove(probe)
+                        boxPlotProbes = newHashmap
+                        lastFilterProbe = currProbe
+                        lastFilterProbeId = probeId
+                        currentProbeManipulated = true
+                        newProbePlaced = false
+                        existingProbeModified = true
+                        lastModifiedProbeIntId = intId
+                        holdingSphere = true
+                        sphereScale = currScale
+                        mainContrProbeIntersectionId = None
+                        twoDModel = updatedTwoDmodel}
+                else {model with createProbe = false}
             | None -> 
                 {model with 
+                    createProbe = true
                     currentProbeManipulated = true
                     lastModifiedProbeIntId = -1
                     newProbePlaced = false
@@ -971,26 +978,30 @@ module AppUpdate =
                             | _ -> None, None
 
                     let currProbe = model.allProbes.Item probe
-                    let intId = currProbe.numberId
-                    let newHashmap = model.boxPlotProbes.Remove(intId)
-                    let dataForBoxPlot = newHashmap |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
 
-                    let updatedTwoDmodel = 
-                        { mTwoD with
-                            sphereFilter = None
-                            data = VersionedArray.ofArray [||] 
-                            dataRange = mTwoD.initDataRange
-                            boxPlotData = dataForBoxPlot
-                        }
+                    if not currProbe.selected && not currProbe.currSelected then 
+                        let intId = currProbe.numberId
+                        let newHashmap = model.boxPlotProbes.Remove(intId)
 
-                    {model with 
-                        allProbes = model.allProbes.Remove(probe)
-                        lastDeletedProbe = probe
-                        boxPlotProbes = newHashmap
-                        lastFilterProbe = filterProbe
-                        lastFilterProbeId = probeId
-                        twoDModel = updatedTwoDmodel
-                        secondContrProbeIntersectionId = None} 
+                        let dataForBoxPlot = newHashmap |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
+
+                        let updatedTwoDmodel = 
+                            { mTwoD with
+                                sphereFilter = None
+                                data = VersionedArray.ofArray [||] 
+                                dataRange = mTwoD.initDataRange
+                                boxPlotData = dataForBoxPlot
+                            }
+
+                        {model with 
+                            allProbes = model.allProbes.Remove(probe)
+                            lastDeletedProbe = probe
+                            boxPlotProbes = newHashmap
+                            lastFilterProbe = filterProbe
+                            lastFilterProbeId = probeId
+                            twoDModel = updatedTwoDmodel
+                            secondContrProbeIntersectionId = None} 
+                    else model
                 | _ -> model
             | None -> model
         | DeleteClippingPlane id ->
@@ -1006,12 +1017,12 @@ module AppUpdate =
                 match model.mainContrProbeIntersectionId with 
                 | Some probeId ->
                     let intersectedProbe = model.allProbes.Item probeId
-                    let isSelected = intersectedProbe.selected
+                    let isCurrSelected = intersectedProbe.currSelected
 
                     let arrayBoxPlot, statsBoxPlot = intersectedProbe.allData.Item model.currBoxPlotAttrib
 
                     let newHashmap, allProbesIds = 
-                        if not isSelected then 
+                        if not isCurrSelected then 
                             model.boxPlotProbes.Add(model.lastProbeId, arrayBoxPlot), model.allCurrSelectedProbesIds.Add(model.lastProbeId, intersectedProbe)
                         else 
                             let currProbe = model.allProbes.Item probeId
@@ -1020,7 +1031,7 @@ module AppUpdate =
 
                     let dataForBoxPlot = newHashmap |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
 
-                    let probesPositions = allProbesIds |> HashMap.toSeq |> Seq.map (fun result -> (snd result).id, (snd result).center) |> Seq.toArray
+                    let probesPositions = allProbesIds |> HashMap.toSeq |> Seq.map (fun result -> (snd result).id, (snd result).centerRelToHera) |> Seq.toArray
 
                     let updatedTwoDmodel = 
                         { mTwoD with
@@ -1029,16 +1040,18 @@ module AppUpdate =
                         }
 
                     let updatedProbe = 
-                        if not isSelected then 
+                        if not isCurrSelected then 
                             {intersectedProbe with
                                 color = C4b.Yellow
                                 numberId = model.lastProbeId
-                                selected = not isSelected}
+                                currSelected = true
+                                timesSelected = intersectedProbe.timesSelected + 1}
                         else 
                             {intersectedProbe with
-                                color = C4b.Blue
+                                color = if intersectedProbe.selected then C4b.Yellow else C4b.Blue
                                 numberId = -1
-                                selected = not isSelected}
+                                currSelected = false
+                                timesSelected = intersectedProbe.timesSelected - 1}
 
 
                     let update (pr : Option<Probe>) = updatedProbe 
@@ -1073,9 +1086,10 @@ module AppUpdate =
                     model.allProbes 
                     |> HashMap.map (fun key probe ->
                         {probe with 
-                            color = C4b.Blue
+                            color = if probe.currSelected then C4b.Yellow else probe.color
                             numberId = -1
-                            selected = false})
+                            selected = if probe.currSelected then true else probe.selected
+                            currSelected = false})
                 {model with 
                     allProbes = allProbesUpdated
                     allPlacedBoxPlots = allPlacedBoxPlots
@@ -1088,8 +1102,33 @@ module AppUpdate =
             match model.secondControllerId with 
             | Some i when i = id && model.secondContrBoxPlotIntersectionId.IsSome ->
                 let intersectedBoxPlotId = model.secondContrBoxPlotIntersectionId.Value
+                let currBoxPlot = model.allPlacedBoxPlots.Item intersectedBoxPlotId
+                let allProbesUpdated = 
+                    model.allProbes 
+                    |> HashMap.map (fun key probe ->
+                        let probeInBoxPlot = 
+                            currBoxPlot.probeIds
+                            |> HashMap.exists (fun numberId selProbe -> 
+                                selProbe.id = key
+                            ) 
+                        if probeInBoxPlot then 
+                            if probe.timesSelected >= 2 then    
+                                {probe with   
+                                    selected = false
+                                    currSelected = false
+                                    timesSelected = probe.timesSelected - 1}
+                            else 
+                                {probe with 
+                                    color = C4b.Blue
+                                    selected = false
+                                    currSelected = false
+                                    timesSelected = 0}
+                        else 
+                            probe)
                 let updateBoxPlots = model.allPlacedBoxPlots.Remove(intersectedBoxPlotId)
-                {model with allPlacedBoxPlots = updateBoxPlots}
+                {model with 
+                    allPlacedBoxPlots = updateBoxPlots
+                    allProbes = allProbesUpdated}
             | _ -> model
         | CopyBoxPlot id ->
             match model.secondControllerId with 
@@ -1113,16 +1152,15 @@ module AppUpdate =
 
                             if not probeSelected.IsEmpty then 
                                 {probe with 
-                                    color = C4b.Yellow
                                     numberId = probeSelected |> HashMap.toSeq |> Seq.exactlyOne |> fst
-                                    selected = true}
+                                    timesSelected = probe.timesSelected + 1
+                                    currSelected = true}
                             else 
                                 {probe with 
-                                    color = C4b.Blue
                                     numberId = -1
-                                    selected = false})
+                                    currSelected = false})
 
-                    let probesPositions = allProbesUpdated |> HashMap.toSeq |> Seq.map (fun result -> (fst result), (snd result).center) |> Seq.toArray
+                    let probesPositions = allSelected |> HashMap.toSeq |> Seq.map (fun result -> (snd result).id, (snd result).centerRelToHera) |> Seq.toArray
                     
                     let updatedTwoDmodel = 
                         { mTwoD with
@@ -1173,7 +1211,7 @@ module AppUpdate =
                 match model.controllerMode with 
                 | ControllerMode.Probe -> 
                     match model.mainControllerId  with
-                    | Some i when i = id -> 
+                    | Some i when i = id && model.createProbe -> 
                         let t = model.mainControllerTrafo
                         let heraInvMatrix = model.heraTransformations.Backward
 
@@ -1219,30 +1257,30 @@ module AppUpdate =
                         let array, stats = allData.Item attrib
 
 
-                        let selected = model.lastModifiedProbeIntId <> -1 
-                        let color = if intersection then (if selected then C4b.Yellow else C4b.Blue) else C4b.White
+                        //let currSelected = model.lastModifiedProbeIntId <> -1 
+                        let color = if intersection then C4b.Blue else C4b.White
 
-                        let probe = createProbe model.lastModifiedProbeIntId selected color spherePos sphereRadius spherePosTransformed radiusTransformed intersection allData attrib true true billboardType
+                        let probe = createProbe model.lastModifiedProbeIntId false false 0 color spherePos sphereRadius spherePosTransformed radiusTransformed intersection allData attrib true true billboardType
 
                         let filteredData = if intersection then array else mTwoD.data.arr
-                        let attributeAsString = renderValueToString attrib
+                        //let attributeAsString = renderValueToString attrib
 
                         //let newCurrBoxPlotAttrib = if not model.currBoxPlotAttribSet then attrib else model.currBoxPlotAttrib
-                        let newHashmap, dataForBoxPlot = 
-                            if model.existingProbeModified && selected then 
-                                let arrayBoxPlot, statsBoxPlot = allData.Item model.currBoxPlotAttrib
-                                let hm = model.boxPlotProbes.Add(model.lastModifiedProbeIntId, arrayBoxPlot) 
-                                let boxPlotData = hm |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
-                                hm, boxPlotData
-                            else 
-                                model.boxPlotProbes, mTwoD.boxPlotData
+                        //let newHashmap, dataForBoxPlot = 
+                        //    if model.existingProbeModified && selected then 
+                        //        let arrayBoxPlot, statsBoxPlot = allData.Item model.currBoxPlotAttrib
+                        //        let hm = model.boxPlotProbes.Add(model.lastModifiedProbeIntId, arrayBoxPlot) 
+                        //        let boxPlotData = hm |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
+                        //        hm, boxPlotData
+                        //    else 
+                        //        model.boxPlotProbes, mTwoD.boxPlotData
 
                         let updatedTwoDmodel = 
                             { mTwoD with
                                 sphereFilter = Some sphereTransformed
                                 data = { version = mTwoD.data.version + 1; arr = filteredData}
-                                attributeText = attributeAsString
-                                boxPlotData = dataForBoxPlot
+                                //attributeText = attributeAsString
+                                //boxPlotData = dataForBoxPlot
                                 //boxPlotAttribute = renderValueToString newCurrBoxPlotAttrib
                             }
 
@@ -1268,7 +1306,7 @@ module AppUpdate =
                             existingProbeModified = false
                             holdingSphere = false
                             sphereScale = 1.0
-                            boxPlotProbes = newHashmap
+                            //boxPlotProbes = newHashmap
                             //currBoxPlotAttribSet = true
                             //currBoxPlotAttrib = newCurrBoxPlotAttrib
                             twoDModel = updatedTwoDmodel
@@ -1399,7 +1437,7 @@ module AppUpdate =
                             let currProbe = 
                                 model.allProbes
                                 |> HashMap.filter (fun k probe -> 
-                                    probe.selected && probe.numberId = key
+                                    probe.currSelected && probe.numberId = key
                                 )
                                 |> HashMap.toSeq
                                 |> Seq.exactlyOne
