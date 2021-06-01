@@ -118,25 +118,6 @@ module AppUpdate =
     let rec update (runtime : IRuntime) (client : Browser) (histogramClient : Browser) (boxPlotClient : Browser) (viewTrafo : aval<Trafo3d>) (projTrafo : aval<Trafo3d>) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
         let mTwoD = model.twoDModel
 
-        let defaultTex = allTextures.Item "empty"
-        let getTexture tex = Option.defaultValue defaultTex tex
-        let texture tex = allTextures.TryFind(tex) |> getTexture    
-
-        let computeNewAttributeTextures (newAttribute : RenderValue) = //(currAttribute : RenderValue) = 
-            //match currAttribute with 
-            //| a when a = newAttribute && newAttribute <> RenderValue.Energy -> model.touchpadTexture, model.contrScreenTexture // if the attribute is the same then texture should not be loaded again   
-            //| _ ->
-            let texName, screenTexName = 
-                match newAttribute with 
-                | RenderValue.Energy -> "top-right", "energy"
-                | RenderValue.CubicRoot -> "top-middle", "cubicroot"
-                | RenderValue.Strain -> "top-left", "strain"
-                | RenderValue.AlphaJutzi -> "bottom-left", "alphajutzi"
-                | RenderValue.Pressure -> "bottom-middle", "pressure"
-                | RenderValue.Density -> "bottom-right", "density"
-                | _ -> "initial-attributes", "select-attribute"
-            (texture texName), (texture screenTexName)
-
         let callUpdate (msg : Message) = update runtime client histogramClient boxPlotClient viewTrafo projTrafo frames state vr model msg
        
         //let currTex =
@@ -167,28 +148,6 @@ module AppUpdate =
        // printf "ViewProj Trafo: %A \n" (AVal.force(viewProjTrafoAVal))
 
         //printf "VR STATE: %A \n" state
-
-        // https://stackoverflow.com/questions/3717226/radius-of-projected-sphere
-        let probeInScreenCoordinates (probeCenter : V3d) (radius : float) = 
-            let center_view = viewTr.Forward.TransformPos(probeCenter)
-            let pointOnSphere = probeCenter + V3d(radius, 0.0, 0.0)
-            let pointOnSphere_view = viewTr.Forward.TransformPos(pointOnSphere)
-            let radius_view = center_view.Distance(pointOnSphere_view)
-            let pointOnSphere_perpendicular = center_view + V3d(radius_view, 0.0, 0.0)
-            let center_screen = projTr.Forward.TransformPosProj(center_view)
-            let pointOnSphere_screen = projTr.Forward.TransformPosProj(pointOnSphere_perpendicular)
-            let radius_screen = center_screen.Distance(pointOnSphere_screen)
-            center_screen, radius_screen
-
-        let computeSleepTime (dataSize : int) = 
-            match dataSize with 
-            | d when 800000 <= d -> 1800
-            | d when (500000 <= d && d < 800000) || model.firstHistogram -> 1400
-            | d when 100000 <= d && d < 500000 -> 800
-            | d when 50000 <= d && d < 100000 -> 300
-            | d when 10000 <= d && d < 50000 -> 200
-            | d when 100 <= d && d < 10000 -> 130
-            | _ -> 100
 
         match msg with
         | ThreeD _ -> model
@@ -316,326 +275,22 @@ module AppUpdate =
                         mainContrScreenTexture = texture "empty"}
             | _ -> model
         | MoveController (id, (trafo : Trafo3d)) -> 
-            let newInput = model.devicesTrafos.Add(id, trafo)
-            let mainContrTrafo = newOrOldTrafo id trafo model.mainControllerId model.mainControllerTrafo
-            let secondContrTrafo = newOrOldTrafo id trafo model.secondControllerId model.secondControllerTrafo
-
-            let temp = 
-                model
-                |> updateSphereScalingFactor
-                |> updateTvTrafos
-                |> updateRay client
-
-            //CURRENT SPHERE UPDATE
-            let scalingFactor =
-                if not model.scalingSphere then
-                    model.sphereScale
-                else 
-                    let contrPos = model.mainControllerTrafo.Forward.TransformPos(V3d.OOO)
-                    let scalerPos = model.secondControllerTrafo.Forward.TransformPos(V3d.OOO)
-                    let distance = contrPos.Distance(scalerPos)
-                    let newScale = (4.0/3.0)*Math.PI*Math.Pow((distance + model.sphereRadius), 3.0)
-                    newScale + model.sphereRadius/2.0
-
-            let newTvScaleTrafo = 
-                if model.grabbingTV && model.mainTouching then
-                    //printf "UPDATE SCALING \n"
-                    Trafo3d(Scale3d(model.scalingFactorTv))
-                else 
-                    model.lastTvScaleTrafo
-
-            let newTvTransformations, updatedTvQuad = 
-                if model.grabbingTV then 
-                    let tvTrafo = model.tvToControllerTrafo * mainContrTrafo
-                    let rotation = Trafo3d.RotationEulerInDegrees(90.0, 0.0, -90.0)
-                    let translation = Trafo3d.Translation(2.5, 1.0, 1.5)
-
-                    let newTvTrafos = newTvScaleTrafo * rotation * translation * tvTrafo
-                    let newTvQuad = newTvTrafos.Forward.TransformedPosArray(browserQuad.Points.ToArray(4)) |> Quad3d
-
-                    newTvTrafos, newTvQuad
-                else 
-                    model.tvTransformations, model.tvQuad
-            
-            //RAY UPDATE
-            let initRay = 
-                if model.rayActive then
-                    let origin = mainContrTrafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
-                    let direction = mainContrTrafo.Forward.TransformPos(V3d.OIO * 1000.0)
-                    Ray3d(origin, direction)
-                else Ray3d.Invalid    
-            //let intersect = initRay.Intersects(model.tvQuad)
-            let mutable hit = RayHit3d.MaxRange
-            let hitPoint = if model.rayActive then initRay.Hits(updatedTvQuad, &hit) else false
-            let currRay, rColor, screenCoordsHitPos =
-                if model.rayActive then 
-                    if hitPoint then
-                        let screenCoords = (V2d(hit.Coord.X * screenResolution.ToV2d().X, hit.Coord.Y * screenResolution.ToV2d().Y)).ToV2i()
-                        let screenPos = PixelPosition(screenCoords, screenResolution.X, screenResolution.Y)
-                        if model.rayTriggerClicked then
-                            client.Mouse.Move(screenPos)
-                        Ray3d(initRay.Origin, hit.Point), C4b.Green, screenPos
-                    else
-                        initRay, C4b.Red, PixelPosition()
-                else Ray3d.Invalid, C4b.Red, PixelPosition()
-                    
-
-            let newHeraScaleTrafo = 
-                if model.grabbingHera && model.mainTouching then
-                    //printf "UPDATE SCALING \n"
-                    Trafo3d(Scale3d(model.scalingFactorHera))
-                else 
-                    model.lastHeraScaleTrafo
-    
-            //HERA TRANSFORMATIONS UPDATE
-            let heraTrafos = 
-                if model.grabbingHera then
-                    let heraTrafo = model.heraToControllerTrafo * mainContrTrafo
-                    //let newHeraScaleTrafo = if model.mainTouching then  Trafo3d(Scale3d(model.scalingFactorHera)) else Trafo3d.Identity
-                    //let heraScaleTrafo = Trafo3d(Scale3d(model.scalingFactorHera))
-                    let heraTranslation = Trafo3d.Translation(0.0, 0.0, 0.7)
-                    newHeraScaleTrafo * heraTranslation * heraTrafo
-                else 
-                    model.heraTransformations
-            let heraBBox = model.twoDModel.currHeraBBox.Transformed(heraTrafos)
-
-            //INTERSECTION OF MAIN CONTROLLER WITH A PROBE
-            let mainContrProbeIntersection = 
-                match model.mainControllerId with 
-                | Some i when i = id && not model.currentProbeManipulated && not model.grabbingHera ->
-                    let intersectionContrTrafoPos = model.mainControllerTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
-                    let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
-                    model.allProbes
-                    |> HashMap.filter (fun key probe ->
-                        let sphere = Sphere3d(probe.center, probe.radius)
-                        sphereIntersection controllerSphere sphere)
-                    |> HashMap.toSeq
-                    |> Seq.map (fun (key, probe) -> key)
-                    |> Seq.tryLast    
-                | None -> None
-                | _ -> model.mainContrProbeIntersectionId
-
-            //INTERSECTION OF MAIN CONTROLLER WITH A BOX PLOT
-            let mainContrBoxPlotIntersection = 
-                match model.mainControllerId with 
-                | Some i when i = id && mainContrProbeIntersection.IsNone && not model.grabbingHera ->
-                    let intersectionContrTrafoPos = model.mainControllerTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
-                    let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
-                    model.allPlacedBoxPlots
-                    |> HashMap.filter (fun key boxPlot -> controllerSphere.BoundingBox3d.Intersects(boxPlot.positions))
-                    |> HashMap.toSeq
-                    |> Seq.map (fun (key, boxPlot) -> key)
-                    |> Seq.tryLast    
-                | None -> None
-                | _ -> model.mainContrBoxPlotIntersectionId
-
-            //INTERSECTION OF SECOND CONTROLLER WITH A PROBE
-            let secondContrProbeIntersection = 
-                match model.secondControllerId with 
-                | Some i when i = id && not model.currentProbeManipulated && not model.grabbingHera ->
-                    let intersectionContrTrafoPos = model.secondControllerTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
-                    let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
-                    model.allProbes
-                    |> HashMap.filter (fun key probe ->
-                        let sphere = Sphere3d(probe.center, probe.radius)
-                        sphereIntersection controllerSphere sphere)
-                    |> HashMap.toSeq
-                    |> Seq.map (fun (key, probe) -> key)
-                    |> Seq.tryLast    
-                | None -> None
-                | _ -> model.secondContrProbeIntersectionId
-
-            //INTERSECTION OF SECOND CONTROLLER WITH A BOX PLOT
-            let secondContrBoxPlotIntersection = 
-                match model.secondControllerId with 
-                | Some i when i = id && secondContrProbeIntersection.IsNone && not model.grabbingHera ->
-                    let intersectionContrTrafoPos = model.secondControllerTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
-                    let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
-                    model.allPlacedBoxPlots
-                    |> HashMap.filter (fun key boxPlot -> controllerSphere.BoundingBox3d.Intersects(boxPlot.positions))
-                    |> HashMap.toSeq
-                    |> Seq.map (fun (key, boxPlot) -> key)
-                    |> Seq.tryLast    
-                | None -> None
-                | _ -> model.secondContrBoxPlotIntersectionId
-
-            //CLIPPING PLANE UPDATE
-            let currCorners = 
-                if model.holdClipping && model.clippingActive then
-                    let p0 = mainContrTrafo.Forward.TransformPos(planePos0)
-                    let p1 = mainContrTrafo.Forward.TransformPos(planePos1)
-                    let p2 = mainContrTrafo.Forward.TransformPos(planePos2)
-                    let p3 = mainContrTrafo.Forward.TransformPos(planePos3)
-                    Quad3d(p0, p1, p2, p3)
-                else model.planeCorners
-
-            let secondContrClippingIntersection =
-                match model.secondControllerId with 
-                | Some i when i = id && not model.holdClipping && currCorners.IsValid ->
-                    let intersectionContrTrafoPos = model.secondControllerTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
-                    let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
-                    controllerSphere.BoundingBox3d.Intersects(currCorners)
-                | _ -> 
-                    if model.holdClipping || not currCorners.IsValid then false else 
-                        model.interesctingClippingPlane
-
-            ////UPDATE MAIN CONTROLLER TEXTURES WHEN INTERSECTING WITH A PROBE
-            let tex, screenTex = 
-                if not model.grabbingHera && not model.mainMenuOpen then 
-                    match mainContrProbeIntersection with
-                    | Some probeId when model.allProbes.TryFind(probeId).IsSome ->
-                        let intersectedProbe = model.allProbes.Item probeId
-                        let billboard = intersectedProbe.currBillboard
-                        let texName, screenTexName =    
-                            match billboard with
-                            | BillboardType.Histogram -> "histogram-selected", "histogram"
-                            | BillboardType.Statistic -> "statistics-selected", "statistics"
-                            | _ -> "histogram-selected", "histogram"
-                        (texture texName), (texture screenTexName)
-                    | _ ->
-                        if model.controllerMode = ControllerMode.Probe then
-                            let newContrScreenTexture = 
-                                match model.attribute with 
-                                | RenderValue.Energy -> texture "probe-energy"
-                                | RenderValue.CubicRoot -> texture "probe-cubicroot"
-                                | RenderValue.Strain -> texture "probe-strain"
-                                | RenderValue.AlphaJutzi -> texture "probe-alphajutzi"
-                                | RenderValue.Pressure -> texture "probe-pressure"
-                                | RenderValue.Density -> texture "probe-density"
-                                | _ -> model.mainContrScreenTexture
-                            model.mainTouchpadTexture, newContrScreenTexture
-                        else 
-                            model.mainTouchpadTexture, model.lastContrScreenModeTexture
-                else 
-                    model.mainTouchpadTexture, model.mainContrScreenTexture
-
-            let secondTex, secondContrScreenTex = 
-                if secondContrProbeIntersection.IsSome || secondContrClippingIntersection then
-                    model.secondTouchpadTexture, (texture "delete-object") 
-                else     
-                    if not model.mainMenuOpen && not model.secondTouching && mainContrProbeIntersection.IsNone && not model.grabbingHera && model.controllerMode = ControllerMode.Probe then 
-                        model.secondTouchpadTexture, (texture "select-attribute") 
-                    else
-                        if model.controllerMode = ControllerMode.Analyze then
-                            computeNewAttributeTextures model.currBoxPlotAttrib
-                        else 
-                            match mainContrProbeIntersection with 
-                            | Some probeId when model.allProbes.TryFind(probeId).IsSome ->
-                                let intersectedProbe = model.allProbes.Item probeId
-                                let probeAttrib = intersectedProbe.currAttribute
-                                computeNewAttributeTextures probeAttrib
-                            | _ ->
-                                if model.secondTouching then model.secondTouchpadTexture, model.secondContrScreenTexture else model.secondTouchpadTexture, texture ("empty")
-
-            //PROBES UPDATE WHEN HERA GRABBED
-            let probesUpdate =
-                if model.grabbingHera && not model.allProbes.IsEmpty then 
-                    model.allProbes
-                    |> HashMap.map (fun key probe -> 
-                        let newCenter = heraTrafos.Forward.TransformPos(probe.centerRelToHera)
-                        let newRadius = probe.radiusRelToHera * heraTrafos.Forward.GetScaleVector3().X
-                        //let sphere = Sphere3d(newCenter, newRadius)
-                        //let intersection = heraBBox.Intersects(sphere)
-                        { probe with 
-                            center = newCenter
-                            radius = newRadius
-                            //insideHera = intersection
-                        }
-                    )
-                else 
-                    model.allProbes      
-
-            // UPDATE VISIBILITY OF THE BILLBOARDS ABOVE PROBES
-            let allProbesUpdated = 
-                if model.allProbes.Count >= 2 && not model.grabbingHera then
-                    probesUpdate
-                    |> HashMap.map (fun key probe -> 
-                        let currProbeIntersected = 
-                            match mainContrProbeIntersection with 
-                            | Some prKey when prKey = key -> true
-                            | _ -> false
-                        let allProbesWithoutCurrent = probesUpdate.Remove(key)
-                        let probePos, probeRadius = probeInScreenCoordinates probe.center probe.radius
-                        let statisticsVisible = 
-                            if currProbeIntersected then true
-                            else
-                                allProbesWithoutCurrent
-                                |> HashMap.forall (fun k p ->
-                                    //let distanceWorld = probe.center.Distance(p.center)
-                                    //let allowedMinDistanceWorld = 0.65 * (probe.radius + p.radius)
-                                    //let depthCurr = hmdPos.Distance(probe.center)
-                                    //let depth = hmdPos.Distance(p.center)
-                                    let pPos, pRadius = probeInScreenCoordinates p.center p.radius
-                                    let distance = probePos.XY.Distance(pPos.XY)
-                                    let allowedMinDistance = 0.65 * (probeRadius + pRadius)
-                                    //let allowedMinDistanceHisto = 0.85 * (probeRadius + pRadius)
-                                    if (distance < allowedMinDistance) then // checks if the two probes intersect
-                                        if probePos.Z < pPos.Z then // checks wether the current probe is closer to the screen
-                                            match mainContrProbeIntersection with 
-                                            | Some prKey when prKey = k -> false
-                                            | _ -> true
-                                        else not p.showStatistics
-                                    else true
-                            )
-                        {probe with 
-                            showStatistics = statisticsVisible
-                            showHistogram = statisticsVisible}
-                    )
-                else 
-                    probesUpdate
-
-            // UPDATE TEXTURES VISIBILITY
-            let showMainTexture = mainContrProbeIntersection.IsSome || model.grabbingHera || model.mainMenuOpen || model.grabbingTV
-
-            let showSecondTexture = 
-                secondContrProbeIntersection.IsNone && not secondContrClippingIntersection && 
-                (((model.controllerMode = ControllerMode.Probe) && not showMainTexture && model.secondTouching) || 
-                    mainContrProbeIntersection.IsSome || model.controllerMode = ControllerMode.Analyze) 
-
-            let updateTakenBoxPlot = 
-                if model.movingBoxPlot then 
-                    let bp = model.takenBoxPlot.Value
-                    let newTrafo = defaultBoxPlotsTrafo * mainContrTrafo
-                    let updateBP = {bp with trafo = newTrafo}
-                    Some updateBP
-                else 
-                    model.takenBoxPlot
-        
-            {model with 
-                devicesTrafos = newInput
-                mainControllerTrafo = mainContrTrafo
-                secondControllerTrafo = secondContrTrafo
-                sphereScale = scalingFactor
-                ray = currRay
-                planeCorners = currCorners
-                screenIntersection = hitPoint
-                rayColor = rColor
-                clippingColor = if secondContrClippingIntersection then C4b(1.0,0.0,0.0,0.2) else C4b(1.0,1.0,0.1,0.2)
-                interesctingClippingPlane = secondContrClippingIntersection
-                hitPoint = hit.Point
-                screenHitPoint = hit.Coord
-                tvTransformations = newTvTransformations
-                lastTvScaleTrafo = newTvScaleTrafo
-                tvQuad = updatedTvQuad
-                screenCoordsHitPos = screenCoordsHitPos
-                mainContrProbeIntersectionId = mainContrProbeIntersection
-                mainContrBoxPlotIntersectionId = mainContrBoxPlotIntersection
-                secondContrProbeIntersectionId = secondContrProbeIntersection
-                secondContrBoxPlotIntersectionId = secondContrBoxPlotIntersection
-                takenBoxPlot = updateTakenBoxPlot
-                mainTouchpadTexture = tex
-                mainContrScreenTexture = screenTex
-                secondTouchpadTexture = secondTex
-                secondContrScreenTexture = secondContrScreenTex
-                showMainTexture = showMainTexture
-                showSecondTexture = showSecondTexture
-                heraBox = heraBBox
-                allProbes = allProbesUpdated
-                heraTransformations = heraTrafos
-                lastHeraScaleTrafo = newHeraScaleTrafo
-                //selectedProbesPositions = updateCurrVisualLinks
-                //allPlacedBoxPlots = updateBoxPlotVisualLinks
-                newProbePlaced = (if model.newProbePlaced then false else model.newProbePlaced)}
+            model
+            |> updateDevicesTrafos id trafo
+            |> updateSphereScalingFactor
+            |> updateTvTrafos
+            |> updateRay client
+            |> updateHeraTrafos
+            |> updateProbeIntersections id
+            |> updateBoxPlotIntersections id
+            |> updateClippingPlane
+            |> updateSecondControllеrClippingIntersection id
+            |> updateMainControllerTextures
+            |> updateSecondControllerTextures
+            |> updateProbesWhenGrabbing
+            |> updateBillboardsVisibility viewTr projTr
+            |> updateTexturesVisibility
+            |> updateTakenBoxPlot
         | ActivateControllerMode id ->
             match model.mainControllerId with 
             | Some i when i = id && not model.mainMenuOpen && model.mainContrBoxPlotIntersectionId.IsNone && not model.movingBoxPlot  -> 
@@ -1038,7 +693,7 @@ module AppUpdate =
                                 //boxPlotAttribute = renderValueToString newCurrBoxPlotAttrib
                             }
 
-                        let sleepTime = computeSleepTime filteredData.Length
+                        let sleepTime = computeSleepTime model.firstHistogram filteredData.Length
 
                         let threadsVr = 
                             proclist { 
@@ -1253,7 +908,7 @@ module AppUpdate =
                                 attributeText = attributeAsText
                                 }
 
-                        let sleepTime = computeSleepTime filteredData.Length
+                        let sleepTime = computeSleepTime model.firstHistogram filteredData.Length
 
                         let threadsVr = 
                             proclist { 

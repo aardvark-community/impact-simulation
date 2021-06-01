@@ -106,6 +106,25 @@ module UpdateFunctions =
                            "pause-stop", fromStreamToTexture "pause-stop.png";
                            "pause-screenshot", fromStreamToTexture "pause-screenshot.png"]
 
+    let defaultTex = allTextures.Item "empty"
+    let getTexture tex = Option.defaultValue defaultTex tex
+    let texture tex = allTextures.TryFind(tex) |> getTexture    
+
+    let computeNewAttributeTextures (newAttribute : RenderValue) = //(currAttribute : RenderValue) = 
+        //match currAttribute with 
+        //| a when a = newAttribute && newAttribute <> RenderValue.Energy -> model.touchpadTexture, model.contrScreenTexture // if the attribute is the same then texture should not be loaded again   
+        //| _ ->
+        let texName, screenTexName = 
+            match newAttribute with 
+            | RenderValue.Energy -> "top-right", "energy"
+            | RenderValue.CubicRoot -> "top-middle", "cubicroot"
+            | RenderValue.Strain -> "top-left", "strain"
+            | RenderValue.AlphaJutzi -> "bottom-left", "alphajutzi"
+            | RenderValue.Pressure -> "bottom-middle", "pressure"
+            | RenderValue.Density -> "bottom-right", "density"
+            | _ -> "initial-attributes", "select-attribute"
+        (texture texName), (texture screenTexName)
+
     let trafoOrIdentity trafo = Option.defaultValue Trafo3d.Identity trafo
     
     let newOrOldTrafo (id : int) (trafo : Trafo3d) (contrId : Option<int>) (contrTrafo : Trafo3d) =
@@ -116,8 +135,19 @@ module UpdateFunctions =
     let idIsSet (contrId : Option<int>) = contrId.IsSome
     
     let sphereIntersection (controllerSphere : Sphere3d) (probe : Sphere3d) = controllerSphere.Intersects(probe)
+
+    // https://stackoverflow.com/questions/3717226/radius-of-projected-sphere
+    let probeInScreenCoordinates (viewTr : Trafo3d) (projTr : Trafo3d) (probeCenter : V3d) (radius : float) = 
+        let center_view = viewTr.Forward.TransformPos(probeCenter)
+        let pointOnSphere = probeCenter + V3d(radius, 0.0, 0.0)
+        let pointOnSphere_view = viewTr.Forward.TransformPos(pointOnSphere)
+        let radius_view = center_view.Distance(pointOnSphere_view)
+        let pointOnSphere_perpendicular = center_view + V3d(radius_view, 0.0, 0.0)
+        let center_screen = projTr.Forward.TransformPosProj(center_view)
+        let pointOnSphere_screen = projTr.Forward.TransformPosProj(pointOnSphere_perpendicular)
+        let radius_screen = center_screen.Distance(pointOnSphere_screen)
+        center_screen, radius_screen
         
-    
     let createProbe (numberId : int) (currSelected : bool) (selected : bool) (timesSelected : int) (color : C4b) (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) 
                     (inside : bool) (allData : HashMap<RenderValue, (float[] * string)>) 
                     (attribute : RenderValue) (showStats : bool) (showHisto : bool) 
@@ -208,3 +238,13 @@ module UpdateFunctions =
         let pixImage = PixImage<byte>(Col.Format.BGRA,boxPlotClient.Size.GetValue())
         let temp = pixImage.GetMatrix<C4b>().SetByCoord(fun (v : V2l) -> color) 
         pixImage :> PixImage
+
+    let computeSleepTime (firstHistogram : bool) (dataSize : int) = 
+        match dataSize with 
+        | d when 800000 <= d -> 1800
+        | d when (500000 <= d && d < 800000) || firstHistogram -> 1400
+        | d when 100000 <= d && d < 500000 -> 800
+        | d when 50000 <= d && d < 100000 -> 300
+        | d when 10000 <= d && d < 50000 -> 200
+        | d when 100 <= d && d < 10000 -> 130
+        | _ -> 100
