@@ -21,6 +21,22 @@ type ControllerMode =
     | Analyze = 3
     | NoneMode = 4
 
+type AnalyzeMode = 
+    | Region = 0
+    | Time = 1
+
+type AnimationFlow = 
+    | Playing = 0
+    | Paused = 1
+
+type PlaybackMode = 
+    | AnimationFlow = 0
+    | Forward = 1
+    | Backward = 2
+    | Stop = 3
+    | Screenshot = 4
+    | None = 5
+
 type ProbeType = 
     | Sphere = 0 
     | Box = 1
@@ -97,6 +113,8 @@ type Message =
     | OpenMainMenu of int
     | ChangeTouchpadPos of int * V2d
     | ChangeMainControllerMode of int
+    | ChangeAnalyzeMode of int
+    | ChangeAnimationPlayback of int
     | ChangeBillboard of int
     | SelectGlobalAttribute of int
     | SelectProbeAttribute of int
@@ -130,6 +148,9 @@ type Model =
         threads : ThreadPool<Message>
         firstHistogram : bool
         showBillboard : bool
+
+        playbackMode : PlaybackMode
+        currAnimationFlow : AnimationFlow
 
         //Controllers
         devicesTrafos : HashMap<int, Trafo3d>
@@ -217,6 +238,7 @@ type Model =
         //Main controller menu
         mainMenuOpen : bool
         controllerMode : ControllerMode
+        analyzeMode : AnalyzeMode
         menuLevel : int 
 
         //Second controller menu

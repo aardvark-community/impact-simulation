@@ -209,7 +209,7 @@ module MoveControllerFunctions =
                             | _ -> model.mainContrScreenTexture
                         model.mainTouchpadTexture, newContrScreenTexture
                     else 
-                        model.mainTouchpadTexture, model.lastContrScreenModeTexture
+                        model.mainTouchpadTexture, model.mainContrScreenTexture
             else 
                 model.mainTouchpadTexture, model.mainContrScreenTexture
         {model with

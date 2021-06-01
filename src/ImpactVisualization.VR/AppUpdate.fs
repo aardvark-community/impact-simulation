@@ -98,6 +98,7 @@ module AppUpdate =
             secondMenuOpen = false
             menuLevel = 0
             controllerMode = ControllerMode.NoneMode
+            analyzeMode = AnalyzeMode.Region
             attribute = RenderValue.NoValue
             currMainTouchPadPos = V2d.OO
             currSecondTouchPadPos = V2d.OO
@@ -422,7 +423,7 @@ module AppUpdate =
             | _ -> model
         | SelectBoxPlotProbes id ->
             match model.mainControllerId with 
-            | Some i when i = id && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze -> 
+            | Some i when i = id && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Region -> 
                 match model.mainContrProbeIntersectionId with 
                 | Some probeId ->
                     let intersectedProbe = model.allProbes.Item probeId
@@ -746,7 +747,8 @@ module AppUpdate =
                     | Some i when i = id ->
                         match model.menuLevel with
                         | 0 -> goToNextMenu
-                        | 1 -> closeMenu //if model.controllerMode = ControllerMode.Probe then goToNextMenu else closeMenu
+                        | 1 -> if model.controllerMode = ControllerMode.Analyze then goToNextMenu else closeMenu
+                        | 2 -> closeMenu
                         | _ -> closeMenu
                     | _ -> model.menuLevel, model.mainMenuOpen
                 else 
@@ -759,7 +761,7 @@ module AppUpdate =
             let texture, screenTexture =
                 match model.menuLevel with
                 | l when l = 1 -> if model.controllerMode = ControllerMode.NoneMode then (texture "initial"), (texture "select-tool") else model.lastTouchpadModeTexture, model.lastContrScreenModeTexture
-                | l when l = 2 -> (texture "initial-attributes"), (texture "select-attribute") //TODO: will be changed
+                | l when l = 2 -> (texture "analyze-region"), (texture "analyze-region-screen") //TODO: will be changed
                 | _ -> model.mainTouchpadTexture, model.mainContrScreenTexture
             if model.mainMenuOpen then
                 {model with 
@@ -803,6 +805,78 @@ module AppUpdate =
                     rayActive = false
                     clippingActive = false}
             | _ -> model
+        | ChangeAnalyzeMode id ->
+            match model.mainControllerId with 
+            | Some i when i = id && model.mainMenuOpen && model.menuLevel = 2 && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone ->
+                let r, theta = convertCartesianToPolar model.currMainTouchPadPos
+                let newAnalyzeMode = 
+                    match theta with 
+                    | t when (t >= 0.0 && t < 90.0) || (t >= 270.0 && t < 360.0) -> AnalyzeMode.Time
+                    | t when t >= 90.0 && t < 270.0 -> AnalyzeMode.Region
+                    | _ -> model.analyzeMode
+                let tex, screenTexture = 
+                    match model.analyzeMode with 
+                    | m when m = newAnalyzeMode -> model.mainTouchpadTexture, model.mainContrScreenTexture // if the  controller mode is the same then texture should not be loaded again   
+                    | _ ->
+                        let texName, screenTexName = 
+                            match newAnalyzeMode with
+                            | AnalyzeMode.Region -> "analyze-region", "analyze-region-screen" 
+                            | AnalyzeMode.Time -> "analyze-time", "analyze-time-screen" 
+                            | _ -> "analyze-region", "analyze-region-screen"
+                        (texture texName), (texture screenTexName)
+                {model with 
+                    analyzeMode = newAnalyzeMode
+                    mainTouchpadTexture = tex
+                    mainContrScreenTexture = screenTexture}
+            | _ -> model
+        | ChangeAnimationPlayback id ->
+            match model.mainControllerId with 
+            | Some i when i = id && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && 
+                model.analyzeMode = AnalyzeMode.Time && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone ->
+                let r, theta = convertCartesianToPolar model.currMainTouchPadPos
+                let newPlaybackMode = 
+                    if r >= 0.4 then 
+                        match theta with 
+                        | t when (t >= 0.0 && t < 45.0) || (t >= 315.0 && t < 360.0)  -> PlaybackMode.Forward
+                        | t when t >= 45.0  && t < 135.0 -> PlaybackMode.Screenshot
+                        | t when t >= 135.0 && t < 225.0 -> PlaybackMode.Backward
+                        | t when t >= 225.0 && t < 315.0 -> PlaybackMode.Stop
+                        | _ -> PlaybackMode.None
+                    else 
+                        PlaybackMode.AnimationFlow
+                let newAnimationFlow =
+                    match model.currAnimationFlow with
+                    | AnimationFlow.Playing ->  AnimationFlow.Paused 
+                    | AnimationFlow.Paused -> AnimationFlow.Playing
+                    | _ -> AnimationFlow.Paused 
+                let tex, screenTexture = 
+                    //match model.analyzeMode with 
+                    //| m when m = newAnalyzeMode -> model.mainTouchpadTexture, model.mainContrScreenTexture // if the  controller mode is the same then texture should not be loaded again   
+                    //| _ ->
+                        let texName, screenTexName = 
+                            match newAnimationFlow with
+                            | AnimationFlow.Playing ->
+                                match newPlaybackMode with 
+                                | PlaybackMode.Forward -> "pause-forward" ,"analyze-time-screen" 
+                                | PlaybackMode.Backward -> "pause-backward" ,"analyze-time-screen" 
+                                | PlaybackMode.Stop -> "pause-stop" ,"analyze-time-screen" 
+                                | PlaybackMode.Screenshot -> "pause-screenshot" ,"analyze-time-screen" 
+                                | PlaybackMode.AnimationFlow -> "pause-pause" ,"analyze-time-screen" 
+                                | PlaybackMode.None -> "pause-raw" ,"analyze-time-screen" 
+                            | AnimationFlow.Paused -> 
+                                match newPlaybackMode with 
+                                | PlaybackMode.Forward -> "play-forward" ,"analyze-time-screen" 
+                                | PlaybackMode.Backward -> "play-backward" ,"analyze-time-screen" 
+                                | PlaybackMode.Stop -> "play-stop" ,"analyze-time-screen" 
+                                | PlaybackMode.Screenshot -> "play-screenshot" ,"analyze-time-screen" 
+                                | PlaybackMode.AnimationFlow -> "play-play" ,"analyze-time-screen" 
+                                | PlaybackMode.None -> "play-raw" ,"analyze-time-screen" 
+                            | _ -> "play-raw" ,"analyze-time-screen"  
+                        (texture texName), (texture screenTexName)
+                      
+                model
+            | _ -> model
+                            
         | ChangeBillboard id ->
             match model.mainContrProbeIntersectionId with
             | Some probeId when not model.mainMenuOpen && not model.grabbingHera ->

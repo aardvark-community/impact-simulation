@@ -83,6 +83,7 @@ module Demo =
                      ScaleHera (controllerId, value.X); 
                      ScaleTv (controllerId, value.X); 
                      ChangeMainControllerMode controllerId; 
+                     ChangeAnalyzeMode controllerId;
                      ChangeBoxPlotAttribute controllerId;
                      SelectGlobalAttribute controllerId;
                      SelectProbeAttribute controllerId;
