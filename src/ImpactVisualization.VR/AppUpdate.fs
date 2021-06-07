@@ -99,6 +99,8 @@ module AppUpdate =
             menuLevel = 0
             controllerMode = ControllerMode.NoneMode
             analyzeMode = AnalyzeMode.Region
+            playbackMode = PlaybackMode.None
+            currAnimationFlow = AnimationFlow.Paused
             attribute = RenderValue.NoValue
             currMainTouchPadPos = V2d.OO
             currSecondTouchPadPos = V2d.OO
@@ -807,7 +809,7 @@ module AppUpdate =
             | _ -> model
         | ChangeAnalyzeMode id ->
             match model.mainControllerId with 
-            | Some i when i = id && model.mainMenuOpen && model.menuLevel = 2 && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone ->
+            | Some i when i = id && model.mainMenuOpen && model.menuLevel = 2 && model.mainTouching && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone ->
                 let r, theta = convertCartesianToPolar model.currMainTouchPadPos
                 let newAnalyzeMode = 
                     match theta with 
@@ -831,7 +833,7 @@ module AppUpdate =
             | _ -> model
         | ChangeAnimationPlayback id ->
             match model.mainControllerId with 
-            | Some i when i = id && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && 
+            | Some i when i = id && not model.mainMenuOpen && model.mainTouching && model.controllerMode = ControllerMode.Analyze && 
                 model.analyzeMode = AnalyzeMode.Time && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone ->
                 let r, theta = convertCartesianToPolar model.currMainTouchPadPos
                 let newPlaybackMode = 
@@ -844,17 +846,13 @@ module AppUpdate =
                         | _ -> PlaybackMode.None
                     else 
                         PlaybackMode.AnimationFlow
-                let newAnimationFlow =
-                    match model.currAnimationFlow with
-                    | AnimationFlow.Playing ->  AnimationFlow.Paused 
-                    | AnimationFlow.Paused -> AnimationFlow.Playing
-                    | _ -> AnimationFlow.Paused 
+
                 let tex, screenTexture = 
                     //match model.analyzeMode with 
                     //| m when m = newAnalyzeMode -> model.mainTouchpadTexture, model.mainContrScreenTexture // if the  controller mode is the same then texture should not be loaded again   
                     //| _ ->
                         let texName, screenTexName = 
-                            match newAnimationFlow with
+                            match model.currAnimationFlow with
                             | AnimationFlow.Playing ->
                                 match newPlaybackMode with 
                                 | PlaybackMode.Forward -> "pause-forward" ,"analyze-time-screen" 
@@ -863,6 +861,7 @@ module AppUpdate =
                                 | PlaybackMode.Screenshot -> "pause-screenshot" ,"analyze-time-screen" 
                                 | PlaybackMode.AnimationFlow -> "pause-pause" ,"analyze-time-screen" 
                                 | PlaybackMode.None -> "pause-raw" ,"analyze-time-screen" 
+                                | _ -> "pause-raw" ,"analyze-time-screen" 
                             | AnimationFlow.Paused -> 
                                 match newPlaybackMode with 
                                 | PlaybackMode.Forward -> "play-forward" ,"analyze-time-screen" 
@@ -871,12 +870,15 @@ module AppUpdate =
                                 | PlaybackMode.Screenshot -> "play-screenshot" ,"analyze-time-screen" 
                                 | PlaybackMode.AnimationFlow -> "play-play" ,"analyze-time-screen" 
                                 | PlaybackMode.None -> "play-raw" ,"analyze-time-screen" 
+                                | _ -> "play-raw" ,"analyze-time-screen" 
                             | _ -> "play-raw" ,"analyze-time-screen"  
                         (texture texName), (texture screenTexName)
-                      
-                model
+                {model with 
+                    playbackMode = newPlaybackMode
+                    //currAnimationFlow = newAnimationFlow
+                    mainTouchpadTexture = tex
+                    mainContrScreenTexture = screenTexture}
             | _ -> model
-                            
         | ChangeBillboard id ->
             match model.mainContrProbeIntersectionId with
             | Some probeId when not model.mainMenuOpen && not model.grabbingHera ->
@@ -1019,7 +1021,6 @@ module AppUpdate =
                 match model.secondControllerId with
                 | Some i when i = id -> pos, pos <> V2d.OO
                 | _ -> model.currSecondTouchPadPos, model.secondTouching
-
             {model with 
                 currMainTouchPadPos = mainPos
                 currSecondTouchPadPos = secondPos
@@ -1051,6 +1052,27 @@ module AppUpdate =
                 secondTouching = secondTouching}
              //{model with touchpadDeviceId = Some id} 
         | UntouchDevice id ->
+            //printf "Untouch"
+            let tex, screenTexture, animFlow = 
+                match model.mainControllerId with
+                | Some i when i = id && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Time && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone -> 
+                    let newAnimationFlow =
+                        if model.playbackMode = PlaybackMode.AnimationFlow then 
+                            match model.currAnimationFlow with
+                            | AnimationFlow.Playing ->  AnimationFlow.Paused 
+                            | AnimationFlow.Paused -> AnimationFlow.Playing
+                            | _ -> AnimationFlow.Paused 
+                        else if model.playbackMode = PlaybackMode.Stop then 
+                            AnimationFlow.Paused     
+                        else
+                            model.currAnimationFlow
+                    let texName, screenTexName = 
+                        match newAnimationFlow with
+                        | AnimationFlow.Playing -> "pause-raw" ,"analyze-time-screen" 
+                        | AnimationFlow.Paused -> "play-raw" ,"analyze-time-screen" 
+                        | _ -> "play-raw" ,"analyze-time-screen" 
+                    (texture texName), (texture screenTexName), newAnimationFlow
+                | _ -> model.mainTouchpadTexture, model.mainContrScreenTexture, model.currAnimationFlow
             let mainTouching = 
                 match model.mainControllerId with
                 | Some i when i = id -> false
@@ -1061,7 +1083,10 @@ module AppUpdate =
                 | _ -> model.secondTouching
             {model with 
                 mainTouching = mainTouching
-                secondTouching = secondTouching}
+                secondTouching = secondTouching
+                mainTouchpadTexture = tex
+                mainContrScreenTexture = screenTexture
+                currAnimationFlow = animFlow}
             //let tex = if model.allowHeraScaling then (texture "initial-scaling") else model.touchpadTexture
             //match model.touchpadDeviceId with 
             //| Some i when i = id -> 

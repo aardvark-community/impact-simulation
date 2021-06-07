@@ -73,10 +73,10 @@ module Demo =
             //| _ -> []
             []
         | VrMessage.Untouch(controllerId, buttonId) ->
-            //match buttonId with 
-            //| 0 -> [UntouchDevice controllerId]
-            //| _ -> []
-            []
+            match buttonId with 
+            | 0 -> [UntouchDevice controllerId]
+            | _ -> []
+            //[]
         | VrMessage.ValueChange(controllerId, buttonId, value) ->
             match buttonId with 
             | 0 ->  [ChangeTouchpadPos (controllerId, value); 
@@ -84,6 +84,7 @@ module Demo =
                      ScaleTv (controllerId, value.X); 
                      ChangeMainControllerMode controllerId; 
                      ChangeAnalyzeMode controllerId;
+                     ChangeAnimationPlayback controllerId;
                      ChangeBoxPlotAttribute controllerId;
                      SelectGlobalAttribute controllerId;
                      SelectProbeAttribute controllerId;

@@ -184,6 +184,7 @@ module MoveControllerFunctions =
             clippingColor = if secondContrClippingIntersection then C4b(1.0,0.0,0.0,0.2) else C4b(1.0,1.0,0.1,0.2)}
 
     let updateMainControllerTextures (model : Model) =
+        //printf "AnalyzeMode: %A \n" model.analyzeMode
         let tex, screenTex = 
             if not model.grabbingHera && not model.mainMenuOpen then 
                 match model.mainContrProbeIntersectionId with
@@ -285,7 +286,9 @@ module MoveControllerFunctions =
         {model with allProbes = allProbesUpdated}
 
     let updateTexturesVisibility (model : Model) =
-        let showMainTexture = model.mainContrProbeIntersectionId.IsSome || model.grabbingHera || model.mainMenuOpen || model.grabbingTV
+        let showMainTexture = 
+            model.mainContrProbeIntersectionId.IsSome || model.grabbingHera || model.mainMenuOpen || 
+            model.grabbingTV || (model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Time)
 
         let showSecondTexture = 
             model.secondContrProbeIntersectionId.IsNone && not model.interesctingClippingPlane && 
@@ -294,7 +297,6 @@ module MoveControllerFunctions =
         {model with 
             showMainTexture = showMainTexture
             showSecondTexture = showSecondTexture}
-
     let updateTakenBoxPlot (model : Model) = 
         let updateTakenBoxPlot = 
             if model.movingBoxPlot then 
