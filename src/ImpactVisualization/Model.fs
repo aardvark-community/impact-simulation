@@ -159,7 +159,11 @@ module VersionedArray =
 type Model =
     {
         cameraState : CameraControllerState
+        frameId : int
+        frameIdSetOutside : bool
         frame : int
+        allFrames : int
+        reverseAnimation : bool
         currHeraBBox : Box3d
 
         allProbesScreenPositions : V2d[]

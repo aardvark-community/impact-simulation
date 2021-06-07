@@ -149,7 +149,11 @@ module App =
         let model = 
             { 
             cameraState = FreeFlyController.initial; 
-            frame = 0;
+            frameId = 0
+            frameIdSetOutside = false
+            frame = 0
+            allFrames = frames.Length
+            reverseAnimation = false
             currHeraBBox = Box3d.Infinite
             allProbesScreenPositions = Array.empty
             pointSize = 8.0
@@ -427,7 +431,7 @@ module App =
 
     let update (frames : Frame[]) (m : Model) (msg : Message) =
 
-        let numOfFrames = frames.Length
+        //let numOfFrames = frames.Length
         let positions = frames.[m.frame].positions
         match msg with
         | SetPointSize s -> { m with pointSize = s }
@@ -509,8 +513,9 @@ module App =
                 transition = not m.transition
                 filteredAllFrames = filteredDataAllFrames}
         | StepTime -> 
-            let frameId =  (sw.Elapsed.TotalSeconds / 0.5) |> int
-            let currFrame = frameId % numOfFrames
+            let newFrameId = if m.frameIdSetOutside then m.frameId else (sw.Elapsed.TotalSeconds / 0.5) |> int
+            let curr = m.frameId % m.allFrames
+            let currFrame = if m.reverseAnimation then m.allFrames - curr - 1 else curr 
             // update filtered data using frameId and filter
             let isCurrentFilterSet = 
                 match m.boxFilter with 
@@ -528,6 +533,7 @@ module App =
 
             if m.playAnimation then sw.Start() else sw.Stop()
             { m with 
+                frameId = newFrameId
                 frame = currFrame 
                 currHeraBBox = currBBox
                 data = { version = m.data.version + 1; arr = currData }
@@ -951,7 +957,7 @@ module App =
 
 
         let sg = 
-            Sg.ofSeq [testPlaneSg; boxSg; sphereSg; testSphereSg]
+            Sg.ofSeq [heraSg; boxSg; sphereSg]
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting

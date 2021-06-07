@@ -123,6 +123,7 @@ type Message =
     | CreateRay of int //of int * Trafo3d
     | CreateClipping of int //of int * Trafo3d
     | SelectBoxPlotProbes of int 
+    | SelectBoxPlotProbeTime of int
     | PlaceBoxPlot of int
     | ChangeBoxPlotAttribute of int 
     | DeleteBoxPlot of int
@@ -213,7 +214,7 @@ type Model =
         newProbePlaced : bool
         existingProbeModified : bool
 
-        //Box Plot
+        //Box Plot Region
         boxPlotProbes : HashMap<int, float[]>
         lastProbeId : int
         currBoxPlotAttribSet : bool
@@ -227,6 +228,11 @@ type Model =
         takenBoxPlot : Option<BoxPlot>
         allCurrSelectedProbesIds : HashMap<int, Probe>
         selectedProbesPositions : (string * V3d) []
+
+        //Box Plot Time
+        //selectedProbe : Probe
+        //boxPlotFrames : HashMap<int, float[]>
+
                         
         //Controller clipping plane
         holdClipping : bool

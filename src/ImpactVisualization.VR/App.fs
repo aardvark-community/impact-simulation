@@ -122,6 +122,15 @@ module Demo =
         mode.SourceAlphaFactor <- BlendFactor.One
         mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
 
+        let cfg : Aardvark.Rendering.Text.TextConfig = 
+            {
+                font              = Font "Calibri"
+                color             = C4b.White
+                align             = TextAlignment.Center
+                flipViewDependent = true
+                renderStyle       = RenderStyle.Normal
+        }
+
         let textScreenSg = 
             Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"controllerText";"text.obj"])
             |> Sg.adapter
@@ -476,6 +485,29 @@ module Demo =
             |> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass2
 
+        let frameTextSg deviceId = 
+            let text = m.twoDModel.frame |> AVal.map (fun i -> "Frame: " + i.ToString())
+            let showTexture = 
+                (deviceId, m.mainControllerId)
+                ||> AVal.map2 (fun dId mId -> 
+                    match mId with 
+                    | Some id when id = dId -> true
+                    | _ -> false)
+            let showFrameText = 
+                (showTexture, m.controllerMode, m.analyzeMode) 
+                |||> AVal.map3 (fun show contrMode analyzeMode -> show && contrMode = ControllerMode.Analyze && analyzeMode = AnalyzeMode.Time)
+            text
+            |> AVal.map cfg.Layout
+            |> Sg.shapeWithBackground C4b.Gray10 Border2d.None
+            |> Sg.noEvents
+            |> Sg.transform (Trafo3d(Scale3d(0.05)))
+            //|> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+            |> Sg.transform (Trafo3d.RotationXInDegrees(35.0))
+            |> Sg.transform (Trafo3d.Translation(0.0, 0.05, 0.02))
+            |> Sg.onOff showFrameText
+            |> Sg.blendMode (AVal.constant mode)
+            |> Sg.pass pass3
+
         let deviceSgs = 
             info.state.devices |> AMap.toASet |> ASet.chooseA (fun (_,d) ->
                 //printf "Device Type: %A, %A \n" d.kind d.id
@@ -491,6 +523,7 @@ module Demo =
                         |> Sg.andAlso (smallControllersSgs d.id)
                         |> Sg.andAlso (boxPlotSg d.id)
                         |> Sg.andAlso (mainControllerSignSg d.id)
+                        |> Sg.andAlso (frameTextSg d.id)
                         |> Sg.trafo d.pose.deviceToWorld
                         |> Sg.onOff d.pose.isValid
                         |> Some
@@ -520,15 +553,6 @@ module Demo =
            // |> Sg.cullMode (CullMode.Front |> AVal.constant)
            // |> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass4
-
-        let cfg : Aardvark.Rendering.Text.TextConfig = 
-            {
-                font              = Font "Calibri"
-                color             = C4b.White
-                align             = TextAlignment.Center
-                flipViewDependent = true
-                renderStyle       = RenderStyle.Normal
-        }
         
         let probeHistogramPositions = AVal.constant  [|V3f(-1.77, -1.0, 0.0); V3f(1.77, -1.0, 0.0); V3f(1.77, 1.0, 0.0); V3f(-1.77, 1.0, 0.0)|]
 
