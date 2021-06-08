@@ -61,6 +61,7 @@ type Probe = {
     currSelected    : bool 
     selected        : bool
     timesSelected   : int 
+    timeAnalyze     : bool
     color           : C4b
     center          : V3d
     radius          : float
@@ -230,7 +231,7 @@ type Model =
         selectedProbesPositions : (string * V3d) []
 
         //Box Plot Time
-        probeAnalyzeTime : Option<Probe>
+        currProbeAnalyzeTime : Option<Probe>
         //boxPlotFrames : HashMap<int, float[]>
 
                         

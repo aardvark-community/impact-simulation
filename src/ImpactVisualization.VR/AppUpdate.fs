@@ -75,7 +75,7 @@ module AppUpdate =
             allPlacedBoxPlots = HashMap.empty
             allCurrSelectedProbesIds = HashMap.empty
             selectedProbesPositions = Array.empty
-            probeAnalyzeTime = None
+            currProbeAnalyzeTime = None
             rayActive = false
             ray = Ray3d.Invalid
             rayTriggerClicked = false
@@ -455,13 +455,13 @@ module AppUpdate =
                     let updatedProbe = 
                         if not isCurrSelected then 
                             {intersectedProbe with
-                                color = C4b.Yellow
+                                color = if intersectedProbe.timeAnalyze then intersectedProbe.color else C4b.Yellow
                                 numberId = model.lastProbeId
                                 currSelected = true
                                 timesSelected = intersectedProbe.timesSelected + 1}
                         else 
                             {intersectedProbe with
-                                color = if intersectedProbe.selected then C4b.Yellow else C4b.Blue
+                                color = if intersectedProbe.timeAnalyze then intersectedProbe.color else (if intersectedProbe.selected then C4b.Yellow else C4b.Blue)
                                 numberId = -1
                                 currSelected = false
                                 timesSelected = intersectedProbe.timesSelected - 1}
@@ -483,18 +483,29 @@ module AppUpdate =
             | _ -> model
         | SelectBoxPlotProbeTime id ->
             match model.mainControllerId with 
-            | Some i when i = id && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Region -> 
+            | Some i when i = id && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Time -> 
                 match model.mainContrProbeIntersectionId with 
-                | Some probeId -> 
-                    if model.probeAnalyzeTime.IsNone then 
-                        let currProbe = model.allProbes.TryFind(probeId)
-                        match currProbe with    
-                        | Some probe ->
-                            {model with probeAnalyzeTime = Some probe}
-                        | None -> model
-                    else
-                        {model with probeAnalyzeTime = None}
-                | None -> model
+                | Some probeId when model.allProbes.TryFind(probeId).IsSome -> 
+                    let currProbe = model.allProbes.Item probeId
+                    let newProbeAnalyzeTime, updatedProbe = 
+                        if model.currProbeAnalyzeTime.IsNone then 
+                            let updatedProbe = 
+                                {currProbe with 
+                                    timeAnalyze = true
+                                    color = C4b.Orange}
+                            Some currProbe, updatedProbe
+                        else
+                            let updatedProbe = 
+                                {currProbe with 
+                                    timeAnalyze = false
+                                    color = if currProbe.timesSelected >= 1 then C4b.Yellow else C4b.Blue}
+                            None, updatedProbe
+                    let update (pr : Option<Probe>) = updatedProbe 
+                    let allProbesUpdated = model.allProbes |> HashMap.update probeId update
+                    {model with
+                        currProbeAnalyzeTime = newProbeAnalyzeTime
+                        allProbes = allProbesUpdated}
+                | _ -> model
             | _ -> model
         | PlaceBoxPlot id ->
             match model.secondControllerId with 
@@ -514,7 +525,7 @@ module AppUpdate =
                     model.allProbes 
                     |> HashMap.map (fun key probe ->
                         {probe with 
-                            color = if probe.currSelected then C4b.Yellow else probe.color
+                            color = if probe.currSelected && not probe.timeAnalyze then C4b.Yellow else probe.color
                             numberId = -1
                             selected = if probe.currSelected then true else probe.selected
                             currSelected = false})
@@ -688,7 +699,7 @@ module AppUpdate =
                         //let currSelected = model.lastModifiedProbeIntId <> -1 
                         let color = if intersection then C4b.Blue else C4b.White
 
-                        let probe = createProbe model.lastModifiedProbeIntId false false 0 color spherePos sphereRadius spherePosTransformed radiusTransformed intersection allData attrib true true billboardType
+                        let probe = createProbe model.lastModifiedProbeIntId false false 0 false color spherePos sphereRadius spherePosTransformed radiusTransformed intersection allData attrib true true billboardType
 
                         let filteredData = if intersection then array else mTwoD.data.arr
                         //let attributeAsString = renderValueToString attrib

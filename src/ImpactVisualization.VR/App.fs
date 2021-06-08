@@ -61,7 +61,7 @@ module Demo =
             | 1 -> [TakeBoxPlot controllerId; ActivateControllerMode controllerId; 
                     ScaleProbe controllerId; DeleteProbe controllerId; 
                     DeleteClippingPlane controllerId; SelectBoxPlotProbes controllerId; 
-                    PlaceBoxPlot controllerId;DeleteBoxPlot controllerId]
+                    SelectBoxPlotProbeTime controllerId; PlaceBoxPlot controllerId; DeleteBoxPlot controllerId]
             | _ -> []
         | VrMessage.Unpress(controllerId, buttonId) ->
             match buttonId with 
