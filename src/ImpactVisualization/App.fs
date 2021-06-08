@@ -150,8 +150,8 @@ module App =
             { 
             cameraState = FreeFlyController.initial; 
             frameId = 0
-            frameIdSetOutside = false
             frame = 0
+            offsetId = 0
             reverseAnimation = false
             currHeraBBox = Box3d.Infinite
             allProbesScreenPositions = Array.empty
@@ -532,8 +532,9 @@ module App =
                 transition = not m.transition
                 filteredAllFrames = filteredDataAllFrames}
         | StepTime -> 
-            let newFrameId = if m.frameIdSetOutside then m.frameId else (sw.Elapsed.TotalSeconds / 0.5) |> int
-            let curr = m.frameId % frames.Length
+            //printfn "Frame: %A" (m.offsetId % frames.Length) 
+            let newFrameId = ((sw.Elapsed.TotalSeconds / 0.5) |> int) + (m.offsetId % frames.Length) + frames.Length
+            let curr = newFrameId % frames.Length
             let currFrame = if m.reverseAnimation then frames.Length - curr - 1 else curr 
             // update filtered data using frameId and filter
             let isCurrentFilterSet = 

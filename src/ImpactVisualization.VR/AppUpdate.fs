@@ -535,6 +535,7 @@ module AppUpdate =
                     boxPlotProbes = HashMap.empty
                     allCurrSelectedProbesIds = HashMap.empty
                     selectedProbesPositions = Array.empty
+                    currProbeAnalyzeTime = None
                     twoDModel = updatedTwoDmodel}
             | _ -> model
         | DeleteBoxPlot id ->
@@ -1080,7 +1081,7 @@ module AppUpdate =
              //{model with touchpadDeviceId = Some id} 
         | UntouchDevice id ->
             //printf "Untouch"
-            let tex, screenTexture, animFlow, play, frame, reversedAnim, setOutside = 
+            let tex, screenTexture, animFlow, play, frame, reversedAnim, offsetTimeId = 
                 match model.mainControllerId with
                 | Some i when i = id && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Time && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone -> 
                     let newAnimationFlow, playAnim =
@@ -1095,39 +1096,40 @@ module AppUpdate =
                             model.currAnimationFlow, mTwoD.playAnimation
                     let currFrameId = mTwoD.frameId
                     let allF = frames.Length
-                    let newFrameId, reverse, idSetOutside = 
+                    let offsetTime = mTwoD.offsetId
+                    let newFrameId, reverse, offset = 
                         match newAnimationFlow with
                         | AnimationFlow.Playing ->
                             match model.playbackMode with 
-                            | PlaybackMode.Forward -> currFrameId, false, false
-                            | PlaybackMode.Backward -> currFrameId, true, false
-                            | PlaybackMode.Stop -> 0, false, false 
-                            | PlaybackMode.Screenshot -> currFrameId, false, false
-                            | PlaybackMode.AnimationFlow -> currFrameId, false, false
-                            | PlaybackMode.None -> currFrameId, false, false
-                            | _ -> 0, false, false
+                            | PlaybackMode.Forward -> sw.Restart(); currFrameId, false, mTwoD.frame 
+                            | PlaybackMode.Backward -> sw.Restart(); currFrameId, true, (if mTwoD.frame = 0 then 0 else allF - mTwoD.frame)
+                            | PlaybackMode.Stop -> 0, false, 0 
+                            | PlaybackMode.Screenshot -> currFrameId, false, offsetTime
+                            | PlaybackMode.AnimationFlow -> currFrameId, false, offsetTime
+                            | PlaybackMode.None -> currFrameId, false, offsetTime
+                            | _ -> 0, false, offsetTime 
                         | AnimationFlow.Paused -> 
                             match  model.playbackMode with 
-                            | PlaybackMode.Forward -> (currFrameId + 1) % allF, false, true
-                            | PlaybackMode.Backward -> (if mTwoD.frame = 0 then allF - 1 else currFrameId - 1 ), false , true 
-                            | PlaybackMode.Stop -> 0, false, false
-                            | PlaybackMode.Screenshot -> currFrameId, false, false
-                            | PlaybackMode.AnimationFlow -> currFrameId, false, false 
-                            | PlaybackMode.None -> currFrameId, false, false 
-                            | _ -> 0, false, false
-                        | _ -> 0, false, false 
+                            | PlaybackMode.Forward -> (currFrameId + 1) % allF, false, (offsetTime + 1)
+                            | PlaybackMode.Backward -> (if mTwoD.frame = 0 then allF - 1 else currFrameId - 1 ), false, (offsetTime - 1) 
+                            | PlaybackMode.Stop -> 0, false, 0
+                            | PlaybackMode.Screenshot -> currFrameId, false, offsetTime
+                            | PlaybackMode.AnimationFlow -> currFrameId, false, offsetTime 
+                            | PlaybackMode.None -> currFrameId, false, offsetTime 
+                            | _ -> 0, false, offsetTime
+                        | _ -> 0, false, offsetTime 
                     let texName, screenTexName = 
                         match newAnimationFlow with
                         | AnimationFlow.Playing -> "pause-raw" ,"analyze-time-screen" 
                         | AnimationFlow.Paused -> "play-raw" ,"analyze-time-screen" 
                         | _ -> "play-raw" ,"analyze-time-screen" 
-                    (texture texName), (texture screenTexName), newAnimationFlow, playAnim, newFrameId, reverse, idSetOutside
-                | _ -> model.mainTouchpadTexture, model.mainContrScreenTexture, model.currAnimationFlow, mTwoD.playAnimation, mTwoD.frameId, mTwoD.reverseAnimation, mTwoD.frameIdSetOutside
+                    (texture texName), (texture screenTexName), newAnimationFlow, playAnim, newFrameId, reverse, offset
+                | _ -> model.mainTouchpadTexture, model.mainContrScreenTexture, model.currAnimationFlow, mTwoD.playAnimation, mTwoD.frameId, mTwoD.reverseAnimation, mTwoD.offsetId
             let updatedTwoDModel = 
                 {mTwoD with 
                     playAnimation = play
                     frameId = frame
-                    frameIdSetOutside = setOutside
+                    offsetId = offsetTimeId
                     reverseAnimation = reversedAnim}
             let mainTouching = 
                 match model.mainControllerId with

@@ -160,7 +160,7 @@ type Model =
     {
         cameraState : CameraControllerState
         frameId : int
-        frameIdSetOutside : bool
+        offsetId : int
         frame : int
         reverseAnimation : bool
         currHeraBBox : Box3d
