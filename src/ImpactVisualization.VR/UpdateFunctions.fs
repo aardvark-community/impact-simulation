@@ -149,7 +149,7 @@ module UpdateFunctions =
         center_screen, radius_screen
         
     let createProbe (numberId : int) (currSelected : bool) (selected : bool) (timesSelected : int) (color : C4b) (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) 
-                    (inside : bool) (allData : HashMap<RenderValue, (float[] * string)>) 
+                    (inside : bool) (allData : HashMap<RenderValue, (float[] * string)> []) 
                     (attribute : RenderValue) (showStats : bool) (showHisto : bool) 
                     (billboardType : BillboardType) : Probe = 
         {

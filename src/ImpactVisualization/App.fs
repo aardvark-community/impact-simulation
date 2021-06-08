@@ -152,7 +152,6 @@ module App =
             frameId = 0
             frameIdSetOutside = false
             frame = 0
-            allFrames = frames.Length
             reverseAnimation = false
             currHeraBBox = Box3d.Infinite
             allProbesScreenPositions = Array.empty
@@ -412,6 +411,26 @@ module App =
         let allAttribsAndStats = computeAllAttributesAndStatistics allAttributes
         allAttribsAndStats
 
+    // PROBLEM: MIGHT CAUSE OVERHEAD IF TOO MANY FRAMES!!!!
+    let filterAllDataForAllFramesSphere (frames : Frame[]) (filter : option<Sphere3d>) (discardProps : DiscardProperties) = 
+        let sphere = filter |> (fun elem -> defaultArg elem Sphere3d.Invalid)
+        frames |> Array.map (fun frame -> 
+            let chunk = createSphereQuery sphere frame discardProps
+            let extract f = chunk |> Array.map f |> Array.concat
+            let energies = extract (fun c -> c.Data.[Hera.Defs.InternalEnergies] :?> float32[]) |> Array.map (fun v -> float v)
+            let cubicRoots = extract (fun c -> c.Data.[Hera.Defs.CubicRootsOfDamage] :?> float32[]) |> Array.map (fun v -> float v)
+            let strains = extract (fun c -> c.Data.[Hera.Defs.LocalStrains] :?> float32[]) |> Array.map (fun v -> float v)
+            let alphaJutzis = extract (fun c -> c.Data.[Hera.Defs.AlphaJutzi] :?> float32[]) |> Array.map (fun v -> float v)
+            let pressures = extract (fun c -> c.Data.[Hera.Defs.Pressures] :?> float32[]) |> Array.map (fun v -> float v)
+            let masses = extract (fun c -> c.Data.[Hera.Defs.Masses] :?> float32[]) |> Array.map (fun v -> float v)
+            let densities = extract (fun c -> c.Data.[Hera.Defs.Densities] :?> float32[]) |> Array.map (fun v -> float v)
+            let allAttributes = 
+                 HashMap.ofList [RenderValue.Energy, energies; RenderValue.CubicRoot, cubicRoots; RenderValue.Strain, strains; 
+                                RenderValue.AlphaJutzi, alphaJutzis; RenderValue.Pressure, pressures; RenderValue.Mass, masses; RenderValue.Density, densities]
+            let allAttribsAndStats = computeAllAttributesAndStatistics allAttributes
+            allAttribsAndStats
+        )
+        
     let filterAllDataForOneFrame (filter : Box3f) (frame : Frame) = 
         let box = filter.BoundingBox3d
         let chunk = createBoxQuery box frame
@@ -514,8 +533,8 @@ module App =
                 filteredAllFrames = filteredDataAllFrames}
         | StepTime -> 
             let newFrameId = if m.frameIdSetOutside then m.frameId else (sw.Elapsed.TotalSeconds / 0.5) |> int
-            let curr = m.frameId % m.allFrames
-            let currFrame = if m.reverseAnimation then m.allFrames - curr - 1 else curr 
+            let curr = m.frameId % frames.Length
+            let currFrame = if m.reverseAnimation then frames.Length - curr - 1 else curr 
             // update filtered data using frameId and filter
             let isCurrentFilterSet = 
                 match m.boxFilter with 

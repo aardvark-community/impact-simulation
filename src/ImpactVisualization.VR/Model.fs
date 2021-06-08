@@ -72,7 +72,7 @@ type Probe = {
     showHistogram   : bool
     currBillboard   : BillboardType
     currAttribute   : RenderValue
-    allData         : HashMap<RenderValue, (float[] * string)>
+    allData         : HashMap<RenderValue, (float[] * string)> []
     
     [<NonAdaptive>]
     id : string
@@ -230,7 +230,7 @@ type Model =
         selectedProbesPositions : (string * V3d) []
 
         //Box Plot Time
-        //selectedProbe : Probe
+        probeAnalyzeTime : Option<Probe>
         //boxPlotFrames : HashMap<int, float[]>
 
                         

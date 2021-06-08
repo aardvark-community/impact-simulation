@@ -75,6 +75,7 @@ module AppUpdate =
             allPlacedBoxPlots = HashMap.empty
             allCurrSelectedProbesIds = HashMap.empty
             selectedProbesPositions = Array.empty
+            probeAnalyzeTime = None
             rayActive = false
             ray = Ray3d.Invalid
             rayTriggerClicked = false
@@ -431,7 +432,7 @@ module AppUpdate =
                     let intersectedProbe = model.allProbes.Item probeId
                     let isCurrSelected = intersectedProbe.currSelected
 
-                    let arrayBoxPlot, statsBoxPlot = intersectedProbe.allData.Item model.currBoxPlotAttrib
+                    let arrayBoxPlot, statsBoxPlot = intersectedProbe.allData.[mTwoD.frame].Item model.currBoxPlotAttrib
 
                     let newHashmap, allProbesIds = 
                         if not isCurrSelected then 
@@ -484,7 +485,15 @@ module AppUpdate =
             match model.mainControllerId with 
             | Some i when i = id && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Region -> 
                 match model.mainContrProbeIntersectionId with 
-                | Some probeId -> model
+                | Some probeId -> 
+                    if model.probeAnalyzeTime.IsNone then 
+                        let currProbe = model.allProbes.TryFind(probeId)
+                        match currProbe with    
+                        | Some probe ->
+                            {model with probeAnalyzeTime = Some probe}
+                        | None -> model
+                    else
+                        {model with probeAnalyzeTime = None}
                 | None -> model
             | _ -> model
         | PlaceBoxPlot id ->
@@ -498,7 +507,7 @@ module AppUpdate =
                                     model.twoDModel.allProbesScreenPositions model.selectedProbesPositions
                 let allPlacedBoxPlots = model.allPlacedBoxPlots.Add(boxPlot.id, boxPlot)
                 let updatedTwoDmodel = 
-                    {model.twoDModel with 
+                    {mTwoD with 
                         boxPlotData = [| |]
                         boxPlotAttribute = "Select probes with main controller!" }
                 let allProbesUpdated = 
@@ -662,7 +671,7 @@ module AppUpdate =
                                 controllerPlane = clippingPlane
                             }
 
-                        let allData = filterAllDataForOneFrameSphere frames.[mTwoD.frame] (Some sphereTransformed) discardProperties
+                        let allData = filterAllDataForAllFramesSphere frames (Some sphereTransformed) discardProperties
                         let attrib, billboardType = 
                             if model.existingProbeModified then 
                                 let lastProbe = model.lastFilterProbe.Value
@@ -673,7 +682,7 @@ module AppUpdate =
                                 let att = if model.attribute = RenderValue.NoValue then RenderValue.Energy else model.attribute
                                 att, BillboardType.Histogram
 
-                        let array, stats = allData.Item attrib
+                        let array, stats = allData.[mTwoD.frame].Item attrib
 
 
                         //let currSelected = model.lastModifiedProbeIntId <> -1 
@@ -934,7 +943,7 @@ module AppUpdate =
                                 |> HashMap.toSeq
                                 |> Seq.exactlyOne
                                 |> snd
-                            let newArray, newStats = currProbe.allData.Item newAttribute
+                            let newArray, newStats = currProbe.allData.[mTwoD.frame].Item newAttribute
                             newArray                                
                         )
                        
@@ -981,7 +990,7 @@ module AppUpdate =
                         let updatedProbe = {probe with currAttribute = newAttribute}
                         let update (pr : Option<Probe>) = updatedProbe 
                         let allProbesUpdated = model.allProbes |> HashMap.update probeId update
-                        let filteredData, stats = probe.allData.Item newAttribute
+                        let filteredData, stats = probe.allData.[mTwoD.frame].Item newAttribute
 
                         let attributeAsText = renderValueToString newAttribute
 
@@ -1074,7 +1083,7 @@ module AppUpdate =
                         else
                             model.currAnimationFlow, mTwoD.playAnimation
                     let currFrameId = mTwoD.frameId
-                    let allF = mTwoD.allFrames
+                    let allF = frames.Length
                     let newFrameId, reverse, idSetOutside = 
                         match newAnimationFlow with
                         | AnimationFlow.Playing ->

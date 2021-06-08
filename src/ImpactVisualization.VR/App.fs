@@ -558,9 +558,9 @@ module Demo =
 
         let createStatisticsSg (p : AdaptiveProbe) (intersected : aval<bool>)= 
             let text = 
-                 let allData = p.allData |> AMap.toAVal
-                 (allData, p.currAttribute) ||> AVal.map2 (fun data attrib -> 
-                    let array, stats = data.Item attrib
+                 //let allData = p.allData |> AMap.toAVal
+                 (p.allData, p.currAttribute, m.twoDModel.frame) |||> AVal.map3 (fun data attrib frame -> 
+                    let array, stats = data.[frame].Item attrib
                     stats)
             let statisticsScaleTrafo = 
                 (m.sphereRadius, p.radius, intersected) |||> AVal.map3 (fun r radius intr -> 

@@ -162,7 +162,6 @@ type Model =
         frameId : int
         frameIdSetOutside : bool
         frame : int
-        allFrames : int
         reverseAnimation : bool
         currHeraBBox : Box3d
 
