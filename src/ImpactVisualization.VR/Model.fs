@@ -81,6 +81,7 @@ type Probe = {
 
 [<ModelType>]
 type BoxPlot = {
+    isRegion        : bool
     attribute       : RenderValue
     trafo           : Trafo3d
     positions       : Quad3d
@@ -232,7 +233,8 @@ type Model =
 
         //Box Plot Time
         currProbeAnalyzeTime : Option<Probe>
-        //boxPlotFrames : HashMap<int, float[]>
+        boxPlotFrames : HashMap<int, float[]>
+        framesOrder : List<int>
 
                         
         //Controller clipping plane

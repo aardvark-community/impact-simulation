@@ -63,6 +63,8 @@ module AppUpdate =
             lastDeletedProbe = ""
             lastModifiedProbeIntId = -1
             boxPlotProbes = HashMap.empty
+            boxPlotFrames = HashMap.empty
+            framesOrder = []
             mainContrBoxPlotIntersectionId = None
             secondContrBoxPlotIntersectionId = None
             movingBoxPlot = false
@@ -393,7 +395,7 @@ module AppUpdate =
 
                     let currProbe = model.allProbes.Item probe
 
-                    if not currProbe.selected && not currProbe.currSelected then 
+                    if not currProbe.selected && not currProbe.currSelected && not currProbe.timeAnalyze then 
                         let intId = currProbe.numberId
                         let newHashmap = model.boxPlotProbes.Remove(intId)
 
@@ -429,7 +431,7 @@ module AppUpdate =
             match model.mainControllerId with 
             | Some i when i = id && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Region -> 
                 match model.mainContrProbeIntersectionId with 
-                | Some probeId ->
+                | Some probeId when model.boxPlotFrames.IsEmpty ->
                     let intersectedProbe = model.allProbes.Item probeId
                     let isCurrSelected = intersectedProbe.currSelected
 
@@ -449,6 +451,7 @@ module AppUpdate =
 
                     let updatedTwoDmodel = 
                         { mTwoD with
+                            boxPlotRegion = true
                             boxPlotData = dataForBoxPlot
                             boxPlotAttribute = renderValueToString model.currBoxPlotAttrib
                         }
@@ -480,14 +483,36 @@ module AppUpdate =
                         selectedProbesPositions = probesPositions
                         lastProbeId = model.lastProbeId + 1
                         }
-                | None -> model
+                | _ -> model
             | _ -> model
         | SelectBoxPlotProbeTime id ->
             match model.mainControllerId with 
             | Some i when i = id && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Time -> 
                 match model.mainContrProbeIntersectionId with 
-                | Some probeId when model.allProbes.TryFind(probeId).IsSome -> 
+                | Some probeId when model.allProbes.TryFind(probeId).IsSome && model.boxPlotProbes.IsEmpty -> 
                     let currProbe = model.allProbes.Item probeId
+
+                    let arrayBoxPlot, statsBoxPlot = currProbe.allData.[mTwoD.frame].Item model.currBoxPlotAttrib
+
+                    let newHashmap, newList = 
+                        if model.currProbeAnalyzeTime.IsNone && model.boxPlotFrames.IsEmpty then 
+                           let list = model.framesOrder |> List.append([mTwoD.frame])
+                           model.boxPlotFrames.Add(mTwoD.frame, arrayBoxPlot), list
+                        else 
+                            HashMap.empty, List.empty
+
+                    let dataForBoxPlot = newHashmap |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
+
+                    //let probesPositions = allProbesIds |> HashMap.toSeq |> Seq.map (fun result -> (snd result).id, (snd result).centerRelToHera) |> Seq.toArray
+
+                    let updatedTwoDmodel = 
+                        { mTwoD with
+                            boxPlotRegion = false
+                            framesOrder = newList |> List.toArray
+                            boxPlotData = dataForBoxPlot
+                            boxPlotAttribute = renderValueToString model.currBoxPlotAttrib
+                        }
+
                     let newProbeAnalyzeTime, updatedProbe = 
                         if model.currProbeAnalyzeTime.IsNone then 
                             let updatedProbe = 
@@ -504,8 +529,11 @@ module AppUpdate =
                     let update (pr : Option<Probe>) = updatedProbe 
                     let allProbesUpdated = model.allProbes |> HashMap.update probeId update
                     {model with
+                        boxPlotFrames = newHashmap
+                        framesOrder = newList
                         currProbeAnalyzeTime = newProbeAnalyzeTime
-                        allProbes = allProbesUpdated}
+                        allProbes = allProbesUpdated
+                        twoDModel = updatedTwoDmodel}
                 | _ -> model
             | _ -> model
         | PlaceBoxPlot id ->
@@ -514,12 +542,13 @@ module AppUpdate =
                 let texture = getScreenshot boxPlotClient
                 let currTrafo = defaultBoxPlotsTrafo * model.secondControllerTrafo
                 let transformedQuad = currTrafo.Forward.TransformedPosArray(defaultBoxPlotPositions.Points.ToArray(4)) |> Quad3d
-                let boxPlot = createBoxPlot model.currBoxPlotAttrib currTrafo transformedQuad 
+                let boxPlot = createBoxPlot mTwoD.boxPlotRegion model.currBoxPlotAttrib currTrafo transformedQuad 
                                     texture model.boxPlotProbes model.allCurrSelectedProbesIds 
                                     model.twoDModel.allProbesScreenPositions model.selectedProbesPositions
                 let allPlacedBoxPlots = model.allPlacedBoxPlots.Add(boxPlot.id, boxPlot)
                 let updatedTwoDmodel = 
                     {mTwoD with 
+                        framesOrder = Array.empty
                         boxPlotData = [| |]
                         boxPlotAttribute = "Select probes with main controller!" }
                 let allProbesUpdated = 
@@ -533,7 +562,9 @@ module AppUpdate =
                 {model with 
                     allProbes = allProbesUpdated
                     allPlacedBoxPlots = allPlacedBoxPlots
+                    framesOrder = List.empty
                     boxPlotProbes = HashMap.empty
+                    boxPlotFrames = HashMap.empty
                     allCurrSelectedProbesIds = HashMap.empty
                     selectedProbesPositions = Array.empty
                     currProbeAnalyzeTime = None
@@ -605,6 +636,7 @@ module AppUpdate =
                     
                     let updatedTwoDmodel = 
                         { mTwoD with
+                            boxPlotRegion = b.isRegion
                             boxPlotData = dataForBoxPlot
                             boxPlotAttribute = renderValueToString attrib
                         }
@@ -847,20 +879,24 @@ module AppUpdate =
                     | t when (t >= 0.0 && t < 90.0) || (t >= 270.0 && t < 360.0) -> AnalyzeMode.Time
                     | t when t >= 90.0 && t < 270.0 -> AnalyzeMode.Region
                     | _ -> model.analyzeMode
-                let tex, screenTexture = 
+                let tex, screenTexture, region = 
                     match model.analyzeMode with 
-                    | m when m = newAnalyzeMode -> model.mainTouchpadTexture, model.mainContrScreenTexture // if the  controller mode is the same then texture should not be loaded again   
+                    | m when m = newAnalyzeMode -> model.mainTouchpadTexture, model.mainContrScreenTexture, mTwoD.boxPlotRegion // if the  controller mode is the same then texture should not be loaded again   
                     | _ ->
-                        let texName, screenTexName = 
+                        let texName, screenTexName, r = 
                             match newAnalyzeMode with
-                            | AnalyzeMode.Region -> "analyze-region", "analyze-region-screen" 
-                            | AnalyzeMode.Time -> "analyze-time", "analyze-time-screen" 
-                            | _ -> "analyze-region", "analyze-region-screen"
-                        (texture texName), (texture screenTexName)
+                            | AnalyzeMode.Region -> "analyze-region", "analyze-region-screen", true 
+                            | AnalyzeMode.Time -> "analyze-time", "analyze-time-screen", false 
+                            | _ -> "analyze-region", "analyze-region-screen", true
+                        (texture texName), (texture screenTexName), r
+                let updatedTwoDModel =
+                    {mTwoD with
+                        boxPlotRegion = region}
                 {model with 
                     analyzeMode = newAnalyzeMode
                     mainTouchpadTexture = tex
-                    mainContrScreenTexture = screenTexture}
+                    mainContrScreenTexture = screenTexture
+                    twoDModel = updatedTwoDModel}
             | _ -> model
         | ChangeAnimationPlayback id ->
             match model.mainControllerId with 

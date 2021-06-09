@@ -72,7 +72,7 @@ let main argv =
     boxPlotClient.LoadUrl "http://localhost:4321/?page=boxPlotPage" |> ignore
     
     Aardium.run {
-        url "http://localhost:4321/?page=mainPage"
+        url "http://localhost:4321/?page=boxPlotPage"
     }
 
     Aardvark.Cef.Internal.Cef.shutdown()

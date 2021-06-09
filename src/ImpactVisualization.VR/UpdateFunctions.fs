@@ -173,10 +173,11 @@ module UpdateFunctions =
             currBillboard = billboardType
         }
     
-    let createBoxPlot (attribute : RenderValue) (trafo : Trafo3d) (corners : Quad3d) (texture : PixImage) 
+    let createBoxPlot (region : bool)(attribute : RenderValue) (trafo : Trafo3d) (corners : Quad3d) (texture : PixImage) 
         (data : HashMap<int, float[]>) (allSelectedProbes : HashMap<int, Probe>) (screenPos : V2d []) (probesPositions : (string * V3d) []) : BoxPlot =
         {   
             id = Guid.NewGuid().ToString()
+            isRegion = region
             attribute = attribute
             trafo = trafo
             positions = corners

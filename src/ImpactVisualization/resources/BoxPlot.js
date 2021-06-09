@@ -19,6 +19,10 @@ let axisG = undefined;
 let axisBottomG = undefined;
 let g_b = undefined;
 let boxPlotId = undefined;
+let type = "Probe ";
+let isAnalyzeRegion = true;
+let framesOrder = [];
+let bottomAxisBoxPlot = undefined;
 //let attribute = undefined;
 
 function initBoxPlot(id) {
@@ -54,6 +58,15 @@ function initBoxPlot(id) {
     // Setup the group the box plot elements will render in
     g_b = svg_container.append("g")
 	    .attr("transform", "translate(35,10)");
+}
+
+function setBoxPlotType(isRegion) {
+    isAnalyzeRegion = isRegion;
+    if (isRegion) {
+        type = "Probe ";
+    } else {
+        type = "Frame ";
+    }
 }
 
 function setNewAttribute(attr) {
@@ -230,13 +243,13 @@ function refreshBoxPlot(data){
         .call(axisLeft);
 
     // Setup a series axis on the top
-    var axisBottom = d3.axisBottom(xScale)
-        .tickFormat(d => "Probe " + d);
+    bottomAxisBoxPlot = d3.axisBottom(xScale)
+        .tickFormat(d => {return isAnalyzeRegion ? "Probe " + d : "Frame " + framesOrder[d]; });
 
     axisBottomG.append("g")
         .style("font", "16px sans-serif")
         .style("font-weight", "bold")
-        .call(axisBottom);
+        .call(bottomAxisBoxPlot);
 
     var xPositions = []
     var yPositions = []
@@ -260,6 +273,12 @@ function refreshBoxPlot(data){
         aardvark.processEvent(boxPlotId.id, "boxplot", xPositions, yPositions);
     }
 
+}
+
+function setFramesOrder(frames) {
+    framesOrder = frames;
+    bottomAxisBoxPlot
+        .tickFormat(d => {return isAnalyzeRegion ? "Probe " + d : "Frame " + frames[d]; });
 }
 
 function resetContainers(){

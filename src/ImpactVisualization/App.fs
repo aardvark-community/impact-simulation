@@ -214,6 +214,8 @@ module App =
             data = VersionedArray.ofArray [||]
             boxPlotData = Array.empty //[| [|2.0; 4.0; 1.0; 3.5; 7.0; 10.0; 11.0; 6.0; 6.5; 2.7; 19.0; 0.0|] |]
             boxPlotAttribute = "Select probes with main controller!"
+            boxPlotRegion = true
+            framesOrder = Array.empty
             currFilter = None
             boxFilter = None
             sphereFilter = None 
@@ -1130,8 +1132,11 @@ module App =
         //let boxplotData = m.boxPlotData1 |> AMap.toAVal
         let boxPlotChannel = m.boxPlotData.Channel
         let attributeChannel = m.boxPlotAttribute.Channel
+        let typeChannel = m.boxPlotRegion.Channel
+        let framesChannel = m.framesOrder.Channel
         let updateBoxPlot =
-            "initBoxPlot(__ID__); boxPlotAttribute.onmessage = function (a) { setNewAttribute(a); }; boxPlotData.onmessage = function (data) { refreshBoxPlot(data); }"
+            "initBoxPlot(__ID__); boxPlotRegion.onmessage = function (t) {setBoxPlotType(t); }; framesOrder.onmessage = function (o) {setFramesOrder(o); };
+             boxPlotAttribute.onmessage = function (a) { setNewAttribute(a); }; boxPlotData.onmessage = function (data) { refreshBoxPlot(data); }"
 
         let onBrushed = 
             onEvent ("brushing") [] (( fun args ->
@@ -1770,7 +1775,7 @@ module App =
                         height: 100%;
                         }"))
                     require dependencies (
-                        onBoot' [("boxPlotAttribute", attributeChannel); ("boxPlotData", boxPlotChannel)] updateBoxPlot (
+                        onBoot' [("boxPlotRegion", typeChannel); ("framesOrder", framesChannel); ("boxPlotAttribute", attributeChannel); ("boxPlotData", boxPlotChannel)] updateBoxPlot (
                             div [onBoxPlotUpdated; clazz "boxPlot"; style "width: 100%; height: 100%"] [] 
                         )
                     )

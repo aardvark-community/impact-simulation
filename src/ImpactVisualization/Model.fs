@@ -209,6 +209,8 @@ type Model =
         values : VersionedArray
         boxPlotData : float [] []
         boxPlotAttribute : string
+        boxPlotRegion : bool
+        framesOrder : int []
 
         currFilter : option<Probe>
         boxFilter : option<Box3f>
