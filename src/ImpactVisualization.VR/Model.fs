@@ -257,6 +257,7 @@ type Model =
         currSecondTouchPadPos : V2d
         mainTouching : bool
         secondTouching : bool
+        mainUntouched : bool
 
         mainTouchpadTexture : ITexture 
         secondTouchpadTexture : ITexture 

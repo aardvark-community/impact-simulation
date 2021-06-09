@@ -105,6 +105,7 @@ module AppUpdate =
             attribute = RenderValue.NoValue
             currMainTouchPadPos = V2d.OO
             currSecondTouchPadPos = V2d.OO
+            mainUntouched = false
             mainTouching = false
             secondTouching = false
             mainTouchpadTexture = allTextures.Item "initial"
@@ -826,6 +827,8 @@ module AppUpdate =
                             | _ -> "initial", "select-tool"
                         (texture texName), (texture screenTexName)
                 {model with 
+                    mainUntouched = false
+                    playbackMode = PlaybackMode.None
                     controllerMode = newContrlMode
                     showCurrBoxPlot = (newContrlMode = ControllerMode.Analyze)
                     mainTouchpadTexture = tex
@@ -861,7 +864,7 @@ module AppUpdate =
             | _ -> model
         | ChangeAnimationPlayback id ->
             match model.mainControllerId with 
-            | Some i when i = id && not model.mainMenuOpen && model.mainTouching && model.controllerMode = ControllerMode.Analyze && 
+            | Some i when i = id && model.mainUntouched && not model.mainMenuOpen && model.mainTouching && model.controllerMode = ControllerMode.Analyze && 
                 model.analyzeMode = AnalyzeMode.Time && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone ->
                 let r, theta = convertCartesianToPolar model.currMainTouchPadPos
                 let newPlaybackMode = 
@@ -1081,9 +1084,13 @@ module AppUpdate =
              //{model with touchpadDeviceId = Some id} 
         | UntouchDevice id ->
             //printf "Untouch"
+            let untouched = 
+                match model.mainControllerId with
+                | Some i when i = id && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Time -> true
+                | _ -> model.mainUntouched
             let tex, screenTexture, animFlow, play, frame, reversedAnim, offsetTimeId = 
                 match model.mainControllerId with
-                | Some i when i = id && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Time && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone -> 
+                | Some i when i = id && untouched && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Time && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone -> 
                     let newAnimationFlow, playAnim =
                         if model.playbackMode = PlaybackMode.AnimationFlow then 
                             match model.currAnimationFlow with
@@ -1140,6 +1147,7 @@ module AppUpdate =
                 | Some i when i = id -> false
                 | _ -> model.secondTouching
             {model with 
+                mainUntouched = untouched
                 mainTouching = mainTouching
                 secondTouching = secondTouching
                 mainTouchpadTexture = tex
