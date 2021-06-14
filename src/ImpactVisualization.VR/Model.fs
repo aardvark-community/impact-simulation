@@ -234,7 +234,7 @@ type Model =
         //Box Plot Time
         currProbeAnalyzeTime : Option<Probe>
         boxPlotFrames : HashMap<int, float[]>
-        framesOrder : List<int>
+        framesOrder : seq<int>
 
                         
         //Controller clipping plane

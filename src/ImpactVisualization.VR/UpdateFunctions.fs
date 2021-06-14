@@ -250,3 +250,25 @@ module UpdateFunctions =
         | d when 10000 <= d && d < 50000 -> 200
         | d when 100 <= d && d < 10000 -> 130
         | _ -> 100
+
+    let takeFrameScreenshot (frame : int) (model : Model) = 
+        if model.currProbeAnalyzeTime.IsSome && model.boxPlotFrames.TryFind(frame).IsNone then
+            let currProbe = model.currProbeAnalyzeTime.Value
+            let arrayBoxPlot, statsBoxPlot = currProbe.allData.[frame].Item model.currBoxPlotAttrib
+            //let newOrder = model.framesOrder |> Seq.append([frame])
+            let newHashmap = model.boxPlotFrames.Add(frame, arrayBoxPlot)
+            let newOrder = newHashmap |> HashMap.toSeq |> Seq.map (fun result -> fst result)
+            let dataForBoxPlot = newHashmap |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
+
+            let updatedTwoDmodel = 
+                { model.twoDModel with
+                    framesOrder = newOrder |> Seq.toArray
+                    boxPlotData = dataForBoxPlot
+                }
+                
+            { model with 
+                boxPlotFrames = newHashmap
+                framesOrder = newOrder
+                twoDModel = updatedTwoDmodel}                
+        else 
+            model

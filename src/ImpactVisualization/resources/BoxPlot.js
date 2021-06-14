@@ -15,11 +15,11 @@ let globalCounts = [];
 
 let svg_b = undefined;
 let svg_container = undefined;
+let xScale_b = undefined;
 let axisG = undefined;
 let axisBottomG = undefined;
 let g_b = undefined;
 let boxPlotId = undefined;
-let type = "Probe ";
 let isAnalyzeRegion = true;
 let framesOrder = [];
 let bottomAxisBoxPlot = undefined;
@@ -62,11 +62,6 @@ function initBoxPlot(id) {
 
 function setBoxPlotType(isRegion) {
     isAnalyzeRegion = isRegion;
-    if (isRegion) {
-        type = "Probe ";
-    } else {
-        type = "Frame ";
-    }
 }
 
 function setNewAttribute(attr) {
@@ -111,7 +106,7 @@ function refreshBoxPlot(data){
     }
 
     // Compute an ordinal xScale for the keys in boxPlotData
-    var xScale = d3.scalePoint()
+    xScale_b = d3.scalePoint()
 	    .domain(Object.keys(groupCounts))
 	    .rangeRound([0, width_b])
 	    .padding([0.5]);
@@ -128,9 +123,9 @@ function refreshBoxPlot(data){
 	    .data(boxPlotData)
 	    .enter()
 	    .append("line")
-	    .attr("x1", d => xScale(d.key) + barWidth/2)
+	    .attr("x1", d => xScale_b(d.key) + barWidth/2)
 	    .attr("y1", d => yScale(d.whiskers[0]))
-	    .attr("x2", d => xScale(d.key) + barWidth/2)
+	    .attr("x2", d => xScale_b(d.key) + barWidth/2)
 	    .attr("y2", d => yScale(d.whiskers[1]))
 	    .attr("stroke", "#000")
 	    .attr("stroke-width", 1)
@@ -144,7 +139,7 @@ function refreshBoxPlot(data){
         .append("rect")
         .attr("width", barWidth)
         .attr("height", d =>  yScale(d.quartile[0]) - yScale(d.quartile[2]))
-        .attr("x", d => xScale(d.key))
+        .attr("x", d => xScale_b(d.key))
         .attr("y", d => yScale(d.quartile[2]))
         .attr("fill", d => d.color)
         .attr("stroke", "#000")
@@ -158,7 +153,7 @@ function refreshBoxPlot(data){
         .append("text")
         .attr("dy", ".35em")
         .attr("dx", -3)
-        .attr("x", d => xScale(d.key))
+        .attr("x", d => xScale_b(d.key))
         .attr("y", d => yScale(d.quartile[0]))
         .attr("fill", "#000")
         .attr("text-anchor", "end")
@@ -171,7 +166,7 @@ function refreshBoxPlot(data){
         .append("text")
         .attr("dy", ".35em")
         .attr("dx", -3)
-        .attr("x", d => xScale(d.key))
+        .attr("x", d => xScale_b(d.key))
         .attr("y", d => yScale(d.quartile[2]))
         .attr("fill", "#000")
         .attr("text-anchor", "end")
@@ -182,25 +177,25 @@ function refreshBoxPlot(data){
     var horizontalLineConfigs = [
         // Top whisker
         {
-          x1: d => xScale(d.key),
+          x1: d => xScale_b(d.key),
           y1: d => yScale(d.whiskers[1]),
-          x2: d => xScale(d.key) + barWidth,
+          x2: d => xScale_b(d.key) + barWidth,
           y2: d => yScale(d.whiskers[1]),
           text: d => format(d.whiskers[1])
         },
         // Median line
         {
-          x1: d => xScale(d.key),
+          x1: d => xScale_b(d.key),
           y1: d => yScale(d.quartile[1]),
-          x2: d => xScale(d.key) + barWidth,
+          x2: d => xScale_b(d.key) + barWidth,
           y2: d => yScale(d.quartile[1]),
           text: d => format(d.quartile[1])
         },
         // Bottom whisker
         {
-          x1: d => xScale(d.key),
+          x1: d => xScale_b(d.key),
           y1: d => yScale(d.whiskers[0]),
-          x2: d => xScale(d.key) + barWidth,
+          x2: d => xScale_b(d.key) + barWidth,
           y2: d => yScale(d.whiskers[0]),
           text: d => format(d.whiskers[0])
         }
@@ -243,7 +238,7 @@ function refreshBoxPlot(data){
         .call(axisLeft);
 
     // Setup a series axis on the top
-    bottomAxisBoxPlot = d3.axisBottom(xScale)
+    bottomAxisBoxPlot = d3.axisBottom(xScale_b)
         .tickFormat(d => {return isAnalyzeRegion ? "Probe " + d : "Frame " + framesOrder[d]; });
 
     axisBottomG.append("g")
@@ -272,21 +267,28 @@ function refreshBoxPlot(data){
     if (xPositions.length > 0 && yPositions.length > 0) { 
         aardvark.processEvent(boxPlotId.id, "boxplot", xPositions, yPositions);
     }
-
 }
 
 function setFramesOrder(frames) {
     framesOrder = frames;
-    bottomAxisBoxPlot
-        .tickFormat(d => {return isAnalyzeRegion ? "Probe " + d : "Frame " + frames[d]; });
+    if (typeof xScale_b !== 'undefined'){
+        bottomAxisBoxPlot = d3.axisBottom(xScale_b)
+            .tickFormat(d => {return isAnalyzeRegion ? "Probe " + d : "Frame " + frames[d]; });
+
+        axisBottomG.selectAll("*").remove();
+        axisBottomG.append("g")
+            .style("font", "16px sans-serif")
+            .style("font-weight", "bold")
+            .call(bottomAxisBoxPlot);
+    }
 }
 
 function resetContainers(){
     groupCounts = {};
     globalCounts = [];
-    g_b.selectAll("*").remove()
-    axisG.selectAll("*").remove()
-    axisBottomG.selectAll("*").remove()
+    g_b.selectAll("*").remove();
+    axisG.selectAll("*").remove();
+    axisBottomG.selectAll("*").remove();
 }
 
 function boxQuartiles(d) {

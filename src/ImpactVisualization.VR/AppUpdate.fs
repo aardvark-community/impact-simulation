@@ -64,7 +64,7 @@ module AppUpdate =
             lastModifiedProbeIntId = -1
             boxPlotProbes = HashMap.empty
             boxPlotFrames = HashMap.empty
-            framesOrder = []
+            framesOrder = Seq.empty
             mainContrBoxPlotIntersectionId = None
             secondContrBoxPlotIntersectionId = None
             movingBoxPlot = false
@@ -494,13 +494,25 @@ module AppUpdate =
 
                     let arrayBoxPlot, statsBoxPlot = currProbe.allData.[mTwoD.frame].Item model.currBoxPlotAttrib
 
-                    let newHashmap, newList = 
-                        if model.currProbeAnalyzeTime.IsNone && model.boxPlotFrames.IsEmpty then 
-                           let list = model.framesOrder |> List.append([mTwoD.frame])
-                           model.boxPlotFrames.Add(mTwoD.frame, arrayBoxPlot), list
+                    let newProbeAnalyzeTime, updatedProbe, newHashmap, newOrder = 
+                        if model.currProbeAnalyzeTime.IsNone then 
+                            let updatedProbe = 
+                                {currProbe with 
+                                    timeAnalyze = true
+                                    color = C4b.Orange}
+                            //let order = model.framesOrder |> Seq.append([mTwoD.frame])
+                            let tempH = model.boxPlotFrames.Add(mTwoD.frame, arrayBoxPlot)
+                            let newOrder = tempH |> HashMap.toSeq |> Seq.map (fun result -> fst result)
+                            Some currProbe, updatedProbe, tempH, newOrder
                         else 
-                            HashMap.empty, List.empty
-
+                            if model.currProbeAnalyzeTime.Value.id = probeId then 
+                                let updatedProbe = 
+                                    {currProbe with 
+                                        timeAnalyze = false
+                                        color = if currProbe.timesSelected >= 1 then C4b.Yellow else C4b.Blue}
+                                None, updatedProbe, HashMap.empty, Seq.empty
+                            else 
+                                model.currProbeAnalyzeTime, currProbe, model.boxPlotFrames, model.framesOrder
                     let dataForBoxPlot = newHashmap |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
 
                     //let probesPositions = allProbesIds |> HashMap.toSeq |> Seq.map (fun result -> (snd result).id, (snd result).centerRelToHera) |> Seq.toArray
@@ -508,29 +520,15 @@ module AppUpdate =
                     let updatedTwoDmodel = 
                         { mTwoD with
                             boxPlotRegion = false
-                            framesOrder = newList |> List.toArray
+                            framesOrder = newOrder |> Seq.toArray
                             boxPlotData = dataForBoxPlot
                             boxPlotAttribute = renderValueToString model.currBoxPlotAttrib
                         }
-
-                    let newProbeAnalyzeTime, updatedProbe = 
-                        if model.currProbeAnalyzeTime.IsNone then 
-                            let updatedProbe = 
-                                {currProbe with 
-                                    timeAnalyze = true
-                                    color = C4b.Orange}
-                            Some currProbe, updatedProbe
-                        else
-                            let updatedProbe = 
-                                {currProbe with 
-                                    timeAnalyze = false
-                                    color = if currProbe.timesSelected >= 1 then C4b.Yellow else C4b.Blue}
-                            None, updatedProbe
                     let update (pr : Option<Probe>) = updatedProbe 
                     let allProbesUpdated = model.allProbes |> HashMap.update probeId update
                     {model with
                         boxPlotFrames = newHashmap
-                        framesOrder = newList
+                        framesOrder = newOrder
                         currProbeAnalyzeTime = newProbeAnalyzeTime
                         allProbes = allProbesUpdated
                         twoDModel = updatedTwoDmodel}
@@ -538,12 +536,16 @@ module AppUpdate =
             | _ -> model
         | PlaceBoxPlot id ->
             match model.secondControllerId with 
-            | Some i when i = id && model.controllerMode = ControllerMode.Analyze && not model.boxPlotProbes.IsEmpty ->
+            | Some i when i = id && model.controllerMode = ControllerMode.Analyze && (not model.boxPlotProbes.IsEmpty || not model.boxPlotFrames.IsEmpty) ->
                 let texture = getScreenshot boxPlotClient
                 let currTrafo = defaultBoxPlotsTrafo * model.secondControllerTrafo
                 let transformedQuad = currTrafo.Forward.TransformedPosArray(defaultBoxPlotPositions.Points.ToArray(4)) |> Quad3d
-                let boxPlot = createBoxPlot mTwoD.boxPlotRegion model.currBoxPlotAttrib currTrafo transformedQuad 
-                                    texture model.boxPlotProbes model.allCurrSelectedProbesIds 
+                let isRegion, currBoxPlotData = 
+                    if not model.boxPlotProbes.IsEmpty then true, model.boxPlotProbes
+                    else if not model.boxPlotFrames.IsEmpty then false, model.boxPlotFrames
+                    else true, HashMap.empty
+                let boxPlot = createBoxPlot isRegion model.currBoxPlotAttrib currTrafo transformedQuad 
+                                    texture currBoxPlotData model.allCurrSelectedProbesIds 
                                     model.twoDModel.allProbesScreenPositions model.selectedProbesPositions
                 let allPlacedBoxPlots = model.allPlacedBoxPlots.Add(boxPlot.id, boxPlot)
                 let updatedTwoDmodel = 
@@ -562,7 +564,7 @@ module AppUpdate =
                 {model with 
                     allProbes = allProbesUpdated
                     allPlacedBoxPlots = allPlacedBoxPlots
-                    framesOrder = List.empty
+                    framesOrder = Seq.empty
                     boxPlotProbes = HashMap.empty
                     boxPlotFrames = HashMap.empty
                     allCurrSelectedProbesIds = HashMap.empty
@@ -983,20 +985,33 @@ module AppUpdate =
 
                 if newAttribute <> model.currBoxPlotAttrib then 
 
-                    let newHashmap = 
-                        model.boxPlotProbes
-                        |> HashMap.map (fun key array ->
-                            let currProbe = 
-                                model.allProbes
-                                |> HashMap.filter (fun k probe -> 
-                                    probe.currSelected && probe.numberId = key
+                    let newHashmap, newModel = 
+                        if model.currProbeAnalyzeTime.IsSome then
+                            let currProbe = model.currProbeAnalyzeTime.Value
+                            let bp = 
+                                model.boxPlotFrames
+                                |> HashMap.map (fun frame array ->
+                                    let newArray, newStats = currProbe.allData.[frame].Item newAttribute
+                                    newArray
                                 )
-                                |> HashMap.toSeq
-                                |> Seq.exactlyOne
-                                |> snd
-                            let newArray, newStats = currProbe.allData.[mTwoD.frame].Item newAttribute
-                            newArray                                
-                        )
+                            bp, {model with boxPlotFrames = bp}
+                        else 
+                            let bp = 
+                                model.boxPlotProbes
+                                |> HashMap.map (fun key array ->
+                                    let currProbe = 
+                                        model.allProbes
+                                        |> HashMap.filter (fun k probe -> 
+                                            probe.currSelected && probe.numberId = key
+                                        )
+                                        |> HashMap.toSeq
+                                        |> Seq.exactlyOne
+                                        |> snd
+                                    let newArray, newStats = currProbe.allData.[mTwoD.frame].Item newAttribute
+                                    newArray                                
+                                )
+                            bp, {model with boxPlotProbes = bp}
+
                        
                     let dataForBoxPlot = newHashmap |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
 
@@ -1006,9 +1021,8 @@ module AppUpdate =
                             boxPlotAttribute = renderValueToString newAttribute
                         }
 
-                    {model with 
+                    {newModel with 
                         twoDModel = updatedTwoDmodel
-                        boxPlotProbes = newHashmap
                         currBoxPlotAttrib = newAttribute
                         currBoxPlotAttribSet = true
                         showSecondTexture = true
@@ -1124,7 +1138,7 @@ module AppUpdate =
                 match model.mainControllerId with
                 | Some i when i = id && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Time -> true
                 | _ -> model.mainUntouched
-            let tex, screenTexture, animFlow, play, frame, reversedAnim, offsetTimeId = 
+            let newModel, tex, screenTexture, animFlow, play, frame, reversedAnim, offsetTimeId = 
                 match model.mainControllerId with
                 | Some i when i = id && untouched && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Time && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone -> 
                     let newAnimationFlow, playAnim =
@@ -1140,36 +1154,40 @@ module AppUpdate =
                     let currFrameId = mTwoD.frameId
                     let allF = frames.Length
                     let offsetTime = mTwoD.offsetId
-                    let newFrameId, reverse, offset = 
+                    let newMod, newFrameId, reverse, offset = 
                         match newAnimationFlow with
                         | AnimationFlow.Playing ->
                             match model.playbackMode with 
-                            | PlaybackMode.Forward -> sw.Restart(); currFrameId, false, mTwoD.frame 
-                            | PlaybackMode.Backward -> sw.Restart(); currFrameId, true, (if mTwoD.frame = 0 then 0 else allF - mTwoD.frame)
-                            | PlaybackMode.Stop -> 0, false, 0 
-                            | PlaybackMode.Screenshot -> currFrameId, false, offsetTime
-                            | PlaybackMode.AnimationFlow -> currFrameId, false, offsetTime
-                            | PlaybackMode.None -> currFrameId, false, offsetTime
-                            | _ -> 0, false, offsetTime 
+                            | PlaybackMode.Forward -> sw.Restart(); model, currFrameId, false, mTwoD.frame 
+                            | PlaybackMode.Backward -> sw.Restart(); model, currFrameId, true, (if mTwoD.frame = 0 then 0 else allF - mTwoD.frame)
+                            | PlaybackMode.Stop -> model, 0, false, 0 
+                            | PlaybackMode.Screenshot -> 
+                                let newM = takeFrameScreenshot mTwoD.frame model
+                                newM, currFrameId, false, offsetTime
+                            | PlaybackMode.AnimationFlow -> model, currFrameId, false, offsetTime
+                            | PlaybackMode.None -> model, currFrameId, false, offsetTime
+                            | _ -> model, 0, false, offsetTime 
                         | AnimationFlow.Paused -> 
                             match  model.playbackMode with 
-                            | PlaybackMode.Forward -> (currFrameId + 1) % allF, false, (offsetTime + 1)
-                            | PlaybackMode.Backward -> (if mTwoD.frame = 0 then allF - 1 else currFrameId - 1 ), false, (offsetTime - 1) 
-                            | PlaybackMode.Stop -> 0, false, 0
-                            | PlaybackMode.Screenshot -> currFrameId, false, offsetTime
-                            | PlaybackMode.AnimationFlow -> currFrameId, false, offsetTime 
-                            | PlaybackMode.None -> currFrameId, false, offsetTime 
-                            | _ -> 0, false, offsetTime
-                        | _ -> 0, false, offsetTime 
+                            | PlaybackMode.Forward -> model, (currFrameId + 1) % allF, false, (offsetTime + 1)
+                            | PlaybackMode.Backward -> model, (if mTwoD.frame = 0 then allF - 1 else currFrameId - 1 ), false, (offsetTime - 1) 
+                            | PlaybackMode.Stop -> model, 0, false, 0
+                            | PlaybackMode.Screenshot -> 
+                                let newM = takeFrameScreenshot mTwoD.frame  model
+                                newM, currFrameId, false, offsetTime
+                            | PlaybackMode.AnimationFlow -> model, currFrameId, false, offsetTime 
+                            | PlaybackMode.None -> model, currFrameId, false, offsetTime 
+                            | _ -> model, 0, false, offsetTime
+                        | _ -> model, 0, false, offsetTime 
                     let texName, screenTexName = 
                         match newAnimationFlow with
                         | AnimationFlow.Playing -> "pause-raw" ,"analyze-time-screen" 
                         | AnimationFlow.Paused -> "play-raw" ,"analyze-time-screen" 
                         | _ -> "play-raw" ,"analyze-time-screen" 
-                    (texture texName), (texture screenTexName), newAnimationFlow, playAnim, newFrameId, reverse, offset
-                | _ -> model.mainTouchpadTexture, model.mainContrScreenTexture, model.currAnimationFlow, mTwoD.playAnimation, mTwoD.frameId, mTwoD.reverseAnimation, mTwoD.offsetId
+                    newMod, (texture texName), (texture screenTexName), newAnimationFlow, playAnim, newFrameId, reverse, offset
+                | _ -> model, model.mainTouchpadTexture, model.mainContrScreenTexture, model.currAnimationFlow, mTwoD.playAnimation, mTwoD.frameId, mTwoD.reverseAnimation, mTwoD.offsetId
             let updatedTwoDModel = 
-                {mTwoD with 
+                {newModel.twoDModel with 
                     playAnimation = play
                     frameId = frame
                     offsetId = offsetTimeId
@@ -1182,7 +1200,7 @@ module AppUpdate =
                 match model.secondControllerId with
                 | Some i when i = id -> false
                 | _ -> model.secondTouching
-            {model with 
+            {newModel with 
                 mainUntouched = untouched
                 mainTouching = mainTouching
                 secondTouching = secondTouching
