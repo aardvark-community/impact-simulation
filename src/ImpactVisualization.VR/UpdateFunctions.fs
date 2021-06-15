@@ -173,8 +173,9 @@ module UpdateFunctions =
             currBillboard = billboardType
         }
     
-    let createBoxPlot (region : bool)(attribute : RenderValue) (trafo : Trafo3d) (corners : Quad3d) (texture : PixImage) 
-        (data : HashMap<int, float[]>) (allSelectedProbes : HashMap<int, Probe>) (screenPos : V2d []) (probesPositions : (string * V3d) []) : BoxPlot =
+    let createBoxPlot (region : bool)(attribute : RenderValue) (trafo : Trafo3d) (corners : Quad3d) 
+        (texture : PixImage) (data : HashMap<int, float[]>) (allSelectedProbes : HashMap<int, Probe>) 
+        (screenPos : V2d []) (probesPositions : (string * V3d) []) (timeProbePos : V3d): BoxPlot =
         {   
             id = Guid.NewGuid().ToString()
             isRegion = region
@@ -186,6 +187,7 @@ module UpdateFunctions =
             probeIds = allSelectedProbes
             screenPos = screenPos
             probesPositions = probesPositions
+            timeProbePos = timeProbePos
         }
         
     let convertCartesianToPolar (cartCoords : V2d) = 

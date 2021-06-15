@@ -78,6 +78,7 @@ module AppUpdate =
             allCurrSelectedProbesIds = HashMap.empty
             selectedProbesPositions = Array.empty
             currProbeAnalyzeTime = None
+            analyzeTimeProbePos = V3d.OOO
             rayActive = false
             ray = Ray3d.Invalid
             rayTriggerClicked = false
@@ -113,9 +114,11 @@ module AppUpdate =
             mainTouchpadTexture = allTextures.Item "initial"
             secondTouchpadTexture = allTextures.Item "initial-attributes"
             lastTouchpadModeTexture = allTextures.Item "initial"
+            analyzeMainTexture = allTextures.Item "initial"
             mainContrScreenTexture = allTextures.Item "empty"
             secondContrScreenTexture = allTextures.Item "empty"
             lastContrScreenModeTexture = allTextures.Item "empty"
+            analyzeContrScreenTexture = allTextures.Item "empty"
             showMainTexture = false
             showSecondTexture = false
             heraBox = Box3d.Infinite
@@ -316,7 +319,7 @@ module AppUpdate =
                     | Some pr -> (pr.radius / model.sphereRadius), Some pr.id
                     | None -> model.sphereScale, None
                 let pr = model.allProbes.Item probe
-                if not pr.selected && not pr.currSelected then 
+                if not pr.selected && not pr.currSelected && not pr.timeAnalyze then 
                     let intId = pr.numberId
 
                     let newHashmap, updatedTwoDmodel = 
@@ -470,7 +473,6 @@ module AppUpdate =
                                 currSelected = false
                                 timesSelected = intersectedProbe.timesSelected - 1}
 
-
                     let update (pr : Option<Probe>) = updatedProbe 
                     let allProbesUpdated = model.allProbes |> HashMap.update probeId update
 
@@ -494,7 +496,7 @@ module AppUpdate =
 
                     let arrayBoxPlot, statsBoxPlot = currProbe.allData.[mTwoD.frame].Item model.currBoxPlotAttrib
 
-                    let newProbeAnalyzeTime, updatedProbe, newHashmap, newOrder = 
+                    let newProbeAnalyzeTime, analyzeTimeProbePos,  updatedProbe, newHashmap, currSelectedProbe, newOrder = 
                         if model.currProbeAnalyzeTime.IsNone then 
                             let updatedProbe = 
                                 {currProbe with 
@@ -502,20 +504,20 @@ module AppUpdate =
                                     color = C4b.Orange}
                             //let order = model.framesOrder |> Seq.append([mTwoD.frame])
                             let tempH = model.boxPlotFrames.Add(mTwoD.frame, arrayBoxPlot)
+                            let currSelected = model.allCurrSelectedProbesIds.Add(500, currProbe)
                             let newOrder = tempH |> HashMap.toSeq |> Seq.map (fun result -> fst result)
-                            Some currProbe, updatedProbe, tempH, newOrder
+                            Some currProbe, currProbe.centerRelToHera, updatedProbe, tempH, currSelected, newOrder
                         else 
                             if model.currProbeAnalyzeTime.Value.id = probeId then 
                                 let updatedProbe = 
                                     {currProbe with 
                                         timeAnalyze = false
                                         color = if currProbe.timesSelected >= 1 then C4b.Yellow else C4b.Blue}
-                                None, updatedProbe, HashMap.empty, Seq.empty
+                                None, V3d.OOO, updatedProbe, HashMap.empty, HashMap.empty, Seq.empty
                             else 
-                                model.currProbeAnalyzeTime, currProbe, model.boxPlotFrames, model.framesOrder
-                    let dataForBoxPlot = newHashmap |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
+                                model.currProbeAnalyzeTime, currProbe.centerRelToHera, currProbe, model.boxPlotFrames, model.allCurrSelectedProbesIds, model.framesOrder
 
-                    //let probesPositions = allProbesIds |> HashMap.toSeq |> Seq.map (fun result -> (snd result).id, (snd result).centerRelToHera) |> Seq.toArray
+                    let dataForBoxPlot = newHashmap |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
 
                     let updatedTwoDmodel = 
                         { mTwoD with
@@ -530,6 +532,8 @@ module AppUpdate =
                         boxPlotFrames = newHashmap
                         framesOrder = newOrder
                         currProbeAnalyzeTime = newProbeAnalyzeTime
+                        analyzeTimeProbePos = analyzeTimeProbePos
+                        allCurrSelectedProbesIds = currSelectedProbe
                         allProbes = allProbesUpdated
                         twoDModel = updatedTwoDmodel}
                 | _ -> model
@@ -540,13 +544,13 @@ module AppUpdate =
                 let texture = getScreenshot boxPlotClient
                 let currTrafo = defaultBoxPlotsTrafo * model.secondControllerTrafo
                 let transformedQuad = currTrafo.Forward.TransformedPosArray(defaultBoxPlotPositions.Points.ToArray(4)) |> Quad3d
-                let isRegion, currBoxPlotData = 
-                    if not model.boxPlotProbes.IsEmpty then true, model.boxPlotProbes
-                    else if not model.boxPlotFrames.IsEmpty then false, model.boxPlotFrames
-                    else true, HashMap.empty
+                let isRegion, currBoxPlotData, probePos = 
+                    if not model.boxPlotProbes.IsEmpty then true, model.boxPlotProbes, V3d.OOO
+                    else if not model.boxPlotFrames.IsEmpty then false, model.boxPlotFrames, model.currProbeAnalyzeTime.Value.centerRelToHera
+                    else true, HashMap.empty, V3d.OOO
                 let boxPlot = createBoxPlot isRegion model.currBoxPlotAttrib currTrafo transformedQuad 
                                     texture currBoxPlotData model.allCurrSelectedProbesIds 
-                                    model.twoDModel.allProbesScreenPositions model.selectedProbesPositions
+                                    model.twoDModel.allProbesScreenPositions model.selectedProbesPositions probePos
                 let allPlacedBoxPlots = model.allPlacedBoxPlots.Add(boxPlot.id, boxPlot)
                 let updatedTwoDmodel = 
                     {mTwoD with 
@@ -586,17 +590,24 @@ module AppUpdate =
                                 selProbe.id = key
                             ) 
                         if probeInBoxPlot then 
-                            if probe.timesSelected >= 2 then    
-                                {probe with   
-                                    selected = false
-                                    currSelected = false
-                                    timesSelected = probe.timesSelected - 1}
+                            if currBoxPlot.isRegion then 
+                                if probe.timesSelected >= 2 then    
+                                    {probe with   
+                                        selected = false
+                                        currSelected = false
+                                        timesSelected = probe.timesSelected - 1}
+                                else 
+                                    {probe with 
+                                        color = if probe.timeAnalyze then C4b.Orange else C4b.Blue
+                                        selected = false
+                                        currSelected = false
+                                        timesSelected = 0}
                             else 
-                                {probe with 
-                                    color = C4b.Blue
-                                    selected = false
-                                    currSelected = false
-                                    timesSelected = 0}
+                                if probe.timeAnalyze then 
+                                    {probe with
+                                        timeAnalyze = false
+                                        color = if probe.timesSelected >= 1 then C4b.Yellow else C4b.Blue}
+                                else probe                          
                         else 
                             probe)
                 let updateBoxPlots = model.allPlacedBoxPlots.Remove(intersectedBoxPlotId)
@@ -610,7 +621,7 @@ module AppUpdate =
                 let intersectedBoxPlotId = model.secondContrBoxPlotIntersectionId.Value
                 let boxPlot = model.allPlacedBoxPlots.TryFind(intersectedBoxPlotId)
                 match boxPlot with
-                | Some b -> 
+                | Some b when b.isRegion -> 
                     let attrib = b.attribute
                     let dataForBoxPlot = b.data |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
                     let allSelected = b.probeIds
@@ -650,7 +661,7 @@ module AppUpdate =
                         allCurrSelectedProbesIds = allSelected
                         selectedProbesPositions = probesPositions
                         allProbes = allProbesUpdated}
-                | None -> model 
+                | _ -> model 
             | _ -> model
         | TakeBoxPlot id ->
             match model.mainControllerId with 
@@ -946,7 +957,10 @@ module AppUpdate =
                     playbackMode = newPlaybackMode
                     //currAnimationFlow = newAnimationFlow
                     mainTouchpadTexture = tex
-                    mainContrScreenTexture = screenTexture}
+                    mainContrScreenTexture = screenTexture
+                    analyzeMainTexture = tex
+                    analyzeContrScreenTexture = screenTexture
+                    }
             | _ -> model
         | ChangeBillboard id ->
             match model.mainContrProbeIntersectionId with
@@ -1012,7 +1026,6 @@ module AppUpdate =
                                 )
                             bp, {model with boxPlotProbes = bp}
 
-                       
                     let dataForBoxPlot = newHashmap |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
 
                     let updatedTwoDmodel = 
@@ -1206,6 +1219,8 @@ module AppUpdate =
                 secondTouching = secondTouching
                 mainTouchpadTexture = tex
                 mainContrScreenTexture = screenTexture
+                analyzeMainTexture = tex
+                analyzeContrScreenTexture = screenTexture
                 currAnimationFlow = animFlow
                 twoDModel = updatedTwoDModel}
             //let tex = if model.allowHeraScaling then (texture "initial-scaling") else model.touchpadTexture

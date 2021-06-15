@@ -381,14 +381,53 @@ module Demo =
             )
             |> Sg.dynamic
 
+        let createVisualConnectionTimeSg (probePosition : V3d) (trafo : aval<Trafo3d>) (showConnections : aval<bool>) = 
+            let finalPos =  
+                trafo
+                |> AVal.map (fun t ->
+                    let convertedRange = convertRange (V2d(0.5, 0.95)) |> V3d
+                    t.Forward.TransformPos(convertedRange))
+            let finalProbePos = m.heraTransformations |> AVal.map (fun t -> t.Forward.TransformPos(probePosition))
+            let currColor = C4b.White
+            let sphere = 
+                Sg.sphere' 6 currColor 0.008
+                |> Sg.noEvents
+                |> Sg.trafo (finalPos |> AVal.map (fun fp -> Trafo3d.Translation(fp)))
+            let currLine = (finalPos, finalProbePos) ||> AVal.map2 (fun fp fpp -> [|Line3d(fp, fpp)|]) 
+            currLine
+            |> Sg.lines (AVal.constant currColor)
+            |> Sg.noEvents
+            |> Sg.uniform "LineWidth" (AVal.constant 5)
+            |> Sg.effect [
+                toEffect DefaultSurfaces.trafo
+                toEffect DefaultSurfaces.vertexColor
+                toEffect DefaultSurfaces.thickLine
+                ]
+            |> Sg.andAlso sphere
+            |> Sg.onOff showConnections
+            
         let currentBPtrafo = 
             m.secondControllerTrafo
             |> AVal.map (fun t -> 
                 let bpTF = activeBoxPlotTrafo false
                 bpTF * t)
+
+        let isRegion = 
+            m.currProbeAnalyzeTime 
+            |> AVal.bind (fun pr ->
+                match pr with 
+                | AdaptiveSome p -> (AVal.constant false) 
+                | AdaptiveNone -> (AVal.constant true))
             
         let currBPvisualConnectionsSg = 
-            createVisualConnectionsSg m.twoDModel.allProbesScreenPositions m.selectedProbesPositions currentBPtrafo m.showCurrBoxPlot
+            (isRegion, m.analyzeTimeProbePos) 
+            ||> AVal.map2 (fun region probePos ->
+                if region then 
+                    createVisualConnectionsSg m.twoDModel.allProbesScreenPositions m.selectedProbesPositions currentBPtrafo m.showCurrBoxPlot
+                else 
+                    createVisualConnectionTimeSg probePos currentBPtrafo m.showCurrBoxPlot
+                )
+            |> Sg.dynamic
 
         let trafoBP = 
             m.takenBoxPlot |> AVal.bind (fun bp -> 
@@ -414,9 +453,28 @@ module Demo =
                 | AdaptiveSome b -> b.probesPositions
                 | AdaptiveNone -> (AVal.constant [| |]))
 
+        let timeProbePos = 
+            m.takenBoxPlot |> AVal.bind (fun bp -> 
+                match bp with 
+                | AdaptiveSome b -> b.timeProbePos
+                | AdaptiveNone -> (AVal.constant V3d.OOO))
+
+        let boxPlotIsRegion = 
+            m.takenBoxPlot |> AVal.bind (fun bp -> 
+                match bp with 
+                | AdaptiveSome b -> b.isRegion
+                | AdaptiveNone -> (AVal.constant true))
+
         let takenBoxPlotSg = 
             let visualConnections = 
-                createVisualConnectionsSg boxPlotScreenPos boxPlotProbePos trafoBP m.movingBoxPlot
+                (boxPlotIsRegion, timeProbePos) 
+                ||> AVal.map2 (fun region probePos ->
+                    if region then 
+                        createVisualConnectionsSg boxPlotScreenPos boxPlotProbePos trafoBP m.movingBoxPlot
+                    else 
+                        createVisualConnectionTimeSg probePos trafoBP m.movingBoxPlot
+                    )
+                |> Sg.dynamic
             planeSg defaultBoxPlotPositions
             |> Sg.trafo trafoBP
             |> Sg.onOff m.movingBoxPlot
@@ -443,7 +501,15 @@ module Demo =
                         | Some i when i = key -> Trafo3d.Scale(0.95)
                         | _ -> Trafo3d.Identity)
                 let bpTrafo = (scaleTrafo, boxPlot.trafo) ||> AVal.map2 (fun st bt -> st * bt)
-                let visualConnections = createVisualConnectionsSg boxPlot.screenPos boxPlot.probesPositions bpTrafo (AVal.constant true)
+                let visualConnections =
+                    (boxPlot.isRegion, boxPlot.timeProbePos) 
+                    ||> AVal.map2 (fun region probePos ->
+                        if region then 
+                            createVisualConnectionsSg boxPlot.screenPos boxPlot.probesPositions bpTrafo (AVal.constant true)
+                        else 
+                            createVisualConnectionTimeSg probePos bpTrafo (AVal.constant true)
+                        )
+                    |> Sg.dynamic
                 planeSg defaultBoxPlotPositions
                 |> Sg.trafo bpTrafo
                 |> Sg.diffuseTexture texture

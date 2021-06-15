@@ -90,6 +90,7 @@ type BoxPlot = {
     probeIds        : HashMap<int, Probe>
     screenPos       : V2d []
     probesPositions : (string * V3d) []
+    timeProbePos    : V3d
 
     [<NonAdaptive>]
     id : string
@@ -233,10 +234,11 @@ type Model =
 
         //Box Plot Time
         currProbeAnalyzeTime : Option<Probe>
+        analyzeTimeProbePos : V3d
         boxPlotFrames : HashMap<int, float[]>
         framesOrder : seq<int>
 
-                        
+
         //Controller clipping plane
         holdClipping : bool
         clippingActive : bool
@@ -271,4 +273,6 @@ type Model =
         mainContrScreenTexture : ITexture
         secondContrScreenTexture : ITexture
         lastContrScreenModeTexture : ITexture
+        analyzeMainTexture : ITexture
+        analyzeContrScreenTexture : ITexture
 }

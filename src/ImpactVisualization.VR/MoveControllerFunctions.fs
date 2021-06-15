@@ -209,7 +209,9 @@ module MoveControllerFunctions =
                             | RenderValue.Density -> texture "probe-density"
                             | _ -> model.mainContrScreenTexture
                         model.mainTouchpadTexture, newContrScreenTexture
-                    else 
+                    else if model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Time then 
+                        model.analyzeMainTexture, model.analyzeContrScreenTexture
+                    else
                         model.mainTouchpadTexture, model.mainContrScreenTexture
             else 
                 model.mainTouchpadTexture, model.mainContrScreenTexture
