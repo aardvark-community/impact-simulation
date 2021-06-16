@@ -175,7 +175,7 @@ module UpdateFunctions =
     
     let createBoxPlot (region : bool)(attribute : RenderValue) (trafo : Trafo3d) (corners : Quad3d) 
         (texture : PixImage) (data : HashMap<int, float[]>) (allSelectedProbes : HashMap<int, Probe>) 
-        (screenPos : V2d []) (probesPositions : (string * V3d) []) (timeProbePos : V3d): BoxPlot =
+        (screenPos : V2d []) (probesPositions : (string * V3d) []) (timeProbePos : V3d) (visualLinks : bool) : BoxPlot =
         {   
             id = Guid.NewGuid().ToString()
             isRegion = region
@@ -188,6 +188,7 @@ module UpdateFunctions =
             screenPos = screenPos
             probesPositions = probesPositions
             timeProbePos = timeProbePos
+            showVisualLinks = visualLinks
         }
         
     let convertCartesianToPolar (cartCoords : V2d) = 

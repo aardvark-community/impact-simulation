@@ -550,7 +550,7 @@ module AppUpdate =
                     else true, HashMap.empty, V3d.OOO
                 let boxPlot = createBoxPlot isRegion model.currBoxPlotAttrib currTrafo transformedQuad 
                                     texture currBoxPlotData model.allCurrSelectedProbesIds 
-                                    model.twoDModel.allProbesScreenPositions model.selectedProbesPositions probePos
+                                    model.twoDModel.allProbesScreenPositions model.selectedProbesPositions probePos true
                 let allPlacedBoxPlots = model.allPlacedBoxPlots.Add(boxPlot.id, boxPlot)
                 let updatedTwoDmodel = 
                     {mTwoD with 
@@ -615,6 +615,19 @@ module AppUpdate =
                     allPlacedBoxPlots = updateBoxPlots
                     allProbes = allProbesUpdated}
             | _ -> model
+        | ToggleVisualLinks id -> 
+            match model.mainControllerId with 
+            | Some i when i = id && model.mainContrBoxPlotIntersectionId.IsSome -> 
+                let intersectedBoxPlotId = model.mainContrBoxPlotIntersectionId.Value
+                let boxPlot = model.allPlacedBoxPlots.TryFind(intersectedBoxPlotId)
+                match boxPlot with 
+                | Some b ->
+                    let updatedBoxPlot = {b with showVisualLinks = not b.showVisualLinks}
+                    let update (bp : Option<BoxPlot>) = updatedBoxPlot 
+                    let allBpsUpdated = model.allPlacedBoxPlots |> HashMap.update intersectedBoxPlotId update
+                    {model with allPlacedBoxPlots = allBpsUpdated}
+                | None -> model 
+            | _ -> model    
         | CopyBoxPlot id ->
             match model.secondControllerId with 
             | Some i when i = id && model.secondContrBoxPlotIntersectionId.IsSome ->
@@ -1230,5 +1243,5 @@ module AppUpdate =
             //| _ -> model
         | ResetHera id ->
             match model.mainControllerId with 
-            | Some i when i = id -> initial runtime frames
+            | Some i when i = id && model.mainContrBoxPlotIntersectionId.IsNone -> initial runtime frames
             | _ -> model

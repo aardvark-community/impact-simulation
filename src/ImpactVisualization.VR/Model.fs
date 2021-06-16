@@ -91,6 +91,7 @@ type BoxPlot = {
     screenPos       : V2d []
     probesPositions : (string * V3d) []
     timeProbePos    : V3d
+    showVisualLinks : bool
 
     [<NonAdaptive>]
     id : string
@@ -132,6 +133,7 @@ type Message =
     | DeleteBoxPlot of int
     | TakeBoxPlot of int 
     | LeaveBoxPlot of int 
+    | ToggleVisualLinks of int
     | CopyBoxPlot of int
     | ScaleProbe of int
     | StopProbeScale of int 

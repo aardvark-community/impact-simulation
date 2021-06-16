@@ -48,7 +48,7 @@ module Demo =
         | VrMessage.PressButton(controllerId, buttonId) ->
            // printf "press button: %A " (controllerId, buttonId)
             match buttonId with 
-            | 1 -> [ResetHera controllerId; CopyBoxPlot controllerId]
+            | 1 -> [ResetHera controllerId; ToggleVisualLinks controllerId; CopyBoxPlot controllerId]
             | 2 -> [GrabHera controllerId; ToggleBillboardVisibility controllerId; GrabTv controllerId]
             | _ -> []
         | VrMessage.UnpressButton(controllerId, buttonId) ->
@@ -465,25 +465,31 @@ module Demo =
                 | AdaptiveSome b -> b.isRegion
                 | AdaptiveNone -> (AVal.constant true))
 
+        let showLinks = 
+            m.takenBoxPlot |> AVal.bind (fun bp -> 
+                match bp with 
+                | AdaptiveSome b -> b.showVisualLinks
+                | AdaptiveNone -> (AVal.constant false))
+
         let takenBoxPlotSg = 
             let visualConnections = 
                 (boxPlotIsRegion, timeProbePos) 
                 ||> AVal.map2 (fun region probePos ->
                     if region then 
-                        createVisualConnectionsSg boxPlotScreenPos boxPlotProbePos trafoBP m.movingBoxPlot
+                        createVisualConnectionsSg boxPlotScreenPos boxPlotProbePos trafoBP showLinks
                     else 
-                        createVisualConnectionTimeSg probePos trafoBP m.movingBoxPlot
+                        createVisualConnectionTimeSg probePos trafoBP showLinks
                     )
                 |> Sg.dynamic
             planeSg defaultBoxPlotPositions
             |> Sg.trafo trafoBP
-            |> Sg.onOff m.movingBoxPlot
             |> Sg.diffuseTexture texBP
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.diffuseTexture
             }  
             |> Sg.andAlso visualConnections
+            |> Sg.onOff m.movingBoxPlot
 
         let boxPlotsSgs = 
             m.allPlacedBoxPlots |> AMap.toASet |> ASet.choose (fun (key, boxPlot) ->
@@ -505,9 +511,9 @@ module Demo =
                     (boxPlot.isRegion, boxPlot.timeProbePos) 
                     ||> AVal.map2 (fun region probePos ->
                         if region then 
-                            createVisualConnectionsSg boxPlot.screenPos boxPlot.probesPositions bpTrafo (AVal.constant true)
+                            createVisualConnectionsSg boxPlot.screenPos boxPlot.probesPositions bpTrafo boxPlot.showVisualLinks
                         else 
-                            createVisualConnectionTimeSg probePos bpTrafo (AVal.constant true)
+                            createVisualConnectionTimeSg probePos bpTrafo boxPlot.showVisualLinks
                         )
                     |> Sg.dynamic
                 planeSg defaultBoxPlotPositions
