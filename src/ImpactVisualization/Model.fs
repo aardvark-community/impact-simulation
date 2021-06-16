@@ -245,7 +245,7 @@ module DataLoader =
 
     let createData(frame : int) =
 
-        let datafile  = if System.Environment.UserName = "hs" then @"I:\impact\hera_data\impact.0117" else @"C:\Users\vasileva\source\hera_data\impact.0" + frame.ToString()
+        let datafile  = if System.Environment.UserName = "hs" then @"I:\impact\hera_data\impact.0117" else @"C:\Users\vasileva\source\hera_data\impact.0001"
         let storepath = datafile + ".store"
 
         let id = Hera.Hera.importHeraDataIntoStore datafile storepath false
