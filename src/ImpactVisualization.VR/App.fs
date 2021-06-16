@@ -794,7 +794,7 @@ module Demo =
                 m.renderValue m.currentMap m.domainRange m.clippingPlane contrClippingPlane 
                 m.boxFilter sphereProbe allPlacedSpheres spheresLength
                 m.currFilters m.dataRange m.colorValue.c 
-                m.cameraState.view viewTrafo viewVector
+                m.cameraState.view viewTrafo viewVector model.heraTransformations
                 runtime
             |> Sg.noEvents
             |> Sg.trafo model.heraTransformations

@@ -520,16 +520,16 @@ module HeraSg =
         mode
 
 
-    let private createIndex (vertexCount : int) (positions : aval<V3f[]>) (cameraLocation : aval<V3d>) = 
+    let private createIndex (vertexCount : int) (positions : aval<V3d[]>) (cameraLocation : aval<V3d>) = 
         let currentBuffer = cval (Array.init vertexCount id)
         let sorter () = 
             while true do
                 // get current positiosn and camera location
-                let cameraLocation = cameraLocation.GetValue() |> V3f
+                let cameraLocation = cameraLocation.GetValue()
                 let positions = positions.GetValue()
 
                 // compute distances
-                let distances = positions |> Array.map (fun (p : V3f) -> (cameraLocation - p).LengthSquared)
+                let distances = positions |> Array.map (fun (p : V3d) -> (cameraLocation - p).LengthSquared)
                 // create permutation array
                 let indices = distances.CreatePermutationQuickSortDescending()
                 // update index buffer
@@ -600,7 +600,7 @@ module HeraSg =
         //|> Sg.vertexAttribute (Sym.ofString "Pressure") (currFrame |> AVal.map (fun f -> Array.map float32 f.pressures))
 
         // creating an index does not harm - any ways.
-        let index = createIndex vertexCount (frame |> AVal.map (fun i -> frames.[i].positions)) (cameraView |> AVal.map CameraView.location) 
+        let index = createIndex vertexCount (frame |> AVal.map (fun i -> frames.[i].positions |> Array.map (fun p -> V3d p))) (cameraView |> AVal.map CameraView.location) 
         let transparencyEnabled = enableTransparency
 
         Sg.render IndexedGeometryMode.PointList dci 
@@ -662,6 +662,7 @@ module HeraSg =
                            (sphereProbe : aval<Sphere3d>) (allSpheres : aval<V4f[]>) (spheresLength : aval<int>)
                            (currFilters : aval<Filters>) (dataRange : aval<Range>) (colorValue : aval<C4b>) 
                            (cameraView : aval<CameraView>) (viewTrafoVR : aval<Trafo3d>) (viewVector : aval<V3d>)
+                           (heraTF : aval<Trafo3d>)
                            (runtime : IRuntime)
                            (frames : Frame[])  = 
 
@@ -705,7 +706,12 @@ module HeraSg =
         //|> Sg.vertexAttribute (Sym.ofString "Pressure") (currFrame |> AVal.map (fun f -> Array.map float32 f.pressures))
 
         // creating an index does not harm - any ways.
-        let index = createIndex vertexCount (frame |> AVal.map (fun i -> frames.[i].positions)) (cameraView |> AVal.map CameraView.location) 
+        let transformedPositions = 
+            (frame, heraTF)
+            ||> AVal.map2 (fun i trafo ->
+                let allPositions = frames.[i].positions |> Array.map (fun p -> V3d p)
+                trafo.Forward.TransformedPosArray(allPositions))
+        let index = createIndex vertexCount transformedPositions (cameraView |> AVal.map CameraView.location) 
         let transparencyEnabled = enableTransparency
 
         Sg.render IndexedGeometryMode.PointList dci 

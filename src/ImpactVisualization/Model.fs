@@ -243,9 +243,9 @@ module DataLoader =
     //let datapath  = @"D:\TU Wien\Master\4. Semester\Praktikum aus Visual Computing\Data\r80_p0_m500_v6000_mbasalt_a1.0_1M\data"
     //@"C:\Users\vasileva\source\hera_data"
 
-    let createData() =
+    let createData(frame : int) =
 
-        let datafile  = if System.Environment.UserName = "hs" then @"I:\impact\hera_data\impact.0117" else @"C:\Users\vasileva\source\hera_data\impact.0117"
+        let datafile  = if System.Environment.UserName = "hs" then @"I:\impact\hera_data\impact.0117" else @"C:\Users\vasileva\source\hera_data\impact.0" + frame.ToString()
         let storepath = datafile + ".store"
 
         let id = Hera.Hera.importHeraDataIntoStore datafile storepath false
@@ -253,7 +253,6 @@ module DataLoader =
 
     let loadDataSingleFrame (runtime : IRuntime) (storepath : string) = 
         //let storepath = datapath + ".store"
-
         let (p, store) = loadOctreeFromStore storepath
         let bb = p.Root.Value.BoundingBoxExactGlobal
         let root = p.Root.Value

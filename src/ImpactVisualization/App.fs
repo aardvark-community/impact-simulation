@@ -1801,6 +1801,9 @@ module App =
          ThreadPool.add "timer" (time()) pool
 
     let app (runtime : IRuntime) (bpClient : Browser) =
+        //let frms = seq { 100 .. 109 }
+        //frms |> Seq.iter (fun i -> DataLoader.createData(i))
+        
         // load data
         let frames = DataLoader.loadDataAllFrames runtime
         {
