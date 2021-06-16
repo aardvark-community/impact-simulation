@@ -221,7 +221,7 @@ module MoveControllerFunctions =
 
     let updateSecondControllerTextures (model : Model) = 
         let secondTex, secondContrScreenTex = 
-            if model.secondContrProbeIntersectionId.IsSome || model.interesctingClippingPlane then
+            if model.secondContrProbeIntersectionId.IsSome || model.interesctingClippingPlane || model.secondContrBoxPlotIntersectionId.IsSome then
                 model.secondTouchpadTexture, (texture "delete-object") 
             else     
                 if not model.mainMenuOpen && not model.secondTouching && model.mainContrProbeIntersectionId.IsNone && not model.grabbingHera && model.controllerMode = ControllerMode.Probe then 
@@ -299,6 +299,7 @@ module MoveControllerFunctions =
         {model with 
             showMainTexture = showMainTexture
             showSecondTexture = showSecondTexture}
+
     let updateTakenBoxPlot (model : Model) = 
         let updateTakenBoxPlot = 
             if model.movingBoxPlot then 

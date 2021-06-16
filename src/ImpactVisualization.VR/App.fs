@@ -493,19 +493,16 @@ module Demo =
 
         let boxPlotsSgs = 
             m.allPlacedBoxPlots |> AMap.toASet |> ASet.choose (fun (key, boxPlot) ->
-                let pixImage =
-                    AVal.map2 (fun secondId tex  ->
-                        match secondId with 
-                        | Some i when i = key -> createColorPixImage boxPlotClient C4b.Red
-                        | _ -> tex
-                    ) m.secondContrBoxPlotIntersectionId boxPlot.texture 
-                let texture = pixImage |> AVal.map (fun pi ->  convertPixImageToITexture pi)
+                //let pixImage =
+                //    AVal.map2 (fun secondId tex  ->
+                //        match secondId with 
+                //        | Some i when i = key -> createColorPixImage boxPlotClient C4b.Red
+                //        | _ -> tex
+                //    ) m.secondContrBoxPlotIntersectionId boxPlot.texture 
+                let texture = boxPlot.texture |> AVal.map (fun pi ->  convertPixImageToITexture pi)
                 let scaleTrafo = 
-                    m.mainContrBoxPlotIntersectionId 
-                    |> AVal.map (fun mct ->
-                        match mct with 
-                        | Some i when i = key -> Trafo3d.Scale(0.95)
-                        | _ -> Trafo3d.Identity)
+                    (m.mainContrBoxPlotIntersectionId, m.secondContrBoxPlotIntersectionId) 
+                    ||> AVal.map2 (fun mct sct -> if mct.IsSome || sct.IsSome then Trafo3d.Scale(0.95) else Trafo3d.Identity)
                 let bpTrafo = (scaleTrafo, boxPlot.trafo) ||> AVal.map2 (fun st bt -> st * bt)
                 let visualConnections =
                     (boxPlot.isRegion, boxPlot.timeProbePos) 
