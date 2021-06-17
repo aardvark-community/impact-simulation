@@ -97,6 +97,13 @@ type BoxPlot = {
     id : string
 }
 
+type RefEqual<'a> (v : 'a) =
+    member x.Value = v
+
+module RefEqual = 
+    let value (v : RefEqual<_>) = v.Value
+    let toRef (v : 'a) = RefEqual v
+
 type ThreeDMessage = Nop
 
 type Message =
@@ -235,6 +242,7 @@ type Model =
         selectedProbesPositions : (string * V3d) []
 
         //Box Plot Time
+       // temp : RefEqual<float[]>
         currProbeAnalyzeTime : Option<Probe>
         analyzeTimeProbePos : V3d
         boxPlotFrames : HashMap<int, float[]>

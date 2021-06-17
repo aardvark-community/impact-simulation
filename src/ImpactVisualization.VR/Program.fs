@@ -59,6 +59,7 @@ let main argv =
     let boxPlotClient = new Browser(null,AVal.constant System.DateTime.Now,app.Runtime, true, AVal.constant (V2i(1920, 1140)))
     let viewTrafos = app.SystemInfo.render.viewTrafos
     let projTrafos = app.SystemInfo.render.projTrafos
+    //let hmdLocation = app.SystemInfo.state.display.pose.deviceToWorld
     let bla = Demo.app client histogramClient boxPlotClient viewTrafos projTrafos app.Runtime
     let mapp = ComposedApp.start' app true bla
 
