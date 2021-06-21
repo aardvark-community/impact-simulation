@@ -1741,7 +1741,7 @@ module App =
                         
                                 let histogram = 
                                         onBoot' [("data", dataChannel); ("transition", transitionChannel)] updateChart ( // when div [histogram etc] is constructed updateChart is called.
-                                                    div [onBrushed; clazz "histogram"; style "position: fixed; bottom: 50px; right: 20px; width: 560px; height: 322px; z-index: 1000"] []          
+                                                    div [onBrushed; clazz "histogram"; style "position: fixed; bottom: 50px; right: 20px; width: 560px; height: 322px; z-index: 1000"] []
                                         )
                             
 

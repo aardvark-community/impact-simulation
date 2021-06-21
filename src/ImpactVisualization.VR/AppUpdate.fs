@@ -768,7 +768,7 @@ module AppUpdate =
                         let probe = createProbe model.lastModifiedProbeIntId false false 0 false color spherePos sphereRadius spherePosTransformed radiusTransformed intersection allData attrib true true billboardType
 
                         let filteredData = if intersection then array else mTwoD.data.arr
-                        //let attributeAsString = renderValueToString attrib
+                        let attributeAsString = renderValueToString attrib
 
                         //let newCurrBoxPlotAttrib = if not model.currBoxPlotAttribSet then attrib else model.currBoxPlotAttrib
                         //let newHashmap, dataForBoxPlot = 
@@ -784,7 +784,7 @@ module AppUpdate =
                             { mTwoD with
                                 sphereFilter = Some sphereTransformed
                                 data = { version = mTwoD.data.version + 1; arr = filteredData}
-                                //attributeText = attributeAsString
+                                attributeText = attributeAsString
                                 //boxPlotData = dataForBoxPlot
                                 //boxPlotAttribute = renderValueToString newCurrBoxPlotAttrib
                             }
