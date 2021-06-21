@@ -528,11 +528,12 @@ module App =
         | ChangeAnimation -> { m with playAnimation = not m.playAnimation}
         | AnimateAllFrames -> 
             let filteredDataAllFrames = filterDataForAllFramesBox frames m.boxFilter m.renderValue
+            let allFramesFiltered = filteredDataAllFrames |> Array.map (fun arr -> RefEqual.toRef arr)
 
             {m with 
                 animateAllFrames = not m.animateAllFrames
                 transition = not m.transition
-                filteredAllFrames = filteredDataAllFrames}
+                filteredAllFrames = allFramesFiltered}
         | StepTime -> 
             //printfn "Frame: %A" (m.offsetId % frames.Length) 
             let newFrameId = ((sw.Elapsed.TotalSeconds / 0.5) |> int) + (m.offsetId % frames.Length) + frames.Length
@@ -549,7 +550,7 @@ module App =
             let currData = 
                 if isCurrentFilterSet && m.animateAllFrames then  
                     let filteredData = m.filteredAllFrames.[currFrame]
-                    filteredData
+                    filteredData.Value
                 else 
                     m.data.arr
 
@@ -590,6 +591,8 @@ module App =
                 else
                     let temp : float[] [] = Array.empty
                     temp
+            let allFramesFiltered = filteredDataAllFrames |> Array.map (fun arr -> RefEqual.toRef arr)
+
 
             let newCenter = (minValue - maxValue)/2.0
 
@@ -605,7 +608,7 @@ module App =
                 endValue = maxValue
                 endValueNormalized = 1.0
                 data = { version = m.data.version + 1; arr = filteredData }
-                filteredAllFrames = filteredDataAllFrames}
+                filteredAllFrames = allFramesFiltered}
         | SetColorValue a -> 
             let c = ColorPicker.update m.colorValue a
             {m with colorValue = c}
@@ -676,19 +679,21 @@ module App =
                 else
                     let temp : float[] [] = Array.empty
                     temp
+            let allFramesFiltered = filteredDataAllFrames |> Array.map (fun arr -> RefEqual.toRef arr)
+
                         
             let filteredData = filterDataForOneFrameBox frames.[m.frame] newFilter m.renderValue
 
-            let r = System.Random()
-            let newRandomData = r.GetValues(1, 100) |> Seq.take 10 |> Seq.map (fun n -> float n) |> Seq.toArray
-            let bpData = m.boxPlotData |> Array.append [|newRandomData|]
+            //let r = System.Random()
+            //let newRandomData = r.GetValues(1, 100) |> Seq.take 10 |> Seq.map (fun n -> float n) |> Seq.toArray
+            //let bpData = m.boxPlotData |> Array.append [|newRandomData|]
 
             {m with 
-                boxPlotData = bpData
-                boxPlotAttribute = "Energy"
+                //boxPlotData = bpData
+                //boxPlotAttribute = "Energy"
                 boxFilter = newFilter
                 data = { version = m.data.version + 1 ; arr = filteredData }
-                filteredAllFrames = filteredDataAllFrames
+                filteredAllFrames = allFramesFiltered
                 dataPath = newDataPath}
         | ResetFilter -> {m with 
                             currFilter = None
@@ -1130,7 +1135,8 @@ module App =
             "initParallCoords(__ID__); dataPath.onmessage = function (path) { if (path != null) refreshPar(path); };"
 
         //let boxplotData = m.boxPlotData1 |> AMap.toAVal
-        let boxPlotChannel = m.boxPlotData.Channel
+        let boxPlotConverted = m.boxPlotData |> AVal.map (fun arr ->  arr |> Array.map (fun a -> a.Value))
+        let boxPlotChannel = boxPlotConverted.Channel
         let attributeChannel = m.boxPlotAttribute.Channel
         let typeChannel = m.boxPlotRegion.Channel
         let framesChannel = m.framesOrder.Channel

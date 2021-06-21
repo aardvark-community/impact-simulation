@@ -443,10 +443,11 @@ module AppUpdate =
                     let isCurrSelected = intersectedProbe.currSelected
 
                     let arrayBoxPlot, statsBoxPlot = intersectedProbe.allData.[mTwoD.frame].Item model.currBoxPlotAttrib
+                    let arrayData = RefEqual.toRef arrayBoxPlot
 
                     let newHashmap, allProbesIds = 
                         if not isCurrSelected then 
-                            model.boxPlotProbes.Add(model.lastProbeId, arrayBoxPlot), model.allCurrSelectedProbesIds.Add(model.lastProbeId, intersectedProbe)
+                            model.boxPlotProbes.Add(model.lastProbeId, arrayData), model.allCurrSelectedProbesIds.Add(model.lastProbeId, intersectedProbe)
                         else 
                             let currProbe = model.allProbes.Item probeId
                             let intId = currProbe.numberId
@@ -499,6 +500,7 @@ module AppUpdate =
                     let currProbe = model.allProbes.Item probeId
 
                     let arrayBoxPlot, statsBoxPlot = currProbe.allData.[mTwoD.frame].Item model.currBoxPlotAttrib
+                    let arrayData = RefEqual.toRef arrayBoxPlot
 
                     let newProbeAnalyzeTime, analyzeTimeProbePos,  updatedProbe, newHashmap, currSelectedProbe, newOrder = 
                         if model.currProbeAnalyzeTime.IsNone then 
@@ -507,7 +509,7 @@ module AppUpdate =
                                     timeAnalyze = true
                                     color = C4b.Orange}
                             //let order = model.framesOrder |> Seq.append([mTwoD.frame])
-                            let tempH = model.boxPlotFrames.Add(mTwoD.frame, arrayBoxPlot)
+                            let tempH = model.boxPlotFrames.Add(mTwoD.frame, arrayData)
                             let currSelected = model.allCurrSelectedProbesIds.Add(500, currProbe)
                             let newOrder = tempH |> HashMap.toSeq |> Seq.map (fun result -> fst result)
                             Some currProbe, currProbe.centerRelToHera, updatedProbe, tempH, currSelected, newOrder
@@ -1023,7 +1025,8 @@ module AppUpdate =
                                 model.boxPlotFrames
                                 |> HashMap.map (fun frame array ->
                                     let newArray, newStats = currProbe.allData.[frame].Item newAttribute
-                                    newArray
+                                    let arrayData = RefEqual.toRef newArray
+                                    arrayData
                                 )
                             bp, {model with boxPlotFrames = bp}
                         else 
@@ -1039,7 +1042,8 @@ module AppUpdate =
                                         |> Seq.exactlyOne
                                         |> snd
                                     let newArray, newStats = currProbe.allData.[mTwoD.frame].Item newAttribute
-                                    newArray                                
+                                    let arrayData = RefEqual.toRef newArray
+                                    arrayData                                
                                 )
                             bp, {model with boxPlotProbes = bp}
 

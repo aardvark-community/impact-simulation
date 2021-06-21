@@ -155,6 +155,13 @@ module VersionedArray =
     let mutable private v = 0
     let ofArray xs = v <- v + 1; { version = v; arr = xs }
 
+type RefEqual<'a> (v : 'a) =
+    member x.Value = v
+
+module RefEqual = 
+    let value (v : RefEqual<_>) = v.Value
+    let toRef (v : 'a) = RefEqual v
+
 [<ModelType>]
 type Model =
     {
@@ -165,7 +172,7 @@ type Model =
         reverseAnimation : bool
         currHeraBBox : Box3d
 
-        allProbesScreenPositions : V2d[]
+        allProbesScreenPositions : V2d []
 
         pointSize : float
         playAnimation : bool
@@ -207,7 +214,7 @@ type Model =
 
         data : VersionedArray
         values : VersionedArray
-        boxPlotData : float [] []
+        boxPlotData : RefEqual<float []> []
         boxPlotAttribute : string
         boxPlotRegion : bool
         framesOrder : int []
@@ -216,7 +223,7 @@ type Model =
         boxFilter : option<Box3f>
         sphereFilter : option<Sphere3d>
         filtered : list<float> 
-        filteredAllFrames : float [] []
+        filteredAllFrames : RefEqual<float []> []
 
         boxColor : C4b
 

@@ -174,7 +174,7 @@ module UpdateFunctions =
         }
     
     let createBoxPlot (region : bool)(attribute : RenderValue) (trafo : Trafo3d) (corners : Quad3d) 
-        (texture : PixImage) (data : HashMap<int, float[]>) (allSelectedProbes : HashMap<int, Probe>) 
+        (texture : PixImage) (data : HashMap<int, RefEqual<float[]>>) (allSelectedProbes : HashMap<int, Probe>) 
         (screenPos : V2d []) (probesPositions : (string * V3d) []) (timeProbePos : V3d) (visualLinks : bool) : BoxPlot =
         {   
             id = Guid.NewGuid().ToString()
@@ -258,8 +258,9 @@ module UpdateFunctions =
         if model.currProbeAnalyzeTime.IsSome && model.boxPlotFrames.TryFind(frame).IsNone then
             let currProbe = model.currProbeAnalyzeTime.Value
             let arrayBoxPlot, statsBoxPlot = currProbe.allData.[frame].Item model.currBoxPlotAttrib
+            let arrayData = RefEqual.toRef arrayBoxPlot
             //let newOrder = model.framesOrder |> Seq.append([frame])
-            let newHashmap = model.boxPlotFrames.Add(frame, arrayBoxPlot)
+            let newHashmap = model.boxPlotFrames.Add(frame, arrayData)
             let newOrder = newHashmap |> HashMap.toSeq |> Seq.map (fun result -> fst result)
             let dataForBoxPlot = newHashmap |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
 

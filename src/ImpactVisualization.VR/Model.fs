@@ -86,7 +86,7 @@ type BoxPlot = {
     trafo           : Trafo3d
     positions       : Quad3d
     texture         : PixImage
-    data            : HashMap<int, float[]>
+    data            : HashMap<int, RefEqual<float[]>>
     probeIds        : HashMap<int, Probe>
     screenPos       : V2d []
     probesPositions : (string * V3d) []
@@ -97,12 +97,7 @@ type BoxPlot = {
     id : string
 }
 
-type RefEqual<'a> (v : 'a) =
-    member x.Value = v
 
-module RefEqual = 
-    let value (v : RefEqual<_>) = v.Value
-    let toRef (v : 'a) = RefEqual v
 
 type ThreeDMessage = Nop
 
@@ -228,7 +223,7 @@ type Model =
         existingProbeModified : bool
 
         //Box Plot Region
-        boxPlotProbes : HashMap<int, float[]>
+        boxPlotProbes : HashMap<int, RefEqual<float[]>>
         lastProbeId : int
         currBoxPlotAttribSet : bool
         currBoxPlotAttrib : RenderValue
@@ -246,7 +241,7 @@ type Model =
        // temp : RefEqual<float[]>
         currProbeAnalyzeTime : Option<Probe>
         analyzeTimeProbePos : V3d
-        boxPlotFrames : HashMap<int, float[]>
+        boxPlotFrames : HashMap<int, RefEqual<float[]>>
         framesOrder : seq<int>
 
 
