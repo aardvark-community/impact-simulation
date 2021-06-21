@@ -661,7 +661,7 @@ module HeraSg =
                            (clippingPlane : aval<ClippingPlane>) (contrClippingPlane : aval<Plane3d>) (filterBox : aval<option<Box3f>>) 
                            (sphereProbe : aval<Sphere3d>) (allSpheres : aval<V4f[]>) (spheresLength : aval<int>)
                            (currFilters : aval<Filters>) (dataRange : aval<Range>) (colorValue : aval<C4b>) 
-                           (cameraView : aval<CameraView>) (hmdPose : aval<Trafo3d>)
+                           (cameraView : aval<CameraView>) (hmdPosition : aval<V3d>)
                            (viewTrafoVR : aval<Trafo3d>) (viewVector : aval<V3d>)
                            (heraTF : aval<Trafo3d>)
                            (runtime : IRuntime)
@@ -713,8 +713,8 @@ module HeraSg =
                 let allPositions = frames.[i].positions |> Array.map (fun p -> V3d p)
                 trafo.Forward.TransformedPosArray(allPositions))
 
-        let hmdLocation = hmdPose |> AVal.map (fun p -> p.Forward.C2.XYZ)
-        let index = createIndex vertexCount transformedPositions hmdLocation //(cameraView |> AVal.map CameraView.location) 
+        //let hmdLocation = hmdPose |> AVal.map (fun p -> p.Forward.C2.XYZ)
+        let index = createIndex vertexCount transformedPositions hmdPosition //(cameraView |> AVal.map CameraView.location) 
         let transparencyEnabled = enableTransparency
 
         Sg.render IndexedGeometryMode.PointList dci 

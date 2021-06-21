@@ -161,6 +161,7 @@ type Model =
         threads : ThreadPool<Message>
         firstHistogram : bool
         showBillboard : bool
+        hmdPos : V3d
 
         playbackMode : PlaybackMode
         currAnimationFlow : AnimationFlow

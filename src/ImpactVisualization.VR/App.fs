@@ -783,7 +783,7 @@ module Demo =
         //let sphereProbe = Sphere3d.Invalid |> AVal.constant
 
         let viewVector = viewTrafo |> AVal.map (fun t -> t.Forward.C2.XYZ)
-        let hmdPose = info.hmd.Pose
+        //let hmdPose = info.hmd.Pose
 
         let heraSg = 
             let model = m
@@ -798,7 +798,7 @@ module Demo =
                 m.renderValue m.currentMap m.domainRange m.clippingPlane contrClippingPlane 
                 m.boxFilter sphereProbe allPlacedSpheres spheresLength
                 m.currFilters m.dataRange m.colorValue.c 
-                m.cameraState.view hmdPose viewTrafo viewVector model.heraTransformations
+                m.cameraState.view model.hmdPos viewTrafo viewVector model.heraTransformations
                 runtime
             |> Sg.noEvents
             |> Sg.trafo model.heraTransformations

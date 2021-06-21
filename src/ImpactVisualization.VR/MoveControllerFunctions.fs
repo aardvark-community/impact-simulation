@@ -49,6 +49,9 @@ module MoveControllerFunctions =
            | None -> None
            | _ -> controllerIntersectionId
 
+    let updateHMDPos (hmdPos : V3d) (model : Model) =
+        {model with hmdPos = hmdPos}
+
     let updateDevicesTrafos (id : int) (trafo : Trafo3d) (model : Model) = 
         let newInput = model.devicesTrafos.Add(id, trafo)
         let mainContrTrafo = newOrOldTrafo id trafo model.mainControllerId model.mainControllerTrafo

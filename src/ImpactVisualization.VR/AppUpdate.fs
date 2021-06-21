@@ -34,6 +34,7 @@ module AppUpdate =
             firstHistogram = true
             showBillboard = true
             devicesTrafos = HashMap.Empty
+            hmdPos = V3d.OOO
             mainControllerId = None
             secondControllerId = None
             mainContrSignTexture = allTextures.Item "empty"
@@ -127,6 +128,8 @@ module AppUpdate =
 
     let rec update (runtime : IRuntime) (client : Browser) (histogramClient : Browser) (boxPlotClient : Browser) (viewTrafo : aval<Trafo3d>) (projTrafo : aval<Trafo3d>) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
         let mTwoD = model.twoDModel
+
+       // printfn "HMD Pos: %A" (state.display.pose.deviceToWorld.GetModelOrigin())
 
         let callUpdate (msg : Message) = update runtime client histogramClient boxPlotClient viewTrafo projTrafo frames state vr model msg
        
@@ -286,6 +289,7 @@ module AppUpdate =
             | _ -> model
         | MoveController (id, (trafo : Trafo3d)) -> 
             model
+            |> updateHMDPos hmdPos
             |> updateDevicesTrafos id trafo
             |> updateSphereScalingFactor
             |> updateTvTrafos
