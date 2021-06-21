@@ -106,6 +106,22 @@ module UpdateFunctions =
                            "pause-stop", fromStreamToTexture "pause-stop.png";
                            "pause-screenshot", fromStreamToTexture "pause-screenshot.png"]
 
+    
+    let vibrate(contrId : Option<int>) (state : VrState) (timeMilliseconds : float) = 
+        match contrId with 
+            | Some id -> 
+                let device = state.devices.Item id
+                device.startVibrate (MicroTime.FromMilliseconds timeMilliseconds)
+            | _ -> ()
+
+    let vibrateController (currIntr : Option<string>) (oldIntr : Option<string>) (contrId : Option<int>) (timeMilliseconds : float) (state : VrState) = 
+        if currIntr.IsSome then 
+            if oldIntr.IsSome then
+                if currIntr.Value <> oldIntr.Value then 
+                    vibrate contrId state timeMilliseconds
+                else ()
+            else vibrate contrId state timeMilliseconds
+
     let defaultTex = allTextures.Item "empty"
     let getTexture tex = Option.defaultValue defaultTex tex
     let texture tex = allTextures.TryFind(tex) |> getTexture    
@@ -202,20 +218,21 @@ module UpdateFunctions =
             if y < 0.0 then angle + 360.0 else angle
         r, theta
     
-    let computeNewAttribute (touchpadPos : V2d) (currAttribute : RenderValue) =
+    let computeNewAttribute (touchpadPos : V2d) (currAttribute : RenderValue) (contrId : Option<int>) (state : VrState) =
         let r, theta = convertCartesianToPolar touchpadPos
-        if r >= 0.5 then 
-            match theta with 
-            | t when t >= 0.0   && t < 60.0  -> RenderValue.Energy
-            | t when t >= 60.0  && t < 120.0 -> RenderValue.CubicRoot
-            | t when t >= 120.0 && t < 180.0 -> RenderValue.Strain
-            | t when t >= 180.0 && t < 240.0 -> RenderValue.AlphaJutzi
-            | t when t >= 240.0 && t < 300.0 -> RenderValue.Pressure
-            | t when t >= 300.0 && t < 360.0 -> RenderValue.Density
-            | _ -> currAttribute
-        else 
-            currAttribute
-    
+        let newAttribute = 
+            if r >= 0.5 then 
+                match theta with 
+                | t when t >= 0.0   && t < 60.0  -> RenderValue.Energy
+                | t when t >= 60.0  && t < 120.0 -> RenderValue.CubicRoot
+                | t when t >= 120.0 && t < 180.0 -> RenderValue.Strain
+                | t when t >= 180.0 && t < 240.0 -> RenderValue.AlphaJutzi
+                | t when t >= 240.0 && t < 300.0 -> RenderValue.Pressure
+                | t when t >= 300.0 && t < 360.0 -> RenderValue.Density
+                | _ -> currAttribute
+            else currAttribute
+        if newAttribute <> currAttribute then vibrate contrId state 50.0
+        newAttribute
     
     let initialScalingHera = 0.05
     let initialScalingTv = 2.5
@@ -235,7 +252,7 @@ module UpdateFunctions =
         scale * rotation * translation
     
     let getScreenshot (histogramClient : Browser) = 
-        let pixImage = PixImage<byte>(Col.Format.BGRA,histogramClient.Size.GetValue())
+        let pixImage = PixImage<byte>(Col.Format.BGRA, histogramClient.Size.GetValue())
         let temp = pixImage.GetMatrix<C4b>().SetByCoord(fun (v : V2l) -> histogramClient.ReadPixel(V2i v) |> C4b) 
         pixImage :> PixImage
 

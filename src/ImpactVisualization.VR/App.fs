@@ -68,10 +68,10 @@ module Demo =
             | 1 ->  [DeactivateControllerMode controllerId; StopProbeScale controllerId; LeaveBoxPlot controllerId]
             | _ -> []
         | VrMessage.Touch(controllerId, buttonId) ->
-            //match buttonId with 
-            //| 0 -> [TouchDevice controllerId]
-            //| _ -> []
-            []
+            match buttonId with 
+            | 0 -> [TouchDevice controllerId]
+            | _ -> []
+            //[]
         | VrMessage.Untouch(controllerId, buttonId) ->
             match buttonId with 
             | 0 -> [UntouchDevice controllerId]

@@ -97,34 +97,38 @@ module MoveControllerFunctions =
             tvTransformations = newTvTransformations
             tvQuad = updatedTvQuad}
 
-    let updateRay (client : Browser) (model : Model)  = 
-        let initRay = 
-            if model.rayActive then
-                let origin = model.mainControllerTrafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
-                let direction = model.mainControllerTrafo.Forward.TransformPos(V3d.OIO * 1000.0)
-                Ray3d(origin, direction)
-            else Ray3d.Invalid    
-        let mutable hit = RayHit3d.MaxRange
-        let hitPoint = if model.rayActive then initRay.Hits(model.tvQuad, &hit) else false
-        let currRay, rColor, screenCoordsHitPos =
-            if model.rayActive then 
-                if hitPoint then
-                    let screenCoords = (V2d(hit.Coord.X * screenResolution.ToV2d().X, hit.Coord.Y * screenResolution.ToV2d().Y)).ToV2i()
-                    let screenPos = PixelPosition(screenCoords, screenResolution.X, screenResolution.Y)
-                    if model.rayTriggerClicked then
-                        client.Mouse.Move(screenPos)
-                    Ray3d(initRay.Origin, hit.Point), C4b.Green, screenPos
-                else
-                    initRay, C4b.Red, PixelPosition()
-            else Ray3d.Invalid, C4b.Red, PixelPosition()
+    let updateRay (id : int) (client : Browser) (model : Model)  = 
+        match model.mainControllerId with 
+        | Some i when i = id -> 
+            let initRay = 
+                if model.rayActive then
+                    let origin = model.mainControllerTrafo.Forward.TransformPos(V3d(0.0, 0.02, 0.0))
+                    let direction = model.mainControllerTrafo.Forward.TransformPos(V3d.OIO * 1000.0)
+                    Ray3d(origin, direction)
+                else Ray3d.Invalid    
+            let mutable hit = RayHit3d.MaxRange
+            let hitPoint = if model.rayActive then initRay.Hits(model.tvQuad, &hit) else false
+            let currRay, rColor, screenCoordsHitPos =
+                if model.rayActive then 
+                    if hitPoint then
+                        let screenCoords = (V2d(hit.Coord.X * screenResolution.ToV2d().X, hit.Coord.Y * screenResolution.ToV2d().Y)).ToV2i()
+                        let screenPos = PixelPosition(screenCoords, screenResolution.X, screenResolution.Y)
+                        if model.rayTriggerClicked then
+                            client.Mouse.Move(screenPos)
+                            printfn "Move"
+                        Ray3d(initRay.Origin, hit.Point), C4b.Green, screenPos
+                    else
+                        initRay, C4b.Red, PixelPosition()
+                else Ray3d.Invalid, C4b.Red, PixelPosition()
 
-        {model with 
-            screenIntersection = hitPoint
-            hitPoint = hit.Point
-            screenHitPoint = hit.Coord
-            ray = currRay
-            rayColor = rColor
-            screenCoordsHitPos = screenCoordsHitPos}
+            {model with 
+                screenIntersection = hitPoint
+                hitPoint = hit.Point
+                screenHitPoint = hit.Coord
+                ray = currRay
+                rayColor = rColor
+                screenCoordsHitPos = screenCoordsHitPos}
+        | _ -> model
 
     let updateHeraTrafos (model : Model) =
         let newHeraScaleTrafo = 
@@ -147,16 +151,21 @@ module MoveControllerFunctions =
             heraTransformations = heraTrafos
             heraBox = heraBBox}
 
-    let updateProbeIntersections (id : int) (model : Model) = 
+    let updateProbeIntersections (id : int) (state : VrState) (model : Model) = 
+        //let device = state.devices |> HashMap.tryFind id
         let mainContrProbeIntersection = checkProbeIntersection id model model.mainControllerId model.mainControllerTrafo model.mainContrProbeIntersectionId
+        vibrateController mainContrProbeIntersection model.mainContrProbeIntersectionId model.mainControllerId 50.0 state
         let secondContrProbeIntersection = checkProbeIntersection id model model.secondControllerId model.secondControllerTrafo model.secondContrProbeIntersectionId
+        vibrateController secondContrProbeIntersection model.secondContrProbeIntersectionId model.secondControllerId 50.0 state
         {model with
             mainContrProbeIntersectionId = mainContrProbeIntersection
             secondContrProbeIntersectionId = secondContrProbeIntersection}
 
-    let updateBoxPlotIntersections (id : int) (model : Model) = 
+    let updateBoxPlotIntersections (id : int) (state : VrState) (model : Model) = 
         let mainContrBoxPlotIntersection = checkBoxPlotIntersection id model model.mainControllerId model.mainContrProbeIntersectionId.IsNone model.mainControllerTrafo model.mainContrBoxPlotIntersectionId
+        vibrateController mainContrBoxPlotIntersection model.mainContrBoxPlotIntersectionId model.mainControllerId 50.0 state
         let secondContrBoxPlotIntersection = checkBoxPlotIntersection id model model.secondControllerId model.secondContrProbeIntersectionId.IsNone model.secondControllerTrafo model.secondContrBoxPlotIntersectionId
+        vibrateController secondContrBoxPlotIntersection model.secondContrBoxPlotIntersectionId model.secondControllerId 50.0 state
         {model with
             mainContrBoxPlotIntersectionId = mainContrBoxPlotIntersection
             secondContrBoxPlotIntersectionId = secondContrBoxPlotIntersection}

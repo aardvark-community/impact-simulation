@@ -293,10 +293,10 @@ module AppUpdate =
             |> updateDevicesTrafos id trafo
             |> updateSphereScalingFactor
             |> updateTvTrafos
-            |> updateRay client
+            |> updateRay id client
             |> updateHeraTrafos
-            |> updateProbeIntersections id
-            |> updateBoxPlotIntersections id
+            |> updateProbeIntersections id state
+            |> updateBoxPlotIntersections id state
             |> updateClippingPlane
             |> updateSecondControllеrClippingIntersection id
             |> updateMainControllerTextures
@@ -878,6 +878,7 @@ module AppUpdate =
                         | _ -> model.controllerMode
                     else 
                         model.controllerMode
+                if newContrlMode <> model.controllerMode then vibrate model.mainControllerId state 40.0
                 let tex, screenTexture = 
                     match model.controllerMode with 
                     | m when m = newContrlMode -> model.mainTouchpadTexture, model.mainContrScreenTexture // if the  controller mode is the same then texture should not be loaded again   
@@ -911,6 +912,7 @@ module AppUpdate =
                     | t when (t >= 0.0 && t < 90.0) || (t >= 270.0 && t < 360.0) -> AnalyzeMode.Time
                     | t when t >= 90.0 && t < 270.0 -> AnalyzeMode.Region
                     | _ -> model.analyzeMode
+                if newAnalyzeMode <> model.analyzeMode then vibrate model.mainControllerId state 40.0
                 let tex, screenTexture, region = 
                     match model.analyzeMode with 
                     | m when m = newAnalyzeMode -> model.mainTouchpadTexture, model.mainContrScreenTexture, mTwoD.boxPlotRegion // if the  controller mode is the same then texture should not be loaded again   
@@ -993,6 +995,7 @@ module AppUpdate =
                         | t when (t >= 0.0 && t < 90.0) || (t >= 270.0 && t < 360.0) -> BillboardType.Histogram
                         | t when t >= 90.0 && t < 270.0 -> BillboardType.Statistic
                         | _ -> intersectedProbe.currBillboard
+                    if newBillboardType <> intersectedProbe.currBillboard then vibrate model.mainControllerId state 40.0
                     let updatedProbe = {intersectedProbe with currBillboard = newBillboardType}
                     let update (pr : Option<Probe>) = updatedProbe 
                     let allProbesUpdated = model.allProbes |> HashMap.update probeId update
@@ -1013,7 +1016,7 @@ module AppUpdate =
         | ChangeBoxPlotAttribute id ->
             match model.secondControllerId with  
             | Some i when i = id && model.controllerMode = ControllerMode.Analyze ->
-                let newAttribute = computeNewAttribute model.currSecondTouchPadPos model.currBoxPlotAttrib
+                let newAttribute = computeNewAttribute model.currSecondTouchPadPos model.currBoxPlotAttrib model.secondControllerId state
                 let texture, screenTexture = computeNewAttributeTextures newAttribute
 
                 if newAttribute <> model.currBoxPlotAttrib then 
@@ -1068,7 +1071,7 @@ module AppUpdate =
         | SelectGlobalAttribute id ->
             match model.secondControllerId with  
             | Some i when i = id && model.controllerMode = ControllerMode.Probe && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone -> 
-                let newAttribute = computeNewAttribute model.currSecondTouchPadPos model.attribute 
+                let newAttribute = computeNewAttribute model.currSecondTouchPadPos model.attribute model.secondControllerId state
                 let texture, screenTexture = computeNewAttributeTextures newAttribute //model.attribute
                 {model with 
                     attribute = newAttribute
@@ -1084,8 +1087,8 @@ module AppUpdate =
                     let intersectedProbe = model.allProbes.TryFind(probeId)
                     if intersectedProbe.IsSome then 
                         let probe = intersectedProbe.Value
-                        let newAttribute = computeNewAttribute model.currSecondTouchPadPos probe.currAttribute
-                        let texture, screenTexture = computeNewAttributeTextures newAttribute//probe.currAttribute
+                        let newAttribute = computeNewAttribute model.currSecondTouchPadPos probe.currAttribute model.secondControllerId state
+                        let texture, screenTexture = computeNewAttributeTextures newAttribute //probe.currAttribute
                         let updatedProbe = {probe with currAttribute = newAttribute}
                         let update (pr : Option<Probe>) = updatedProbe 
                         let allProbesUpdated = model.allProbes |> HashMap.update probeId update
@@ -1154,17 +1157,23 @@ module AppUpdate =
                 )
             {model with allProbes = probeHistogramsUpdated}
         | TouchDevice id ->
-            let mainTouching = 
-                match model.mainControllerId with
-                | Some i when i = id -> true
-                | _ -> model.mainTouching
-            let secondTouching = 
-                match model.secondControllerId with
-                | Some i when i = id -> true
-                | _ -> model.secondTouching
-            {model with 
-                mainTouching = mainTouching
-                secondTouching = secondTouching}
+            //let mainTouching = 
+            //    match model.mainControllerId with
+            //    | Some i when i = id -> true
+            //    | _ -> model.mainTouching
+            //let secondTouching = 
+            //    match model.secondControllerId with
+            //    | Some i when i = id -> true
+            //    | _ -> model.secondTouching
+
+            match model.mainControllerId with
+            | Some i when i = id && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Time && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone -> 
+                vibrate model.mainControllerId state 40.0
+            | _ -> ()
+            model
+            //{model with 
+            //    mainTouching = mainTouching
+            //    secondTouching = secondTouching}
              //{model with touchpadDeviceId = Some id} 
         | UntouchDevice id ->
             //printf "Untouch"

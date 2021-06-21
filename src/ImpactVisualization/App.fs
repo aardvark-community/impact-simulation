@@ -1737,13 +1737,11 @@ module App =
                                         button [onClick (fun _ -> ResetFilter); style "font-size: x-large; margin: 2px; margin-top: 0px; margin-bottom: 5px"] [text "Reset"]
                                     ]
                                 ]
-                                
                         
                                 let histogram = 
                                         onBoot' [("data", dataChannel); ("transition", transitionChannel)] updateChart ( // when div [histogram etc] is constructed updateChart is called.
                                                     div [onBrushed; clazz "histogram"; style "position: fixed; bottom: 50px; right: 20px; width: 560px; height: 322px; z-index: 1000"] []
                                         )
-                            
 
                                 let parallCoords = 
                                         onBoot' [("dataPath", pathChannel)] updateParallCoords (
