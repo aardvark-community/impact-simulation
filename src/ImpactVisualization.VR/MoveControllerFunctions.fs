@@ -115,7 +115,7 @@ module MoveControllerFunctions =
                         let screenPos = PixelPosition(screenCoords, screenResolution.X, screenResolution.Y)
                         if model.rayTriggerClicked then
                             client.Mouse.Move(screenPos)
-                            printfn "Move"
+                          //  printfn "Move"
                         Ray3d(initRay.Origin, hit.Point), C4b.Green, screenPos
                     else
                         initRay, C4b.Red, PixelPosition()
@@ -181,7 +181,7 @@ module MoveControllerFunctions =
             else model.planeCorners
         {model with planeCorners = currCorners}
 
-    let updateSecondControllеrClippingIntersection (id : int) (model : Model) = 
+    let updateSecondControllеrClippingIntersection (id : int) (state : VrState) (model : Model) = 
         let secondContrClippingIntersection =
             match model.secondControllerId with 
             | Some i when i = id && not model.holdClipping && model.planeCorners.IsValid ->
@@ -190,7 +190,9 @@ module MoveControllerFunctions =
                 controllerSphere.BoundingBox3d.Intersects(model.planeCorners)
             | _ -> 
                 if model.holdClipping || not model.planeCorners.IsValid then false else 
-                    model.interesctingClippingPlane
+                    model.interesctingClippingPlane 
+        if secondContrClippingIntersection && not model.interesctingClippingPlane then 
+            vibrate model.secondControllerId state 50.0
         {model with 
             interesctingClippingPlane = secondContrClippingIntersection
             clippingColor = if secondContrClippingIntersection then C4b(1.0,0.0,0.0,0.2) else C4b(1.0,1.0,0.1,0.2)}
@@ -198,7 +200,7 @@ module MoveControllerFunctions =
     let updateMainControllerTextures (model : Model) =
         //printf "AnalyzeMode: %A \n" model.analyzeMode
         let tex, screenTex = 
-            if not model.grabbingHera && not model.mainMenuOpen then 
+            if not model.grabbingHera && not model.grabbingTV && not model.mainMenuOpen then 
                 match model.mainContrProbeIntersectionId with
                 | Some probeId when model.allProbes.TryFind(probeId).IsSome ->
                     let intersectedProbe = model.allProbes.Item probeId
@@ -224,7 +226,7 @@ module MoveControllerFunctions =
                     else if model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Time then 
                         model.analyzeMainTexture, model.analyzeContrScreenTexture
                     else
-                        model.mainTouchpadTexture, model.mainContrScreenTexture
+                        model.lastTouchpadModeTexture, model.lastContrScreenModeTexture
             else 
                 model.mainTouchpadTexture, model.mainContrScreenTexture
         {model with

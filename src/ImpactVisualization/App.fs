@@ -593,7 +593,6 @@ module App =
                     temp
             let allFramesFiltered = filteredDataAllFrames |> Array.map (fun arr -> RefEqual.toRef arr)
 
-
             let newCenter = (minValue - maxValue)/2.0
 
             {m with 

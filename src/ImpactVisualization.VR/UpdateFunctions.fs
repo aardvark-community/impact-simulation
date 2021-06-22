@@ -107,7 +107,7 @@ module UpdateFunctions =
                            "pause-screenshot", fromStreamToTexture "pause-screenshot.png"]
 
     
-    let vibrate(contrId : Option<int>) (state : VrState) (timeMilliseconds : float) = 
+    let vibrate (contrId : Option<int>) (state : VrState) (timeMilliseconds : float) = 
         match contrId with 
             | Some id -> 
                 let device = state.devices.Item id

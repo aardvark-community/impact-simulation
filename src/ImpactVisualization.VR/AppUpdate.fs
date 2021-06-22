@@ -115,11 +115,11 @@ module AppUpdate =
             mainTouchpadTexture = allTextures.Item "initial"
             secondTouchpadTexture = allTextures.Item "initial-attributes"
             lastTouchpadModeTexture = allTextures.Item "initial"
-            analyzeMainTexture = allTextures.Item "initial"
+            analyzeMainTexture = allTextures.Item "play-raw"
             mainContrScreenTexture = allTextures.Item "empty"
             secondContrScreenTexture = allTextures.Item "empty"
             lastContrScreenModeTexture = allTextures.Item "empty"
-            analyzeContrScreenTexture = allTextures.Item "empty"
+            analyzeContrScreenTexture = allTextures.Item "analyze-time-screen"
             showMainTexture = false
             showSecondTexture = false
             heraBox = Box3d.Infinite
@@ -298,7 +298,7 @@ module AppUpdate =
             |> updateProbeIntersections id state
             |> updateBoxPlotIntersections id state
             |> updateClippingPlane
-            |> updateSecondControllеrClippingIntersection id
+            |> updateSecondControllеrClippingIntersection id state
             |> updateMainControllerTextures
             |> updateSecondControllerTextures
             |> updateProbesWhenGrabbing
@@ -502,7 +502,7 @@ module AppUpdate =
                     let arrayBoxPlot, statsBoxPlot = currProbe.allData.[mTwoD.frame].Item model.currBoxPlotAttrib
                     let arrayData = RefEqual.toRef arrayBoxPlot
 
-                    let newProbeAnalyzeTime, analyzeTimeProbePos,  updatedProbe, newHashmap, currSelectedProbe, newOrder = 
+                    let newProbeAnalyzeTime, analyzeTimeProbePos, updatedProbe, newHashmap, currSelectedProbe, newOrder = 
                         if model.currProbeAnalyzeTime.IsNone then 
                             let updatedProbe = 
                                 {currProbe with 
@@ -521,7 +521,7 @@ module AppUpdate =
                                         color = if currProbe.timesSelected >= 1 then C4b.Yellow else C4b.Blue}
                                 None, V3d.OOO, updatedProbe, HashMap.empty, HashMap.empty, Seq.empty
                             else 
-                                model.currProbeAnalyzeTime, currProbe.centerRelToHera, currProbe, model.boxPlotFrames, model.allCurrSelectedProbesIds, model.framesOrder
+                                model.currProbeAnalyzeTime, model.analyzeTimeProbePos, currProbe, model.boxPlotFrames, model.allCurrSelectedProbesIds, model.framesOrder
 
                     let dataForBoxPlot = newHashmap |> HashMap.toSeq |> Seq.map (fun result -> snd result ) |> Seq.toArray
 
@@ -546,7 +546,8 @@ module AppUpdate =
             | _ -> model
         | PlaceBoxPlot id ->
             match model.secondControllerId with 
-            | Some i when i = id && model.controllerMode = ControllerMode.Analyze && (not model.boxPlotProbes.IsEmpty || not model.boxPlotFrames.IsEmpty) ->
+            | Some i when i = id && model.controllerMode = ControllerMode.Analyze && model.secondContrBoxPlotIntersectionId.IsNone && 
+                (not model.boxPlotProbes.IsEmpty || not model.boxPlotFrames.IsEmpty) ->
                 let texture = getScreenshot boxPlotClient
                 let currTrafo = defaultBoxPlotsTrafo * model.secondControllerTrafo
                 let transformedQuad = currTrafo.Forward.TransformedPosArray(defaultBoxPlotPositions.Points.ToArray(4)) |> Quad3d
@@ -878,7 +879,7 @@ module AppUpdate =
                         | _ -> model.controllerMode
                     else 
                         model.controllerMode
-                if newContrlMode <> model.controllerMode then vibrate model.mainControllerId state 40.0
+                if newContrlMode <> model.controllerMode then vibrate model.mainControllerId state 50.0
                 let tex, screenTexture = 
                     match model.controllerMode with 
                     | m when m = newContrlMode -> model.mainTouchpadTexture, model.mainContrScreenTexture // if the  controller mode is the same then texture should not be loaded again   
@@ -912,7 +913,7 @@ module AppUpdate =
                     | t when (t >= 0.0 && t < 90.0) || (t >= 270.0 && t < 360.0) -> AnalyzeMode.Time
                     | t when t >= 90.0 && t < 270.0 -> AnalyzeMode.Region
                     | _ -> model.analyzeMode
-                if newAnalyzeMode <> model.analyzeMode then vibrate model.mainControllerId state 40.0
+                if newAnalyzeMode <> model.analyzeMode then vibrate model.mainControllerId state 50.0
                 let tex, screenTexture, region = 
                     match model.analyzeMode with 
                     | m when m = newAnalyzeMode -> model.mainTouchpadTexture, model.mainContrScreenTexture, mTwoD.boxPlotRegion // if the  controller mode is the same then texture should not be loaded again   
@@ -930,6 +931,7 @@ module AppUpdate =
                     analyzeMode = newAnalyzeMode
                     mainTouchpadTexture = tex
                     mainContrScreenTexture = screenTexture
+                    lastContrScreenModeTexture = screenTexture
                     twoDModel = updatedTwoDModel}
             | _ -> model
         | ChangeAnimationPlayback id ->
@@ -995,7 +997,7 @@ module AppUpdate =
                         | t when (t >= 0.0 && t < 90.0) || (t >= 270.0 && t < 360.0) -> BillboardType.Histogram
                         | t when t >= 90.0 && t < 270.0 -> BillboardType.Statistic
                         | _ -> intersectedProbe.currBillboard
-                    if newBillboardType <> intersectedProbe.currBillboard then vibrate model.mainControllerId state 40.0
+                    if newBillboardType <> intersectedProbe.currBillboard then vibrate model.mainControllerId state 50.0
                     let updatedProbe = {intersectedProbe with currBillboard = newBillboardType}
                     let update (pr : Option<Probe>) = updatedProbe 
                     let allProbesUpdated = model.allProbes |> HashMap.update probeId update
@@ -1168,7 +1170,7 @@ module AppUpdate =
 
             match model.mainControllerId with
             | Some i when i = id && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Time && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone -> 
-                vibrate model.mainControllerId state 40.0
+                vibrate model.mainControllerId state 50.0
             | _ -> ()
             model
             //{model with 
@@ -1179,9 +1181,9 @@ module AppUpdate =
             //printf "Untouch"
             let untouched = 
                 match model.mainControllerId with
-                | Some i when i = id && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Time -> true
+                | Some i when i = id && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Time && model.mainContrProbeIntersectionId.IsNone -> true
                 | _ -> model.mainUntouched
-            let newModel, tex, screenTexture, animFlow, play, frame, reversedAnim, offsetTimeId = 
+            let newModel, animFlow, play, frame, reversedAnim, offsetTimeId = 
                 match model.mainControllerId with
                 | Some i when i = id && untouched && not model.mainMenuOpen && model.controllerMode = ControllerMode.Analyze && model.analyzeMode = AnalyzeMode.Time && not model.grabbingHera && model.mainContrProbeIntersectionId.IsNone -> 
                     let newAnimationFlow, playAnim =
@@ -1227,8 +1229,12 @@ module AppUpdate =
                         | AnimationFlow.Playing -> "pause-raw" ,"analyze-time-screen" 
                         | AnimationFlow.Paused -> "play-raw" ,"analyze-time-screen" 
                         | _ -> "play-raw" ,"analyze-time-screen" 
-                    newMod, (texture texName), (texture screenTexName), newAnimationFlow, playAnim, newFrameId, reverse, offset
-                | _ -> model, model.mainTouchpadTexture, model.mainContrScreenTexture, model.currAnimationFlow, mTwoD.playAnimation, mTwoD.frameId, mTwoD.reverseAnimation, mTwoD.offsetId
+                    let updatedModel = 
+                        {newMod with 
+                            analyzeMainTexture = (texture texName)
+                            analyzeContrScreenTexture = (texture screenTexName)}
+                    updatedModel, newAnimationFlow, playAnim, newFrameId, reverse, offset
+                | _ -> model, model.currAnimationFlow, mTwoD.playAnimation, mTwoD.frameId, mTwoD.reverseAnimation, mTwoD.offsetId
             let updatedTwoDModel = 
                 {newModel.twoDModel with 
                     playAnimation = play
@@ -1247,10 +1253,6 @@ module AppUpdate =
                 mainUntouched = untouched
                 mainTouching = mainTouching
                 secondTouching = secondTouching
-                mainTouchpadTexture = tex
-                mainContrScreenTexture = screenTexture
-                analyzeMainTexture = tex
-                analyzeContrScreenTexture = screenTexture
                 currAnimationFlow = animFlow
                 twoDModel = updatedTwoDModel}
             //let tex = if model.allowHeraScaling then (texture "initial-scaling") else model.touchpadTexture

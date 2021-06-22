@@ -199,7 +199,6 @@ module Shaders =
             
             let transferFunc = transfer.SampleLevel(V2d(linearCoord, 0.0), 0.0)
             
-
             let notDiscardByFilters = 
                     (p.Value.energy >= filters.filterEnergy.min && p.Value.energy <= filters.filterEnergy.max) &&
                     (p.Value.cubicRoot >= filters.filterCubicRoot.min && p.Value.cubicRoot <= filters.filterCubicRoot.max) &&
@@ -358,7 +357,7 @@ module Shaders =
             if pointInDomainRange && pointInsidePlanes && isOutsideControllerPlane && not discardByRanges then
                 yield  { p.Value with 
                             pointColor = color
-                            pointSize = pSize;
+                            pointSize = pSize
                             linearCoord = linearCoordTransp // give linearCoord to fs or decide alpha here - in fs it might be more flexible - one could fade out points
                        }
         }
