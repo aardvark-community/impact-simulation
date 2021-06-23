@@ -502,7 +502,14 @@ module Demo =
                 let texture = boxPlot.texture |> AVal.map (fun pi ->  convertPixImageToITexture pi)
                 let scaleTrafo = 
                     (m.mainContrBoxPlotIntersectionId, m.secondContrBoxPlotIntersectionId) 
-                    ||> AVal.map2 (fun mct sct -> if mct.IsSome || sct.IsSome then Trafo3d.Scale(0.95) else Trafo3d.Identity)
+                    ||> AVal.map2 (fun mct sct -> 
+                        let id = boxPlot.id
+                        match mct with 
+                        | Some mi when mi = id -> Trafo3d.Scale(0.95) 
+                        | _ ->  
+                            match sct with 
+                            | Some si when si = id -> Trafo3d.Scale(0.95) 
+                            | _ -> Trafo3d.Identity)
                 let bpTrafo = (scaleTrafo, boxPlot.trafo) ||> AVal.map2 (fun st bt -> st * bt)
                 let visualConnections =
                     (boxPlot.isRegion, boxPlot.timeProbePos) 

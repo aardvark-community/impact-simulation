@@ -164,7 +164,9 @@ module UpdateFunctions =
         let radius_screen = center_screen.Distance(pointOnSphere_screen)
         center_screen, radius_screen
         
-    let createProbe (numberId : int) (currSelected : bool) (selected : bool) (timesSelected : int) (timeAnalyze : bool) (color : C4b) (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) 
+    let createProbe (numberId : int) (currSelected : bool) (selected : bool) (timesSelected : int) 
+                    (timeAnalyze : bool) (timeAnalyzeSelected : int) (color : C4b) 
+                    (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) 
                     (inside : bool) (allData : HashMap<RenderValue, (float[] * string)> []) 
                     (attribute : RenderValue) (showStats : bool) (showHisto : bool) 
                     (billboardType : BillboardType) : Probe = 
@@ -175,6 +177,7 @@ module UpdateFunctions =
             selected = selected
             timesSelected = timesSelected
             timeAnalyze = timeAnalyze
+            timeAnalyzeSelected = timeAnalyzeSelected
             color = color
             center = pos
             radius = rad

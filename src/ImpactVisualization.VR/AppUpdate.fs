@@ -507,6 +507,7 @@ module AppUpdate =
                             let updatedProbe = 
                                 {currProbe with 
                                     timeAnalyze = true
+                                    timeAnalyzeSelected = currProbe.timeAnalyzeSelected + 1
                                     color = C4b.Orange}
                             //let order = model.framesOrder |> Seq.append([mTwoD.frame])
                             let tempH = model.boxPlotFrames.Add(mTwoD.frame, arrayData)
@@ -518,6 +519,7 @@ module AppUpdate =
                                 let updatedProbe = 
                                     {currProbe with 
                                         timeAnalyze = false
+                                        timeAnalyzeSelected = currProbe.timeAnalyzeSelected - 1
                                         color = if currProbe.timesSelected >= 1 then C4b.Yellow else C4b.Blue}
                                 None, V3d.OOO, updatedProbe, HashMap.empty, HashMap.empty, Seq.empty
                             else 
@@ -610,11 +612,14 @@ module AppUpdate =
                                         currSelected = false
                                         timesSelected = 0}
                             else 
-                                if probe.timeAnalyze then 
-                                    {probe with
-                                        timeAnalyze = false
-                                        color = if probe.timesSelected >= 1 then C4b.Yellow else C4b.Blue}
-                                else probe                          
+                                if probe.timeAnalyzeSelected >= 2 then
+                                    {probe with 
+                                        timeAnalyzeSelected = probe.timeAnalyzeSelected - 1}
+                                else 
+                                    {probe with 
+                                        timeAnalyze = false 
+                                        color = if probe.timesSelected >= 1 then C4b.Yellow else C4b.Blue
+                                        timeAnalyzeSelected = 0}                        
                         else 
                             probe)
                 let updateBoxPlots = model.allPlacedBoxPlots.Remove(intersectedBoxPlotId)
@@ -766,7 +771,7 @@ module AppUpdate =
                         //let currSelected = model.lastModifiedProbeIntId <> -1 
                         let color = if intersection then C4b.Blue else C4b.White
 
-                        let probe = createProbe model.lastModifiedProbeIntId false false 0 false color spherePos sphereRadius spherePosTransformed radiusTransformed intersection allData attrib true true billboardType
+                        let probe = createProbe model.lastModifiedProbeIntId false false 0 false 0 color spherePos sphereRadius spherePosTransformed radiusTransformed intersection allData attrib true true billboardType
 
                         let filteredData = if intersection then array else mTwoD.data.arr
                         let attributeAsString = renderValueToString attrib

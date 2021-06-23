@@ -57,23 +57,24 @@ type BillboardType =
 
 [<ModelType>]
 type Probe = {
-    numberId        : int
-    currSelected    : bool 
-    selected        : bool
-    timesSelected   : int 
-    timeAnalyze     : bool
-    color           : C4b
-    center          : V3d
-    radius          : float
-    centerRelToHera : V3d
-    radiusRelToHera : float
-    insideHera      : bool
-    showStatistics  : bool 
-    currHistogram   : Option<PixImage>
-    showHistogram   : bool
-    currBillboard   : BillboardType
-    currAttribute   : RenderValue
-    allData         : HashMap<RenderValue, (float[] * string)> []
+    numberId            : int
+    currSelected        : bool 
+    selected            : bool
+    timesSelected       : int 
+    timeAnalyze         : bool
+    timeAnalyzeSelected : int
+    color               : C4b
+    center              : V3d
+    radius              : float
+    centerRelToHera     : V3d
+    radiusRelToHera     : float
+    insideHera          : bool
+    showStatistics      : bool 
+    currHistogram       : Option<PixImage>
+    showHistogram       : bool
+    currBillboard       : BillboardType
+    currAttribute       : RenderValue
+    allData             : HashMap<RenderValue, (float[] * string)> []
     
     [<NonAdaptive>]
     id : string
