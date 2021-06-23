@@ -804,7 +804,7 @@ module Demo =
                 m.lowerOutliers m.higherOutliers m.outliersRange model.scalingFactorHera 
                 m.renderValue m.currentMap m.domainRange m.clippingPlane contrClippingPlane 
                 m.boxFilter sphereProbe allPlacedSpheres spheresLength
-                m.currFilters m.dataRange m.colorValue.c 
+                m.currFilters m.initDataRange m.colorValue.c 
                 m.cameraState.view model.hmdPos viewTrafo viewVector model.heraTransformations
                 runtime
             |> Sg.noEvents

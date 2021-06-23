@@ -219,7 +219,7 @@ module Shaders =
 
             let minRange = if normalizeData then 0.0 else dataRange.min
             let maxRange = if normalizeData then 1.0 else dataRange.max
-            let isInAllRanges = notDiscardByFilters && isInsideBoxFilter && minRange <= linearCoord && linearCoord <= maxRange && isInsideOutlierRange
+            let isInAllRanges = notDiscardByFilters && isInsideBoxFilter && isInsideOutlierRange //&& minRange <= linearCoord && linearCoord <= maxRange 
 
             let pointInDomainRange = wp.X >= dm.x.min && wp.X <= dm.x.max && wp.Y >= dm.y.min && wp.Y <= dm.y.max && wp.Z >= dm.z.min && wp.Z <= dm.z.max
             let pointInsidePlanes = wp.X <= plane.x && wp.Y <= plane.y && wp.Z <= plane.z

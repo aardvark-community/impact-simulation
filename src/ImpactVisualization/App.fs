@@ -804,8 +804,6 @@ module App =
             {m with allProbesScreenPositions = allScreenPositions}
         | _ -> m
 
-             
-
     let renderValues = AMap.ofArray((Enum.GetValues typeof<RenderValue> :?> (RenderValue [])) |> Array.map (fun c -> (c, text (Enum.GetName(typeof<RenderValue>, c)) )))
     let transparencyValues = AMap.ofArray((Enum.GetValues typeof<RenderValue> :?> (RenderValue [])) |> Array.map (fun c -> (c, text (Enum.GetName(typeof<RenderValue>, c)) )))
     let opacityTFs = AMap.ofArray((Enum.GetValues typeof<TransferFunction> :?> (TransferFunction [])) |> Array.map (fun t -> (t, text (Enum.GetName(typeof<TransferFunction>, t)) )))
@@ -869,11 +867,10 @@ module App =
                 m.transferFunction m.invertTF m.center m.startValue m.endValue
                 m.lowerOutliers m.higherOutliers m.outliersRange
                 m.renderValue m.currentMap 
-                m.domainRange m.clippingPlane m.boxFilter m.currFilters m.dataRange m.colorValue.c 
+                m.domainRange m.clippingPlane m.boxFilter m.currFilters m.initDataRange m.colorValue.c 
                 m.cameraState.view viewVector
                 runtime
             |> Sg.noEvents
-
 
         let currentBox = 
             m.boxFilter |> AVal.map (fun b ->
