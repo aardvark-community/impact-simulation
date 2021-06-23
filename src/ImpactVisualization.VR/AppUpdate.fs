@@ -190,6 +190,7 @@ module AppUpdate =
                 let controlT = model.mainControllerTrafo
                 let heraT = model.heraTrafo
                 let controlHeraT = heraT * controlT.Inverse
+                vibrate model.mainControllerId state 70.0
                 {model with 
                     heraToControllerTrafo = controlHeraT
                     grabbingHera = true
@@ -206,6 +207,7 @@ module AppUpdate =
                 let controlT = model.mainControllerTrafo
                 let tvT = model.tvTrafo
                 let controlerTvTrafo = tvT * controlT.Inverse
+                vibrate model.mainControllerId state 70.0
                 {model with 
                     tvToControllerTrafo = controlerTvTrafo
                     grabbingTV = true
@@ -364,6 +366,7 @@ module AppUpdate =
                 else 
                     model.ray.Origin, model.ray.Direction
             client.Mouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
+            vibrate model.mainControllerId state 80.0
             {model with
                 ray = Ray3d(origin, direction)
                 rayTriggerClicked = true
@@ -698,6 +701,7 @@ module AppUpdate =
                     let currTrafo = defaultBoxPlotsTrafo * model.mainControllerTrafo
                     let updatedB = {b with trafo = currTrafo}
                     let updateBoxPlots = model.allPlacedBoxPlots.Remove(intersectedBoxPlotId)
+                    vibrate model.mainControllerId state 50.0
                     {model with 
                         movingBoxPlot = true
                         allPlacedBoxPlots = updateBoxPlots
@@ -712,6 +716,7 @@ module AppUpdate =
                 let transformedQuad = currTrafo.Forward.TransformedPosArray(defaultBoxPlotPositions.Points.ToArray(4)) |> Quad3d
                 let updatedBoxPlot = {currTakenBoxPlot with positions = transformedQuad}
                 let updateBoxPlots = model.allPlacedBoxPlots.Add(updatedBoxPlot.id, updatedBoxPlot)
+                vibrate model.mainControllerId state 50.0
                 {model with 
                     movingBoxPlot = false
                     allPlacedBoxPlots = updateBoxPlots
@@ -1134,6 +1139,7 @@ module AppUpdate =
             match model.mainControllerId with 
             | Some i when i = id && model.rayActive && model.screenIntersection && not model.grabbingHera && not model.grabbingTV -> 
                 client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
+                vibrate model.mainControllerId state 5.0
             | _ -> ()
 
             //when both X and Y are equal to 0.0 it means we are currently not touching the touchpad
