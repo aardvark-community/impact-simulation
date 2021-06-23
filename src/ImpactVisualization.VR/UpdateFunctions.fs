@@ -111,16 +111,17 @@ module UpdateFunctions =
         match contrId with 
             | Some id -> 
                 let device = state.devices.Item id
+                //printfn "Device: %A" device.id
                 device.startVibrate (MicroTime.FromMilliseconds timeMilliseconds)
             | _ -> ()
 
     let vibrateController (currIntr : Option<string>) (oldIntr : Option<string>) (contrId : Option<int>) (timeMilliseconds : float) (state : VrState) = 
-        if currIntr.IsSome then 
-            if oldIntr.IsSome then
-                if currIntr.Value <> oldIntr.Value then 
-                    vibrate contrId state timeMilliseconds
-                else ()
-            else vibrate contrId state timeMilliseconds
+        match currIntr with 
+        | Some pr ->
+            match oldIntr with 
+            | Some intr -> if pr <> intr then vibrate contrId state timeMilliseconds
+            | None -> vibrate contrId state timeMilliseconds
+        | None -> ()
 
     let defaultTex = allTextures.Item "empty"
     let getTexture tex = Option.defaultValue defaultTex tex
