@@ -606,7 +606,7 @@ module AppUpdate =
                                 if probe.timesSelected >= 2 then    
                                     {probe with   
                                         selected = false
-                                        currSelected = false
+                                        //currSelected = false
                                         timesSelected = probe.timesSelected - 1}
                                 else 
                                     {probe with 
@@ -1048,9 +1048,11 @@ module AppUpdate =
                             let bp = 
                                 model.boxPlotProbes
                                 |> HashMap.map (fun key array ->
+                                    printfn "Box Plot Probe Key: %A" key
                                     let currProbe = 
                                         model.allProbes
                                         |> HashMap.filter (fun k probe -> 
+                                            printfn "Curr Probe Key: %A" probe.numberId
                                             probe.currSelected && probe.numberId = key
                                         )
                                         |> HashMap.toSeq
