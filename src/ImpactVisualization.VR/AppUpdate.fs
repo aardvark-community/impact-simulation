@@ -1048,11 +1048,11 @@ module AppUpdate =
                             let bp = 
                                 model.boxPlotProbes
                                 |> HashMap.map (fun key array ->
-                                    printfn "Box Plot Probe Key: %A" key
+                                    //printfn "Box Plot Probe Key: %A" key
                                     let currProbe = 
                                         model.allProbes
                                         |> HashMap.filter (fun k probe -> 
-                                            printfn "Curr Probe Key: %A" probe.numberId
+                                            //printfn "Curr Probe Key: %A" probe.numberId
                                             probe.currSelected && probe.numberId = key
                                         )
                                         |> HashMap.toSeq
