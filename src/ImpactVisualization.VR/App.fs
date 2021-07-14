@@ -747,7 +747,13 @@ module Demo =
             //|> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass2
 
-        let contrClippingPlane = m.planeCorners |> AVal.map (fun c -> Plane3d(c.P0, c.P1, c.P2))
+        let contrClippingPlane = 
+            (m.heraTransformations, m.planeCornersRelToHera) 
+            ||> AVal.map2 (fun h c -> 
+                let p0 = h.Forward.TransformPos(c.P0)
+                let p1 = h.Forward.TransformPos(c.P1)
+                let p2 = h.Forward.TransformPos(c.P2)
+                Plane3d(p0, p1, p2))
 
         let probeScale = 
             AVal.map3 (fun currProbMan currScale lastScale ->
@@ -818,6 +824,7 @@ module Demo =
             |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
             |> Sg.vertexBufferValue DefaultSemantic.Colors (color |> AVal.map (fun c -> c.ToC4f().ToV4f()))
             |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
+            |> Sg.trafo m.heraTransformations // so that it moves with hera!!!
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.simpleLighting
@@ -826,7 +833,7 @@ module Demo =
             |> Sg.blendMode blendmode
             |> Sg.pass renderPass
 
-        let planePositions = m.planeCorners |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
+        let planePositions = m.planeCornersRelToHera |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
 
         let clipPlaneSg = clipPlaneSg planePositions m.clippingColor FillMode.Fill (AVal.constant mode) pass4
 

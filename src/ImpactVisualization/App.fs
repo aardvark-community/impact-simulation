@@ -51,6 +51,7 @@ type Message =
     | SetDomainRange of Dim * Value * float
     | SetDataRange of Value * float
     | SetClippingPlane of Dim * float
+    | InvertClipping
     | SetFilter of int
     | ResetFilter 
     | Brushed of Range
@@ -191,15 +192,16 @@ module App =
             colorMaps = listWithValues
             currentMap = @"..\..\..\src\ImpactVisualization\resources\transfer\transfer.jpg"
             domainRange = {
-                x = {min = -16.0; max = 16.0}; 
-                y = {min = -16.0; max = 30.0}; 
-                z = {min = -16.0; max = 16.0}
+                x = {min = -25.0; max = 25.0}; 
+                y = {min = -25.0; max = 60.0}; 
+                z = {min = -25.0; max = 25.0}
                 }            
             clippingPlane = {
                 x = infinity
                 y = infinity
                 z = infinity
                 }
+            invertClipping = false
             dataRange = {
                 min = minValue
                 max = maxValue
@@ -656,6 +658,9 @@ module App =
                 | Y -> {clipPlane with y = v}
                 | Z -> {clipPlane with z = v}
             {m with clippingPlane = newClipPlane}
+        | InvertClipping -> 
+            {m with 
+                invertClipping = not m.invertClipping}
         | SetFilter i ->
             let newFilter =
                 match i with
@@ -867,7 +872,8 @@ module App =
                 m.transferFunction m.invertTF m.center m.startValue m.endValue
                 m.lowerOutliers m.higherOutliers m.outliersRange
                 m.renderValue m.currentMap 
-                m.domainRange m.clippingPlane m.boxFilter m.currFilters m.initDataRange m.colorValue.c 
+                m.domainRange m.clippingPlane m.invertClipping 
+                m.boxFilter m.currFilters m.initDataRange m.colorValue.c 
                 m.cameraState.view viewVector
                 runtime
             |> Sg.noEvents
@@ -1299,9 +1305,9 @@ module App =
                                                 span [style "padding: 3px; padding-inline-start: 0px; padding-inline-end: 50px"] [text "Min:"]
                                                 span [style "padding: 3px; padding-inline-start: 15px; padding-inline-end: 50px"] [text "Max:"]
                                                 br []
-                                                rangeView false X (m.domainRange |> AVal.map (fun r -> r.x)) -25.0 25.0 
-                                                rangeView false Y (m.domainRange |> AVal.map (fun r -> r.y)) -25.0 30.0 
-                                                rangeView false Z (m.domainRange |> AVal.map (fun r -> r.z)) -25.0 25.0 
+                                                rangeView false X (m.domainRange |> AVal.map (fun r -> r.x)) -30.0 30.0 
+                                                rangeView false Y (m.domainRange |> AVal.map (fun r -> r.y)) -30.0 70.0 
+                                                rangeView false Z (m.domainRange |> AVal.map (fun r -> r.z)) -30.0 30.0 
                                                 }
                                                 )
                                             ]
@@ -1311,14 +1317,22 @@ module App =
                        
                                     div [ clazz "item"; style "width: 90%; margin-top: 7px; margin-bottom: 5px" ] [
                                         span [style "padding: 2px"] [text "X: "]
-                                        slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.x)) (fun v -> SetClippingPlane (X, v))
+                                        slider { min = -25.0; max = 25.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.x)) (fun v -> SetClippingPlane (X, v))
                                         span [style "padding: 2px"] [text "Y: "]
-                                        slider { min = -16.0; max = 30.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.y)) (fun v -> SetClippingPlane (Y, v))
+                                        slider { min = -25.0; max = 70.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.y)) (fun v -> SetClippingPlane (Y, v))
                                         span [style "padding: 2px"] [text "Z: "]
-                                        slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.z)) (fun v -> SetClippingPlane (Z, v))
+                                        slider { min = -25.0; max = 25.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.z)) (fun v -> SetClippingPlane (Z, v))
 
                                     ]
-                            
+
+                                    div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
+                                        simplecheckbox { 
+                                            attributes [clazz "ui inverted checkbox"]
+                                            state m.invertClipping
+                                            toggle InvertClipping
+                                            content [ text "Invert Planes"]  
+                                        }
+                                    ]
 
                                     //br []
 
@@ -1538,9 +1552,9 @@ module App =
                                                         span [style "padding: 3px; padding-inline-start: 0px; padding-inline-end: 50px; font-size: large"] [text "Min:"]
                                                         span [style "padding: 3px; padding-inline-start: 15px; padding-inline-end: 50px; font-size: large"] [text "Max:"]
                                                         br []
-                                                        rangeView true X (m.domainRange |> AVal.map (fun r -> r.x)) -25.0 25.0 
-                                                        rangeView true Y (m.domainRange |> AVal.map (fun r -> r.y)) -25.0 30.0 
-                                                        rangeView true Z (m.domainRange |> AVal.map (fun r -> r.z)) -25.0 25.0 
+                                                        rangeView true X (m.domainRange |> AVal.map (fun r -> r.x)) -30.0 30.0 
+                                                        rangeView true Y (m.domainRange |> AVal.map (fun r -> r.y)) -30.0 70.0 
+                                                        rangeView true Z (m.domainRange |> AVal.map (fun r -> r.z)) -30.0 30.0 
                                                         }
                                                         )
                                                     ]
@@ -1550,11 +1564,11 @@ module App =
                        
                                             div [ clazz "item"; style "margin: 15px" ] [
                                                 span [style "padding: 2px; font-size: large"] [text "X: "]
-                                                slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.x)) (fun v -> SetClippingPlane (X, v))
+                                                slider { min = -25.0; max = 25.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.x)) (fun v -> SetClippingPlane (X, v))
                                                 span [style "padding: 2px; font-size: large"] [text "Y: "]
-                                                slider { min = -16.0; max = 30.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.y)) (fun v -> SetClippingPlane (Y, v))
+                                                slider { min = -25.0; max = 70.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.y)) (fun v -> SetClippingPlane (Y, v))
                                                 span [style "padding: 2px; font-size: large"] [text "Z: "]
-                                                slider { min = -16.0; max = 16.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.z)) (fun v -> SetClippingPlane (Z, v))
+                                                slider { min = -25.0; max = 25.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.z)) (fun v -> SetClippingPlane (Z, v))
 
                                             ]
                                         ]

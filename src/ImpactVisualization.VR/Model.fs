@@ -252,6 +252,7 @@ type Model =
         interesctingClippingPlane : bool
         clippingColor : C4b
         planeCorners : Quad3d
+        planeCornersRelToHera : Quad3d
 
         //Main controller menu
         mainMenuOpen : bool

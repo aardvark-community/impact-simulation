@@ -98,6 +98,7 @@ module AppUpdate =
             clippingActive = false
             clippingColor = C4b(1.0,1.0,0.1,0.2)
             planeCorners = Quad3d()
+            planeCornersRelToHera = Quad3d()
             interesctingClippingPlane = false
             mainMenuOpen = false
             secondMenuOpen = false
@@ -377,8 +378,11 @@ module AppUpdate =
             let p1 = model.mainControllerTrafo.Forward.TransformPos(planePos1)
             let p2 = model.mainControllerTrafo.Forward.TransformPos(planePos2)
             let p3 = model.mainControllerTrafo.Forward.TransformPos(planePos3)
+            let heraInvMatrix = model.heraTransformations.Backward 
+            let transformedQuad = heraInvMatrix.TransformedPosArray([|p0; p1; p2; p3|]) |> Quad3d
             {model with 
                 planeCorners = Quad3d(p0, p1, p2, p3)
+                planeCornersRelToHera = transformedQuad
                 holdClipping = true
                 clippingActive = true}
         | ScaleProbe id ->
@@ -435,6 +439,7 @@ module AppUpdate =
             | Some i when i = id && model.interesctingClippingPlane ->
                 {model with
                     planeCorners = Quad3d()
+                    planeCornersRelToHera = Quad3d()
                     holdClipping = false}
             | _ -> model
         | SelectBoxPlotProbes id ->
@@ -862,7 +867,8 @@ module AppUpdate =
             let screenTex = if not isOpen then model.lastContrScreenModeTexture else model.mainContrScreenTexture
             {model with 
                 menuLevel = level
-                mainMenuOpen = isOpen}
+                mainMenuOpen = isOpen
+                showCurrBoxPlot = ((not isOpen) && model.controllerMode = ControllerMode.Analyze)}
         | OpenMainMenu id ->
             let texture, screenTexture =
                 match model.menuLevel with
@@ -906,7 +912,6 @@ module AppUpdate =
                     mainUntouched = false
                     playbackMode = PlaybackMode.None
                     controllerMode = newContrlMode
-                    showCurrBoxPlot = (newContrlMode = ControllerMode.Analyze)
                     mainTouchpadTexture = tex
                     lastTouchpadModeTexture = tex
                     mainContrScreenTexture = screenTexture

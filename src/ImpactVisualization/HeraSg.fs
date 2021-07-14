@@ -216,13 +216,18 @@ module Shaders =
             let isInsideOutlierRange = minOutlier <= currValue && currValue <= maxOutlier
 
             let plane = uniform?ClippingPlane
+            let invertPlane = uniform?InvertClipping
 
             let minRange = if normalizeData then 0.0 else dataRange.min
             let maxRange = if normalizeData then 1.0 else dataRange.max
             let isInAllRanges = notDiscardByFilters && isInsideBoxFilter && isInsideOutlierRange //&& minRange <= linearCoord && linearCoord <= maxRange 
 
             let pointInDomainRange = wp.X >= dm.x.min && wp.X <= dm.x.max && wp.Y >= dm.y.min && wp.Y <= dm.y.max && wp.Z >= dm.z.min && wp.Z <= dm.z.max
-            let pointInsidePlanes = wp.X <= plane.x && wp.Y <= plane.y && wp.Z <= plane.z
+            let pointInsidePlanes = 
+                if invertPlane then 
+                    wp.X >= plane.x && wp.Y >= plane.y && wp.Z >= plane.z
+                else
+                    wp.X <= plane.x && wp.Y <= plane.y && wp.Z <= plane.z
             let discardByRanges = if isInAllRanges then false else discardPoints
 
             let color = if isInAllRanges then transferFunc else colorValue
@@ -555,7 +560,7 @@ module HeraSg =
                          (center : aval<float>) (startValue : aval<float>) (endValue : aval<float>)
                          (lowerOutliers : aval<bool>) (higherOutliers : aval<bool>) (outliersRange : aval<Range>)
                          (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
-                         (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
+                         (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) (invertClipping : aval<bool>)
                          (filterBox : aval<option<Box3f>>) (currFilters : aval<Filters>) 
                          (dataRange : aval<Range>) (colorValue : aval<C4b>) 
                          (cameraView : aval<CameraView>) (viewVector : aval<V3d>)
@@ -642,6 +647,7 @@ module HeraSg =
         |> Sg.uniform "RenderValue" renderValue
         |> Sg.uniform "DomainRange" domainRange
         |> Sg.uniform "ClippingPlane" clippingPlane
+        |> Sg.uniform "InvertClipping" invertClipping
         |> Sg.uniform "Filter" filterNew 
         |> Sg.uniform "CurrFilters" currFilters
         |> Sg.uniform "DataRange" dataRange

@@ -183,6 +183,7 @@ type Model =
         currentMap : string
         domainRange : DomainRange
         clippingPlane : ClippingPlane
+        invertClipping : bool 
         dataRange : Range
         initDataRange : Range
         transparencyDataRange : Range

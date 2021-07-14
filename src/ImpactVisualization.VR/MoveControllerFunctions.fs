@@ -171,15 +171,19 @@ module MoveControllerFunctions =
             secondContrBoxPlotIntersectionId = secondContrBoxPlotIntersection}
 
     let updateClippingPlane (model : Model) = 
-        let currCorners = 
+        let currCorners, transformed = 
             if model.holdClipping && model.clippingActive then
                 let p0 = model.mainControllerTrafo.Forward.TransformPos(planePos0)
                 let p1 = model.mainControllerTrafo.Forward.TransformPos(planePos1)
                 let p2 = model.mainControllerTrafo.Forward.TransformPos(planePos2)
                 let p3 = model.mainControllerTrafo.Forward.TransformPos(planePos3)
-                Quad3d(p0, p1, p2, p3)
-            else model.planeCorners
-        {model with planeCorners = currCorners}
+                let heraInvMatrix = model.heraTransformations.Backward 
+                let transformedQuad = heraInvMatrix.TransformedPosArray([|p0; p1; p2; p3|]) |> Quad3d
+                Quad3d(p0, p1, p2, p3), transformedQuad
+            else model.planeCorners, model.planeCornersRelToHera
+        {model with 
+            planeCorners = currCorners
+            planeCornersRelToHera = transformed}
 
     let updateSecondControllеrClippingIntersection (id : int) (state : VrState) (model : Model) = 
         let secondContrClippingIntersection =
@@ -187,7 +191,9 @@ module MoveControllerFunctions =
             | Some i when i = id && not model.holdClipping && model.planeCorners.IsValid ->
                 let intersectionContrTrafoPos = model.secondControllerTrafo.Forward.TransformPos(V3d(0.0, 0.0, 0.0))
                 let controllerSphere = Sphere3d(intersectionContrTrafoPos, 0.05)
-                controllerSphere.BoundingBox3d.Intersects(model.planeCorners)
+                let heraMatrix = model.heraTransformations.Forward
+                let quadInWorldSpace = heraMatrix.TransformedPosArray(model.planeCornersRelToHera.Points.ToArray(4)) |> Quad3d
+                controllerSphere.BoundingBox3d.Intersects(quadInWorldSpace)
             | _ -> 
                 if model.holdClipping || not model.planeCorners.IsValid then false else 
                     model.interesctingClippingPlane 
