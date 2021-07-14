@@ -1,53 +1,48 @@
-framework: netstandard2.0, netcoreapp2.1, netcoreapp3.0, netcoreapp3.1
+framework: netstandard2.0, netcoreapp3.1
 source https://api.nuget.org/v3/index.json
 storage: none
 
-nuget FSharp.Core                           >= 4.6.2 lowest_matching: true
+nuget FSharp.Core                           >= 4.7.0 lowest_matching: true
 
-nuget FSharp.Data.Adaptive                  ~> 1.0.0
+nuget FSharp.Data.Adaptive                  ~> 1.2.6
                                             
-nuget Aardvark.Base                         ~> 5.0.24
-nuget Aardvark.Base.Incremental             ~> 5.0.24
-nuget Aardvark.Base.FSharp                  ~> 5.0.24
+nuget Aardvark.Base                         ~> 5.1.11
+nuget Aardvark.Base.Incremental             ~> 5.1.11
+nuget Aardvark.Base.FSharp                  ~> 5.1.11
 
-nuget Aardvark.VR                           ~> 5.0.7
+nuget Aardvark.VR                           ~> 5.1.0
                                             
-nuget Aardvark.Base.Rendering               ~> 5.0.16
-nuget Aardvark.SceneGraph                   ~> 5.0.16
-nuget Aardvark.SceneGraph.IO                ~> 5.0.16
-                                          
-nuget Aardvark.Application.Slim             ~> 5.0.16
-nuget Aardvark.Application.Slim.GL          ~> 5.0.16
-nuget Aardvark.Application.Slim.Vulkan      ~> 5.0.16
-nuget Aardvark.Application.Utilities        ~> 5.0.16
-nuget Aardvark.GPGPU
+nuget Aardvark.Rendering                    ~> 5.1.12
+nuget Aardvark.SceneGraph                   ~> 5.1.12
+nuget Aardvark.SceneGraph.IO                ~> 5.1.12
+nuget Aardvark.Application.Slim             ~> 5.1.12
+nuget Aardvark.Application.Slim.GL          ~> 5.1.12
+nuget Aardvark.Application.Slim.Vulkan      ~> 5.1.12
+nuget Aardvark.Application.Utilities        ~> 5.1.12
+nuget Aardvark.GPGPU                        ~> 5.1.12
+                                     
+nuget Aardvark.Service                      ~> 5.1.5
+nuget Aardvark.UI                           ~> 5.1.5
+nuget Aardvark.UI.Primitives                ~> 5.1.5
+nuget Aardvark.Cef                          ~> 5.1.5
 
-                                            
-nuget Aardvark.Service                    ~> 5.0.16 
-nuget Aardvark.UI                         ~> 5.0.16 
-nuget Aardvark.UI.Primitives              ~> 5.0.16 
-nuget Aardvark.Cef                        ~> 5.0.16
+nuget Aardium                               ~> 2.0.8
+nuget Adaptify.MSBuild                      ~> 1.0.8
 
-nuget Aardium                               ~> 1.1.0
-nuget Adaptify.MSBuild                      ~> 1.0.1
-
-nuget Aardvark.Geometry.PointSet            = 5.0.28-prerelease0003
-nuget Aardvark.Geometry.PointTree           = 5.0.28-prerelease0003
-nuget Aardvark.Geometry.Intersection        = 5.0.28-prerelease0003
-nuget Aardvark.Data.Points.Ascii            = 5.0.28-prerelease0003
+nuget Aardvark.Geometry.PointSet            ~> 5.1.11
+nuget Aardvark.Geometry.PointTree           ~> 5.1.11
+nuget Aardvark.Geometry.Intersection        ~> 5.1.11
+nuget Aardvark.Data.Points.Ascii            ~> 5.1.11
 
 nuget Another.Unofficial.Xilium.CefGlue.UnpackNativeDependencies
  
-nuget Aardvark.Data.Durable.Codec = 0.2.18
+nuget Aardvark.Data.Durable.Codec           = 0.2.19
 
 nuget sharpcompress
 
-nuget Silk.NET.GLFW                      = 1.7.0
-nuget Silk.NET.Core                      = 1.7.0
+nuget Silk.NET.GLFW                         = 1.7.0
+nuget Silk.NET.Core                         = 1.7.0
 
 group Build
 source https://api.nuget.org/v3/index.json
 github aardvark-platform/aardvark.fake:v5
-nuget Fake.DotNet.Cli
-nuget FSharp.Core                           ~> 4.7.0
-nuget  System.Security.Cryptography.Cng  = 4.7.0

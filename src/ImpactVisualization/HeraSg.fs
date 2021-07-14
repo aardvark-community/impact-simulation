@@ -3,7 +3,7 @@
 open System
 open System.IO
 open Aardvark.Base
-open Aardvark.Base.Rendering
+open Aardvark.Rendering
 open FSharp.Data.Adaptive
 open Aardvark.SceneGraph
 open AardVolume.Model
@@ -497,27 +497,22 @@ module HeraSg =
     // utilities - for rendering - no outside use.
     let private composeBackwards =
         // check composition scheme if this is really smartest
-        let mutable mode = BlendMode(true)
-        mode.Enabled <- true
-        mode.Operation <- BlendOperation.Add
-        mode.AlphaOperation <- BlendOperation.Add
-        mode.SourceFactor <- BlendFactor.SourceAlpha
-        mode.DestinationFactor <- BlendFactor.InvSourceAlpha
-        mode.SourceAlphaFactor <- BlendFactor.One
-        mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
-        mode
+        { Enabled                = true
+          ColorOperation         = BlendOperation.Add
+          AlphaOperation         = BlendOperation.Add
+          SourceColorFactor      = BlendFactor.SourceAlpha
+          DestinationColorFactor = BlendFactor.InvSourceAlpha
+          SourceAlphaFactor      = BlendFactor.One
+          DestinationAlphaFactor = BlendFactor.InvSourceAlpha }
 
-    let private testBlendMode = 
-        let mutable mode = BlendMode(true)
-        mode.Enabled <- true
-        mode.Operation <- BlendOperation.Subtract
-        mode.AlphaOperation <- BlendOperation.Subtract
-        mode.SourceFactor <- BlendFactor.SourceAlpha
-        mode.DestinationFactor <- BlendFactor.InvSourceAlpha
-        mode.SourceAlphaFactor <- BlendFactor.One
-        mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
-        mode
-
+    let private testBlendMode =
+        { Enabled                = true
+          ColorOperation         = BlendOperation.Subtract
+          AlphaOperation         = BlendOperation.Subtract
+          SourceColorFactor      = BlendFactor.SourceAlpha
+          DestinationColorFactor = BlendFactor.InvSourceAlpha
+          SourceAlphaFactor      = BlendFactor.One
+          DestinationAlphaFactor = BlendFactor.InvSourceAlpha }
 
     let private createIndex (vertexCount : int) (positions : aval<V3d[]>) (cameraLocation : aval<V3d>) = 
         let currentBuffer = cval (Array.init vertexCount id)
@@ -545,7 +540,7 @@ module HeraSg =
     let transparencyModes (transparencyEnabled : aval<bool>) (sg : ISg) =
         let depthWrite = transparencyEnabled |> AVal.map not // enabled depth write if no transparеncy wanted
         let blendMode = transparencyEnabled |> AVal.map (function true -> composeBackwards | _ -> BlendMode.None) // blending only if transparency enabled
-        sg |> Sg.depthMask depthWrite |> Sg.blendMode blendMode
+        sg |> Sg.depthWrite depthWrite |> Sg.blendMode blendMode
 
     let createAnimatedSg (frame : aval<int>) (pointSize : aval<float>) (discardPoints : aval<bool>) 
                          (normalizeData : aval<bool>) (enableShading : aval<bool>)

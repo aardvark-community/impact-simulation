@@ -4,7 +4,7 @@ open System
 open System.IO
 open System.Text.Json
 open Aardvark.Base
-open Aardvark.Base.Rendering
+open Aardvark.Rendering
 open Aardvark.Vr
 open Aardvark.Application
 open Aardvark.Rendering.GL

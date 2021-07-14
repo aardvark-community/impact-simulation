@@ -4,6 +4,7 @@ open Aardium
 open Aardvark.UI
 open Suave
 open Aardvark.Base
+open Aardvark.Rendering
 open System
 
 open Aardvark.Cef
@@ -27,7 +28,8 @@ let main args =
 
     let media = App.app app.Runtime boxPlotClient
 
-    app.ShaderCachePath <- None
+    let runtime = app.Runtime :> IRuntime
+    runtime.ShaderCachePath <- None
 
     WebPart.startServer 4321 [
         MutableApp.toWebPart' app.Runtime false (App.start media)

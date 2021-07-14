@@ -28,7 +28,7 @@ open Touchpad
  
 module Demo =
     open Aardvark.UI.Primitives
-    open Aardvark.Base.Rendering
+    open Aardvark.Rendering
 
     let combinedTrafo (trafos : aval<Trafo3d []>) = 
         trafos |> AVal.map (fun trafos ->
@@ -113,14 +113,14 @@ module Demo =
         let pass3 = RenderPass.after "pass3" RenderPassOrder.Arbitrary pass2   
         let pass4 = RenderPass.after "pass4" RenderPassOrder.Arbitrary pass3   
 
-        let mutable mode = BlendMode(true)
-        mode.Enabled <- true
-        mode.Operation <- BlendOperation.Add
-        mode.AlphaOperation <- BlendOperation.Add
-        mode.SourceFactor <- BlendFactor.SourceAlpha
-        mode.DestinationFactor <- BlendFactor.InvSourceAlpha
-        mode.SourceAlphaFactor <- BlendFactor.One
-        mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
+        let mode =
+            { Enabled                = true
+              ColorOperation         = BlendOperation.Add
+              AlphaOperation         = BlendOperation.Add
+              SourceColorFactor      = BlendFactor.SourceAlpha
+              DestinationColorFactor = BlendFactor.InvSourceAlpha
+              SourceAlphaFactor      = BlendFactor.One
+              DestinationAlphaFactor = BlendFactor.InvSourceAlpha }
 
         let cfg : Aardvark.Rendering.Text.TextConfig = 
             {
@@ -210,7 +210,7 @@ module Demo =
             Sg.sphere' 9 C4b.LightGreen 0.002
             |> Sg.noEvents
             |> Sg.translate 0.0 -0.05 0.0035 // translation so that it is in the middle of the touchpad
-            |> Sg.translate' pos
+            |> Sg.translation pos
             |> Sg.trafo trafo
             |> Sg.onOff touching
 
@@ -862,7 +862,7 @@ module Demo =
         let tvPosSphereSg = 
             Sg.sphere' 9 C4b.LightGreen 0.02
             |> Sg.noEvents
-            |> Sg.translate' m.hitPoint
+            |> Sg.translation m.hitPoint
             |> Sg.onOff m.screenIntersection
 
         // TODO: X and Y must be swapped for some reason !! Find why??!!
@@ -891,7 +891,7 @@ module Demo =
                 toEffect DefaultSurfaces.vertexColor
                 toEffect DefaultSurfaces.thickLine
                 ]
-            |> Sg.depthTest (AVal.constant DepthTestMode.LessOrEqual)
+            |> Sg.depthTest' DepthTest.LessOrEqual
             |> Sg.pass pass1
 
         let currentBox = 
