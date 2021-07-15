@@ -833,7 +833,23 @@ module Demo =
         //let quadPositions = m.tvQuad |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
         let qp = AVal.constant  [|browserQuad.P0; browserQuad.P1; browserQuad.P2; browserQuad.P3|]
 
+
         let browserSg = 
+            Sg.browser {
+                Browser.url "http://localhost:4321/?page=controllersPage"
+                //Browser.keyboard win.Keyboard
+                //Browser.mouse win.Mouse
+                //Browser.focus focus
+                Browser.mipMaps true
+                Browser.size (1024,1024)
+            }
+            |> Sg.noEvents
+            |> Sg.shader {
+                do! DefaultSurfaces.trafo
+                do! DefaultSurfaces.diffuseTexture
+            }  
+
+        let browserSg' = 
             Sg.draw IndexedGeometryMode.TriangleList
             |> Sg.vertexAttribute DefaultSemantic.Positions qp
             |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])

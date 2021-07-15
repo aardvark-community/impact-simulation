@@ -12,6 +12,8 @@ open FSharp.Data.Adaptive
 open Aardvark.Geometry.Points
 open Uncodium.SimpleStore
 
+open Aardvark.SceneGraph.Browser
+
 let loadOctreeFromStore storepath =
     let id = storepath + ".key" |> File.readAllText
     let store = (new SimpleDiskStore(storepath)).ToPointCloudStore()
@@ -60,6 +62,9 @@ let main argv =
     let viewTrafos = app.SystemInfo.render.viewTrafos
     let projTrafos = app.SystemInfo.render.projTrafos
     //let hmdLocation = app.SystemInfo.state.display.pose.deviceToWorld
+
+
+
     let bla = Demo.app client histogramClient boxPlotClient viewTrafos projTrafos app.Runtime
     let mapp = ComposedApp.start' app true bla
 
