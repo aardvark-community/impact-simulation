@@ -25,6 +25,7 @@ open ImpactVisualization.AppUpdate
 open ImpactVisualization.UpdateFunctions
 open Aardvark.Cef
 open Touchpad
+open Offler
  
 module Demo =
     open Aardvark.UI.Primitives
@@ -105,7 +106,7 @@ module Demo =
         |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
         |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
 
-    let vr (runtime : IRuntime) (client : Browser) (histogramClient : Browser) (boxPlotClient : Browser) (viewTrafo : aval<Trafo3d>) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
+    let vr (runtime : IRuntime) (client : Browser) (histogramOffler : Offler) (boxPlotClient : Browser) (viewTrafo : aval<Trafo3d>) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
        
         let pass0 = RenderPass.main
         let pass1 = RenderPass.after "pass1" RenderPassOrder.Arbitrary pass0 
@@ -690,7 +691,7 @@ module Demo =
                 do! DefaultSurfaces.diffuseTexture
             }
             |> Sg.blendMode (AVal.constant mode)
-            |> Sg.pass pass2
+            |> Sg.pass pass3
 
         let showBillboard = (m.showBillboard, m.grabbingHera) ||> AVal.map2 (fun show grabbing -> show && not grabbing)
 
@@ -818,17 +819,19 @@ module Demo =
         //let quadPositions = m.tvQuad |> AVal.map (fun q -> [|q.P0.ToV3f(); q.P1.ToV3f(); q.P2.ToV3f(); q.P3.ToV3f()|])
         let qp = AVal.constant  [|browserQuad.P0; browserQuad.P1; browserQuad.P2; browserQuad.P3|]
 
-
         let browserSg = 
             Sg.browser {
                 Browser.url "http://localhost:4321/?page=controllersPage"
                 //Browser.keyboard win.Keyboard
-                //Browser.mouse win.Mouse
-                //Browser.focus focus
+                Browser.mouse vrMouse
+                Browser.focus (cval false)
                 Browser.mipMaps true
-                Browser.size (1024,1024)
+                Browser.size (1200,790)
             }
             |> Sg.noEvents
+            |> Sg.transform (Trafo3d.Scale(1.0, -1.0, 1.0))
+            |> Sg.transform (Trafo3d.Scale(0.732, 0.425, 1.0))
+            |> Sg.translate 0.0 0.0085 0.017 
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.diffuseTexture
@@ -991,7 +994,7 @@ module Demo =
             do! DefaultSurfaces.simpleLighting
         }
 
-    let app (client : Browser) (histogramClient : Browser) (boxPlotClient : Browser) (viewTrafos : aval<Trafo3d []>) (projTrafos : aval<Trafo3d []>) (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
+    let app (client : Browser) (histogramOffler : Offler) (boxPlotClient : Browser) (viewTrafos : aval<Trafo3d []>) (projTrafos : aval<Trafo3d []>) (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
         let frames = DataLoader.loadDataAllFrames runtime
         //client.SetFocus true
         //let viewTrafo = combinedTrafo viewTrafos
@@ -1001,10 +1004,10 @@ module Demo =
         {
             unpersist = Unpersist.instance
             initial = initial runtime frames
-            update = update runtime client histogramClient boxPlotClient viewTrafo projTrafo frames
+            update = update runtime client histogramOffler boxPlotClient viewTrafo projTrafo frames
             threads = threads
             input = input 
             ui = ui runtime frames boxPlotClient
-            vr = vr runtime client histogramClient boxPlotClient viewTrafo frames
+            vr = vr runtime client histogramOffler boxPlotClient viewTrafo frames
             pauseScene = Some pause
         }

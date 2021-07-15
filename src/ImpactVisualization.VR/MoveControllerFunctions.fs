@@ -114,7 +114,8 @@ module MoveControllerFunctions =
                         let screenCoords = (V2d(hit.Coord.X * screenResolution.ToV2d().X, hit.Coord.Y * screenResolution.ToV2d().Y)).ToV2i()
                         let screenPos = PixelPosition(screenCoords, screenResolution.X, screenResolution.Y)
                         if model.rayTriggerClicked then
-                            client.Mouse.Move(screenPos)
+                            //client.Mouse.Move(screenPos)
+                            vrMouse.Move(screenPos)
                           //  printfn "Move"
                         Ray3d(initRay.Origin, hit.Point), C4b.Green, screenPos
                     else

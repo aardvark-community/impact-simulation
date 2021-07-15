@@ -17,6 +17,7 @@ open AardVolume.Model
 open AardVolume.App
 open ImpactVisualization
 open Aardvark.Cef
+open Offler
 
 
 module UpdateFunctions = 
@@ -35,6 +36,8 @@ module UpdateFunctions =
     let screenResolution = V2i(1200,790)
 
     let texturesPath = @"..\..\..\src\ImpactVisualization\resources\textures\"
+
+    let vrMouse = EventMouse(true)
     
     let fromStreamToTexture textureName = 
         let s = File.Open((texturesPath + textureName), FileMode.Open, FileAccess.Read, FileShare.Read)
@@ -255,10 +258,12 @@ module UpdateFunctions =
         let translation = Trafo3d.Translation(0.0, 0.25, 0.1)
         scale * rotation * translation
     
-    let getScreenshot (histogramClient : Browser) = 
-        let pixImage = PixImage<byte>(Col.Format.BGRA, histogramClient.Size.GetValue())
-        let temp = pixImage.GetMatrix<C4b>().SetByCoord(fun (v : V2l) -> histogramClient.ReadPixel(V2i v) |> C4b) 
-        pixImage :> PixImage
+    let getScreenshot (histogramOffler : Offler) = 
+        histogramOffler.LastImage
+        //let pixImage = PixImage<byte>(Col.Format.BGRA, histogramClient.Size.GetValue())
+        //let temp = pixImage.GetMatrix<C4b>().SetByCoord(fun (v : V2l) -> histogramClient.ReadPixel(V2i v) |> C4b) 
+        //pixImage :> PixImage
+
 
     let createColorPixImage (boxPlotClient : Browser) (color : C4b) = 
         let pixImage = PixImage<byte>(Col.Format.BGRA,boxPlotClient.Size.GetValue())

@@ -4,6 +4,7 @@ open Aardvark.Vr
 open Aardium
 open ImpactVisualization
 open Suave
+open Offler
 
 open Aardvark.Cef
 open FSharp.Data.Adaptive
@@ -23,7 +24,7 @@ let main argv =
     // initialize browser controls...
     Xilium.CefGlue.ChromiumUtilities.unpackCef()
     Aardvark.Cef.Internal.Cef.init()
-
+    Offler.Init()
     Aardvark.Init()
 
     // dont remove this code for now. although it does not do anything it is needed. please dont ask for now :(
@@ -63,9 +64,15 @@ let main argv =
     let projTrafos = app.SystemInfo.render.projTrafos
     //let hmdLocation = app.SystemInfo.state.display.pose.deviceToWorld
 
+    let histogramOffler = 
+        new Offler {
+            url = "http://localhost:4321/?page=histogramPage"
+            width = 1920
+            height = 1080
+            incremental = true
+        }
 
-
-    let bla = Demo.app Unchecked.defaultof<_> Unchecked.defaultof<_> Unchecked.defaultof<_> viewTrafos projTrafos app.Runtime
+    let bla = Demo.app Unchecked.defaultof<_> histogramOffler Unchecked.defaultof<_> viewTrafos projTrafos app.Runtime
     let mapp = ComposedApp.start' app true bla
 
     WebPart.startServerLocalhost 4321 [
@@ -76,6 +83,8 @@ let main argv =
     //client.LoadUrl "http://localhost:4321/?page=controllersPage" |> ignore
     //histogramClient.LoadUrl "http://localhost:4321/?page=histogramPage" |> ignore
     //boxPlotClient.LoadUrl "http://localhost:4321/?page=boxPlotPage" |> ignore
+
+    //histogramOffler.Dispose()
     
     Aardium.run {
         url "http://localhost:4321/?page=mainPage"

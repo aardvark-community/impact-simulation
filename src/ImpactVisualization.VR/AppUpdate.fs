@@ -17,6 +17,7 @@ open AardVolume.Model
 open AardVolume.App
 open ImpactVisualization
 open Aardvark.Cef
+open Offler
 
 open ImpactVisualization.UpdateFunctions
 open ImpactVisualization.MoveControllerFunctions
@@ -25,7 +26,8 @@ open ImpactVisualization.MoveControllerFunctions
 module AppUpdate =
     open Aardvark.UI.Primitives
     open Aardvark.Rendering
-  
+
+
     let initial runtime frames = 
         {   
             twoDModel = AardVolume.App.initial frames
@@ -126,12 +128,12 @@ module AppUpdate =
             heraTransformations = Trafo3d(Scale3d(initialScalingHera)) * Trafo3d.Translation(0.0, 0.0, 0.7)
         }
 
-    let rec update (runtime : IRuntime) (client : Browser) (histogramClient : Browser) (boxPlotClient : Browser) (viewTrafo : aval<Trafo3d>) (projTrafo : aval<Trafo3d>) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
+    let rec update (runtime : IRuntime) (client : Browser) (histogramOffler : Offler) (boxPlotClient : Browser) (viewTrafo : aval<Trafo3d>) (projTrafo : aval<Trafo3d>) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
         let mTwoD = model.twoDModel
 
        // printfn "HMD Pos: %A" (state.display.pose.deviceToWorld.GetModelOrigin())
 
-        let callUpdate (msg : Message) = update runtime client histogramClient boxPlotClient viewTrafo projTrafo frames state vr model msg
+        let callUpdate (msg : Message) = update runtime client histogramOffler boxPlotClient viewTrafo projTrafo frames state vr model msg
        
         //let currTex =
         //    match histogramClient.Texture |> AVal.force with
@@ -365,7 +367,8 @@ module AppUpdate =
                     model.mainControllerTrafo.Forward.TransformPos(V3d.OIO * 1000.0)
                 else 
                     model.ray.Origin, model.ray.Direction
-            client.Mouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
+            //client.Mouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
+            vrMouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
             vibrate model.mainControllerId state 80.0
             {model with
                 ray = Ray3d(origin, direction)
@@ -553,7 +556,7 @@ module AppUpdate =
             match model.secondControllerId with 
             | Some i when i = id && model.controllerMode = ControllerMode.Analyze && model.secondContrBoxPlotIntersectionId.IsNone && 
                 (not model.boxPlotProbes.IsEmpty || not model.boxPlotFrames.IsEmpty) ->
-                let texture = getScreenshot boxPlotClient
+                let texture = getScreenshot histogramOffler //!!!!!!!!!!!!!!!!!!!!!!!!
                 let currTrafo = defaultBoxPlotsTrafo * model.secondControllerTrafo
                 let transformedQuad = currTrafo.Forward.TransformedPosArray(defaultBoxPlotPositions.Points.ToArray(4)) |> Quad3d
                 let isRegion, currBoxPlotData, probePos = 
@@ -807,7 +810,7 @@ module AppUpdate =
                                 do! Async.SwitchToThreadPool()
                                 do! Async.Sleep sleepTime
                                 // perform readback
-                                let t = getScreenshot histogramClient
+                                let t = getScreenshot histogramOffler
                                 yield SetTexture(t, probe)
                             }
 
@@ -831,7 +834,8 @@ module AppUpdate =
                 | ControllerMode.Ray ->     
                     match model.mainControllerId with
                     | Some i when i = id ->
-                        client.Mouse.Up(model.screenCoordsHitPos, MouseButtons.Left)
+                        //client.Mouse.Up(model.screenCoordsHitPos, MouseButtons.Left)
+                        vrMouse.Up(model.screenCoordsHitPos, MouseButtons.Left)
                         {model with 
                             rayTriggerClicked = false
                             clickPosition = None}
@@ -1123,7 +1127,7 @@ module AppUpdate =
                                 do! Async.SwitchToThreadPool()
                                 do! Async.Sleep sleepTime
                                 // perform readback
-                                let t = getScreenshot histogramClient
+                                let t = getScreenshot histogramOffler
                                 yield SetTexture(t, updatedProbe)
                             }
 
@@ -1140,7 +1144,8 @@ module AppUpdate =
         | ChangeTouchpadPos (id, pos) -> 
             match model.mainControllerId with 
             | Some i when i = id && model.rayActive && model.screenIntersection && not model.grabbingHera && not model.grabbingTV -> 
-                client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
+                //client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
+                vrMouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
                 vibrate model.mainControllerId state 5.0
             | _ -> ()
 

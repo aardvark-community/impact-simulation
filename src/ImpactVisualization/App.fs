@@ -1179,7 +1179,7 @@ module App =
             | Some "mainPage" -> 
                 require Html.semui (
                     body [] [
-                        //FreeFlyController.controlledControl m.cameraState CameraMessage frustum (AttributeMap.ofList att) sg
+                        FreeFlyController.controlledControl m.cameraState CameraMessage frustum (AttributeMap.ofList att) sg
                         require dependencies ( // here we execute Histogram.js.... all values, functions defined in Histogram.js are further down accessible...
                             div[style "margin: 7px"] [
                                 div [style "position: fixed; left: 10px; top: 10px; width: 220px"] [
