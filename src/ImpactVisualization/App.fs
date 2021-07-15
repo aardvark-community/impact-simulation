@@ -51,7 +51,7 @@ type Message =
     | SetDomainRange of Dim * Value * float
     | SetDataRange of Value * float
     | SetClippingPlane of Dim * float
-    | InvertClipping
+    | InvertClipping of Dim
     | SetFilter of int
     | ResetFilter 
     | Brushed of Range
@@ -201,7 +201,9 @@ module App =
                 y = infinity
                 z = infinity
                 }
-            invertClipping = false
+            invertX = false
+            invertY = false
+            invertZ = false
             dataRange = {
                 min = minValue
                 max = maxValue
@@ -658,9 +660,11 @@ module App =
                 | Y -> {clipPlane with y = v}
                 | Z -> {clipPlane with z = v}
             {m with clippingPlane = newClipPlane}
-        | InvertClipping -> 
-            {m with 
-                invertClipping = not m.invertClipping}
+        | InvertClipping d -> 
+            match d with
+            | X -> {m with invertX = not m.invertX}
+            | Y -> {m with invertY = not m.invertY}
+            | Z -> {m with invertZ = not m.invertZ}
         | SetFilter i ->
             let newFilter =
                 match i with
@@ -872,7 +876,7 @@ module App =
                 m.transferFunction m.invertTF m.center m.startValue m.endValue
                 m.lowerOutliers m.higherOutliers m.outliersRange
                 m.renderValue m.currentMap 
-                m.domainRange m.clippingPlane m.invertClipping 
+                m.domainRange m.clippingPlane m.invertX m.invertY m.invertZ
                 m.boxFilter m.currFilters m.initDataRange m.colorValue.c 
                 m.cameraState.view viewVector
                 runtime
@@ -1326,11 +1330,25 @@ module App =
                                     ]
 
                                     div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
+                                        span [style "padding: 2px"] [text "Invert: "]
+
                                         simplecheckbox { 
-                                            attributes [clazz "ui inverted checkbox"]
-                                            state m.invertClipping
-                                            toggle InvertClipping
-                                            content [ text "Invert Planes"]  
+                                            attributes [style "padding-inline-start: 5px"; clazz "ui inverted checkbox"]
+                                            state m.invertX
+                                            toggle (InvertClipping X)
+                                            content [ text "X"]  
+                                        }
+                                        simplecheckbox { 
+                                            attributes [style "padding-inline-start: 15px"; clazz "ui inverted checkbox"]
+                                            state m.invertY
+                                            toggle (InvertClipping Y)
+                                            content [ text "Y"]  
+                                        }
+                                        simplecheckbox { 
+                                            attributes [style "padding-inline-start: 15px"; clazz "ui inverted checkbox"]
+                                            state m.invertZ
+                                            toggle (InvertClipping Z)
+                                            content [ text "Z"]  
                                         }
                                     ]
 
@@ -1569,7 +1587,29 @@ module App =
                                                 slider { min = -25.0; max = 70.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.y)) (fun v -> SetClippingPlane (Y, v))
                                                 span [style "padding: 2px; font-size: large"] [text "Z: "]
                                                 slider { min = -25.0; max = 25.0; step = 0.5 } [clazz "ui inverted slider"; style "padding: 3px"] (m.clippingPlane |> AVal.map (fun cp -> cp.z)) (fun v -> SetClippingPlane (Z, v))
+                                            ]
 
+                                            div [style "width: 100%"] [ 
+                                                span [style "margin: 8px; font-size: large"] [text "Invert: "]
+
+                                                simplecheckbox { 
+                                                    attributes [clazz "ui inverted checkbox"; style "margin: 6px; font-size: large; line-height: 25px; min-width: 25px"]
+                                                    state m.invertX
+                                                    toggle (InvertClipping X)
+                                                    content [ text "X"]  
+                                                }
+                                                simplecheckbox { 
+                                                    attributes [clazz "ui inverted checkbox"; style "margin: 6px; font-size: large; line-height: 25px; min-width: 25px"]
+                                                    state m.invertY
+                                                    toggle (InvertClipping Y)
+                                                    content [ text "Y"]  
+                                                }
+                                                simplecheckbox { 
+                                                    attributes [ clazz "ui inverted checkbox"; style "margin: 6px; font-size: large; line-height: 25px; min-width: 25px"]
+                                                    state m.invertZ
+                                                    toggle (InvertClipping Z)
+                                                    content [ text "Z"]  
+                                                }
                                             ]
                                         ]
                                     ]

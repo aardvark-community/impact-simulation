@@ -216,7 +216,9 @@ module Shaders =
             let isInsideOutlierRange = minOutlier <= currValue && currValue <= maxOutlier
 
             let plane = uniform?ClippingPlane
-            let invertPlane = uniform?InvertClipping
+            let invertX = uniform?InvertX
+            let invertY = uniform?InvertY
+            let invertZ = uniform?InvertZ
 
             let minRange = if normalizeData then 0.0 else dataRange.min
             let maxRange = if normalizeData then 1.0 else dataRange.max
@@ -224,10 +226,11 @@ module Shaders =
 
             let pointInDomainRange = wp.X >= dm.x.min && wp.X <= dm.x.max && wp.Y >= dm.y.min && wp.Y <= dm.y.max && wp.Z >= dm.z.min && wp.Z <= dm.z.max
             let pointInsidePlanes = 
-                if invertPlane then 
-                    wp.X >= plane.x && wp.Y >= plane.y && wp.Z >= plane.z
-                else
-                    wp.X <= plane.x && wp.Y <= plane.y && wp.Z <= plane.z
+                let resultX = if invertX then wp.X >= plane.x else wp.X <= plane.x
+                let resultY = if invertY then wp.Y >= plane.y else wp.Y <= plane.y
+                let resultZ = if invertZ then wp.Z >= plane.z else wp.Z <= plane.z
+                resultX && resultY && resultZ
+
             let discardByRanges = if isInAllRanges then false else discardPoints
 
             let color = if isInAllRanges then transferFunc else colorValue
@@ -263,6 +266,9 @@ module Shaders =
             let normalizeData = uniform?NormalizeData
             let outliersRange : Range = uniform?OutliersRange 
             let plane = uniform?ClippingPlane
+            let invertX = uniform?InvertX
+            let invertY = uniform?InvertY
+            let invertZ = uniform?InvertZ
             let pSize = uniform?PointSize
 
             //VR Variables only
@@ -324,7 +330,11 @@ module Shaders =
 
             // DISCARD EVALUATIONS 
             let pointInDomainRange = wpInv.X >= dm.x.min && wpInv.X <= dm.x.max && wpInv.Y >= dm.y.min && wpInv.Y <= dm.y.max && wpInv.Z >= dm.z.min && wpInv.Z <= dm.z.max
-            let pointInsidePlanes = wpInv.X <= plane.x && wpInv.Y <= plane.y && wpInv.Z <= plane.z
+            let pointInsidePlanes = 
+                let resultX = if invertX then wpInv.X >= plane.x else wpInv.X <= plane.x
+                let resultY = if invertY then wpInv.Y >= plane.y else wpInv.Y <= plane.y
+                let resultZ = if invertZ then wpInv.Z >= plane.z else wpInv.Z <= plane.z
+                resultX && resultY && resultZ
             let isOutsideControllerPlane = 
                 if controllerPlane.Normal = V3d.Zero then
                     true
@@ -560,7 +570,8 @@ module HeraSg =
                          (center : aval<float>) (startValue : aval<float>) (endValue : aval<float>)
                          (lowerOutliers : aval<bool>) (higherOutliers : aval<bool>) (outliersRange : aval<Range>)
                          (renderValue : aval<RenderValue>) (tfPath : aval<string>) 
-                         (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) (invertClipping : aval<bool>)
+                         (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
+                         (invertX : aval<bool>) (invertY : aval<bool>) (invertZ : aval<bool>) 
                          (filterBox : aval<option<Box3f>>) (currFilters : aval<Filters>) 
                          (dataRange : aval<Range>) (colorValue : aval<C4b>) 
                          (cameraView : aval<CameraView>) (viewVector : aval<V3d>)
@@ -647,7 +658,9 @@ module HeraSg =
         |> Sg.uniform "RenderValue" renderValue
         |> Sg.uniform "DomainRange" domainRange
         |> Sg.uniform "ClippingPlane" clippingPlane
-        |> Sg.uniform "InvertClipping" invertClipping
+        |> Sg.uniform "InvertX" invertX
+        |> Sg.uniform "InvertY" invertY
+        |> Sg.uniform "InvertZ" invertZ
         |> Sg.uniform "Filter" filterNew 
         |> Sg.uniform "CurrFilters" currFilters
         |> Sg.uniform "DataRange" dataRange
@@ -663,7 +676,8 @@ module HeraSg =
                            (center : aval<float>) (startValue : aval<float>) (endValue : aval<float>)
                            (lowerOutliers : aval<bool>) (higherOutliers : aval<bool>) (outliersRange : aval<Range>) (pointRadius : aval<float>)
                            (renderValue : aval<RenderValue>) (tfPath : aval<string>) (domainRange : aval<DomainRange>) 
-                           (clippingPlane : aval<ClippingPlane>) (contrClippingPlane : aval<Plane3d>) (filterBox : aval<option<Box3f>>) 
+                           (clippingPlane : aval<ClippingPlane>) (invertX : aval<bool>) (invertY : aval<bool>) (invertZ : aval<bool>) 
+                           (contrClippingPlane : aval<Plane3d>) (filterBox : aval<option<Box3f>>) 
                            (sphereProbe : aval<Sphere3d>) (allSpheres : aval<V4f[]>) (spheresLength : aval<int>)
                            (currFilters : aval<Filters>) (dataRange : aval<Range>) (colorValue : aval<C4b>) 
                            (cameraView : aval<CameraView>) (hmdPosition : aval<V3d>)
@@ -762,6 +776,9 @@ module HeraSg =
         |> Sg.uniform "RenderValue" renderValue
         |> Sg.uniform "DomainRange" domainRange
         |> Sg.uniform "ClippingPlane" clippingPlane
+        |> Sg.uniform "InvertX" invertX
+        |> Sg.uniform "InvertY" invertY
+        |> Sg.uniform "InvertZ" invertZ
         |> Sg.uniform "ControllerClippingPlane" contrClippingPlane
         |> Sg.uniform "Filter" filterBoxNew 
         |> Sg.uniform "BoxSet" boxIsSet

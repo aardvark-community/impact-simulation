@@ -808,7 +808,8 @@ module Demo =
                 m.enableTransparency m.transparencyAttribute m.alphaStrength 
                 m.transferFunction m.invertTF m.center m.startValue m.endValue
                 m.lowerOutliers m.higherOutliers m.outliersRange model.scalingFactorHera 
-                m.renderValue m.currentMap m.domainRange m.clippingPlane contrClippingPlane 
+                m.renderValue m.currentMap m.domainRange m.clippingPlane 
+                m.invertX m.invertY m.invertZ contrClippingPlane 
                 m.boxFilter sphereProbe allPlacedSpheres spheresLength
                 m.currFilters m.initDataRange m.colorValue.c 
                 m.cameraState.view model.hmdPos viewTrafo viewVector model.heraTransformations
