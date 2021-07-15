@@ -22,10 +22,10 @@ nuget Aardvark.Application.Utilities        ~> 5.1.12
 nuget Aardvark.GPGPU                        ~> 5.1.12
 nuget Aardvark.SceneGraph.Browser           ~> 5.1.12
                                      
-nuget Aardvark.Service                      ~> 5.1.5
-nuget Aardvark.UI                           ~> 5.1.5
-nuget Aardvark.UI.Primitives                ~> 5.1.5
-nuget Aardvark.Cef                          ~> 5.1.5
+nuget Aardvark.Service                      ~> 5.1.6
+nuget Aardvark.UI                           ~> 5.1.6
+nuget Aardvark.UI.Primitives                ~> 5.1.6
+nuget Aardvark.Cef                          ~> 5.1.6
 
 nuget Aardium                               ~> 2.0.8
 nuget Offler                                ~> 2.0.8

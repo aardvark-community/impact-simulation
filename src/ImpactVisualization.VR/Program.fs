@@ -12,8 +12,6 @@ open FSharp.Data.Adaptive
 open Aardvark.Geometry.Points
 open Uncodium.SimpleStore
 
-open Aardvark.SceneGraph.Browser
-
 let loadOctreeFromStore storepath =
     let id = storepath + ".key" |> File.readAllText
     let store = (new SimpleDiskStore(storepath)).ToPointCloudStore()
