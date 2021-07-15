@@ -304,22 +304,7 @@ module Demo =
             scale * flip * rotate * translate
 
         let boxPlotSg deviceId =
-            let showTexture =
-                (deviceId, m.secondControllerId, m.showCurrBoxPlot) 
-                |||> AVal.map3 (fun dId sId show ->
-                    match sId with 
-                    | Some id when id = dId -> show
-                    | _ -> false)
-            planeSg defaultBoxPlotPositions
-            |> Sg.trafo (AVal.constant (activeBoxPlotTrafo true))
-            |> Sg.onOff showTexture
-            |> Sg.diffuseTexture boxPlotClient.Texture 
-            |> Sg.shader {
-                do! DefaultSurfaces.trafo
-                do! DefaultSurfaces.diffuseTexture
-            }  
-            |> Sg.blendMode (AVal.constant mode)
-            |> Sg.pass pass2
+            Sg.empty
 
         let convertRange (currPos : V2d) = 
             let newMaxX = maxBoxPlotX 
@@ -849,17 +834,17 @@ module Demo =
                 do! DefaultSurfaces.diffuseTexture
             }  
 
-        let browserSg' = 
-            Sg.draw IndexedGeometryMode.TriangleList
-            |> Sg.vertexAttribute DefaultSemantic.Positions qp
-            |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
-            |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
-            |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
-            |> Sg.diffuseTexture client.Texture 
-            |> Sg.shader {
-                do! DefaultSurfaces.trafo
-                do! DefaultSurfaces.diffuseTexture
-            }  
+        //let browserSg' = 
+        //    Sg.draw IndexedGeometryMode.TriangleList
+        //    |> Sg.vertexAttribute DefaultSemantic.Positions qp
+        //    |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
+        //    |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
+        //    |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
+        //    |> Sg.diffuseTexture client.Texture 
+        //    |> Sg.shader {
+        //        do! DefaultSurfaces.trafo
+        //        do! DefaultSurfaces.diffuseTexture
+        //    }  
 
         let tvSg = 
             Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"tv";"tv.obj"])
@@ -1008,7 +993,7 @@ module Demo =
 
     let app (client : Browser) (histogramClient : Browser) (boxPlotClient : Browser) (viewTrafos : aval<Trafo3d []>) (projTrafos : aval<Trafo3d []>) (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
         let frames = DataLoader.loadDataAllFrames runtime
-        client.SetFocus true
+        //client.SetFocus true
         //let viewTrafo = combinedTrafo viewTrafos
         //let projTrafo = combinedTrafo projTrafos
         let viewTrafo = viewTrafos |> AVal.map (fun vts -> vts.[0])

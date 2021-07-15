@@ -932,52 +932,6 @@ module App =
 
         //let temp = m.allProbesScreenPositions |> AVal.map (fun array -> if array.IsEmpty() then V2d(0.0, 0.0) else array.[0])
 
-        let testPlaneSg = 
-            Sg.draw IndexedGeometryMode.TriangleList
-            |> Sg.vertexAttribute DefaultSemantic.Positions (AVal.constant  [|V3f(-1.7, -1.0, 0.0); V3f(1.7, -1.0, 0.0); V3f(1.7, 1.0, 0.0); V3f(-1.7, 1.0, 0.0)|])
-            |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
-            |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
-            |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
-            |> Sg.trafo (AVal.constant testPlaneTrafo)
-            |> Sg.diffuseTexture bpClient.Texture 
-            |> Sg.shader {
-                do! DefaultSurfaces.trafo
-                do! DefaultSurfaces.simpleLighting
-                do! DefaultSurfaces.diffuseTexture
-            }
-
-        let testSphereSg = 
-            m.allProbesScreenPositions
-            |> AVal.map (fun positions ->
-                positions 
-                |> Array.mapi (fun idx pos ->
-                    let newPos = testPlaneTrafo.Forward.TransformPos(V3d.OOO)
-                    let finalPos = newPos + V3d(-(convertRange pos).X, 0.0, (convertRange pos).Y)
-                    let currColor =
-                        match scheme10Colors.TryFind(idx) with
-                        | Some c -> c
-                        | None -> C4b.Black
-                    let sphere = 
-                        Sg.sphere' 6 currColor 0.005
-                        |> Sg.noEvents
-                        |> Sg.trafo (AVal.constant (Trafo3d.Translation(finalPos)))
-                    let origin = V3d.OOO
-                    let currLine = AVal.constant [|Line3d(finalPos, origin)|]
-                    currLine
-                    |> Sg.lines (AVal.constant currColor)
-                    |> Sg.noEvents
-                    |> Sg.uniform "LineWidth" (AVal.constant 5)
-                    |> Sg.effect [
-                        toEffect DefaultSurfaces.trafo
-                        toEffect DefaultSurfaces.vertexColor
-                        toEffect DefaultSurfaces.thickLine
-                        ]
-                    |> Sg.andAlso sphere
-                )
-                |> Sg.ofArray
-            )
-            |> Sg.dynamic
-
 
         let sg = 
             Sg.ofSeq [heraSg; boxSg; sphereSg]
@@ -1225,7 +1179,7 @@ module App =
             | Some "mainPage" -> 
                 require Html.semui (
                     body [] [
-                        FreeFlyController.controlledControl m.cameraState CameraMessage frustum (AttributeMap.ofList att) sg
+                        //FreeFlyController.controlledControl m.cameraState CameraMessage frustum (AttributeMap.ofList att) sg
                         require dependencies ( // here we execute Histogram.js.... all values, functions defined in Histogram.js are further down accessible...
                             div[style "margin: 7px"] [
                                 div [style "position: fixed; left: 10px; top: 10px; width: 220px"] [
