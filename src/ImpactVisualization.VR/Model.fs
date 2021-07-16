@@ -236,6 +236,7 @@ type Model =
         secondContrBoxPlotIntersectionId : Option<string>
         movingBoxPlot : bool
         takenBoxPlot : Option<BoxPlot>
+        takenBPTex : PixImage
         allCurrSelectedProbesIds : HashMap<int, Probe>
         selectedProbesPositions : (string * V3d) []
 

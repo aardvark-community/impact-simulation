@@ -72,6 +72,7 @@ module AppUpdate =
             secondContrBoxPlotIntersectionId = None
             movingBoxPlot = false
             takenBoxPlot = None
+            takenBPTex = DefaultTextures.blackPix
             lastProbeId = 0
             currBoxPlotAttribSet = false
             currBoxPlotAttrib = RenderValue.Energy
@@ -128,12 +129,12 @@ module AppUpdate =
             heraTransformations = Trafo3d(Scale3d(initialScalingHera)) * Trafo3d.Translation(0.0, 0.0, 0.7)
         }
 
-    let rec update (runtime : IRuntime) (client : Browser) (histogramOffler : Offler) (boxPlotClient : Browser) (viewTrafo : aval<Trafo3d>) (projTrafo : aval<Trafo3d>) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
+    let rec update (runtime : IRuntime) (controllersOffler : Offler) (histogramOffler : Offler) (boxPlotOffler : Offler) (viewTrafo : aval<Trafo3d>) (projTrafo : aval<Trafo3d>) (frames : Frame[]) (state : VrState) (vr : VrActions) (model : Model) (msg : Message) =
         let mTwoD = model.twoDModel
 
        // printfn "HMD Pos: %A" (state.display.pose.deviceToWorld.GetModelOrigin())
 
-        let callUpdate (msg : Message) = update runtime client histogramOffler boxPlotClient viewTrafo projTrafo frames state vr model msg
+        let callUpdate (msg : Message) = update runtime controllersOffler histogramOffler boxPlotOffler viewTrafo projTrafo frames state vr model msg
        
         //let currTex =
         //    match histogramClient.Texture |> AVal.force with
@@ -297,7 +298,7 @@ module AppUpdate =
             |> updateDevicesTrafos id trafo
             |> updateSphereScalingFactor
             |> updateTvTrafos
-            |> updateRay id client
+            |> updateRay id controllersOffler
             |> updateHeraTrafos
             |> updateProbeIntersections id state
             |> updateBoxPlotIntersections id state
@@ -368,7 +369,8 @@ module AppUpdate =
                 else 
                     model.ray.Origin, model.ray.Direction
             //client.Mouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
-            vrMouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
+            //vrMouse.Down(model.screenCoordsHitPos, MouseButtons.Left)
+            controllersOffler.MouseDown(model.screenCoordsHitPos.Position.X, model.screenCoordsHitPos.Position.Y, MouseButton.Left, false, false, false)
             vibrate model.mainControllerId state 80.0
             {model with
                 ray = Ray3d(origin, direction)
@@ -556,7 +558,9 @@ module AppUpdate =
             match model.secondControllerId with 
             | Some i when i = id && model.controllerMode = ControllerMode.Analyze && model.secondContrBoxPlotIntersectionId.IsNone && 
                 (not model.boxPlotProbes.IsEmpty || not model.boxPlotFrames.IsEmpty) ->
-                let texture = getScreenshot histogramOffler //!!!!!!!!!!!!!!!!!!!!!!!!
+                let texture = getScreenshot boxPlotOffler
+                let texCopy = texture.CopyToPixImage()
+                //texture.SaveAsImage(sprintf @"C:\Users\vasileva\source\image\temp.png")
                 let currTrafo = defaultBoxPlotsTrafo * model.secondControllerTrafo
                 let transformedQuad = currTrafo.Forward.TransformedPosArray(defaultBoxPlotPositions.Points.ToArray(4)) |> Quad3d
                 let isRegion, currBoxPlotData, probePos = 
@@ -564,7 +568,7 @@ module AppUpdate =
                     else if not model.boxPlotFrames.IsEmpty then false, model.boxPlotFrames, model.currProbeAnalyzeTime.Value.centerRelToHera
                     else true, HashMap.empty, V3d.OOO
                 let boxPlot = createBoxPlot isRegion model.currBoxPlotAttrib currTrafo transformedQuad 
-                                    texture currBoxPlotData model.allCurrSelectedProbesIds 
+                                    texCopy currBoxPlotData model.allCurrSelectedProbesIds 
                                     model.twoDModel.allProbesScreenPositions model.selectedProbesPositions probePos true
                 let allPlacedBoxPlots = model.allPlacedBoxPlots.Add(boxPlot.id, boxPlot)
                 let updatedTwoDmodel = 
@@ -580,6 +584,10 @@ module AppUpdate =
                             numberId = -1
                             selected = if probe.currSelected then true else probe.selected
                             currSelected = false})
+                //allPlacedBoxPlots
+                //|> HashMap.iter(fun k v ->
+                //        v.texture.SaveAsImage(sprintf @"C:\Users\vasileva\source\image\temp%s.png" k)
+                //    )
                 {model with 
                     allProbes = allProbesUpdated
                     allPlacedBoxPlots = allPlacedBoxPlots
@@ -699,8 +707,13 @@ module AppUpdate =
             | Some i when i = id && model.mainContrBoxPlotIntersectionId.IsSome  ->
                 let intersectedBoxPlotId = model.mainContrBoxPlotIntersectionId.Value
                 let boxPlot = model.allPlacedBoxPlots.TryFind(intersectedBoxPlotId)
+                //model.allPlacedBoxPlots
+                //|> HashMap.iter(fun k v ->
+                //        v.texture.SaveAsImage(sprintf @"C:\Users\vasileva\source\image\temp%s.png" k)
+                //    )
                 match boxPlot with
                 | Some b -> 
+                    //boxPlot.Value.texture.SaveAsImage(sprintf @"C:\Users\vasileva\source\image\temp.png")
                     let currTrafo = defaultBoxPlotsTrafo * model.mainControllerTrafo
                     let updatedB = {b with trafo = currTrafo}
                     let updateBoxPlots = model.allPlacedBoxPlots.Remove(intersectedBoxPlotId)
@@ -708,7 +721,8 @@ module AppUpdate =
                     {model with 
                         movingBoxPlot = true
                         allPlacedBoxPlots = updateBoxPlots
-                        takenBoxPlot = Some updatedB}
+                        takenBoxPlot = Some updatedB
+                        takenBPTex = b.texture}
                 | None -> model 
             | _ -> model
         | LeaveBoxPlot id ->
@@ -835,7 +849,10 @@ module AppUpdate =
                     match model.mainControllerId with
                     | Some i when i = id ->
                         //client.Mouse.Up(model.screenCoordsHitPos, MouseButtons.Left)
-                        vrMouse.Up(model.screenCoordsHitPos, MouseButtons.Left)
+                        //vrMouse.Up(model.screenCoordsHitPos, MouseButtons.Left)
+                        controllersOffler.MouseUp(model.screenCoordsHitPos.Position.X, model.screenCoordsHitPos.Position.Y, MouseButton.Left, false, false, false)
+                        controllersOffler.MouseClick(model.screenCoordsHitPos.Position.X, model.screenCoordsHitPos.Position.Y, MouseButton.Left, 1, false, false, false)
+
                         {model with 
                             rayTriggerClicked = false
                             clickPosition = None}
@@ -1145,7 +1162,9 @@ module AppUpdate =
             match model.mainControllerId with 
             | Some i when i = id && model.rayActive && model.screenIntersection && not model.grabbingHera && not model.grabbingTV -> 
                 //client.Mouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
-                vrMouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
+                //vrMouse.Scroll(model.screenCoordsHitPos, pos.Y * 50.0)
+                //controllersOffler.Value.MouseWheel(model.screenCoordsHitPos.Position.X, model.screenCoordsHitPos.Position.Y, MouseButton.Left, false, false, false)
+                controllersOffler.MouseWheel(model.screenCoordsHitPos.Position.X, model.screenCoordsHitPos.Position.Y, pos.X * 50.0, pos.Y * 50.0, false, false, false)
                 vibrate model.mainControllerId state 5.0
             | _ -> ()
 

@@ -258,8 +258,8 @@ module UpdateFunctions =
         let translation = Trafo3d.Translation(0.0, 0.25, 0.1)
         scale * rotation * translation
     
-    let getScreenshot (histogramOffler : Offler) = 
-        histogramOffler.LastImage
+    let getScreenshot (offler : Offler) = 
+        offler.LastImage
         //let pixImage = PixImage<byte>(Col.Format.BGRA, histogramClient.Size.GetValue())
         //let temp = pixImage.GetMatrix<C4b>().SetByCoord(fun (v : V2l) -> histogramClient.ReadPixel(V2i v) |> C4b) 
         //pixImage :> PixImage

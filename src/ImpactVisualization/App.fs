@@ -808,7 +808,7 @@ module App =
     let transparencyValues = AMap.ofArray((Enum.GetValues typeof<RenderValue> :?> (RenderValue [])) |> Array.map (fun c -> (c, text (Enum.GetName(typeof<RenderValue>, c)) )))
     let opacityTFs = AMap.ofArray((Enum.GetValues typeof<TransferFunction> :?> (TransferFunction [])) |> Array.map (fun t -> (t, text (Enum.GetName(typeof<TransferFunction>, t)) )))
 
-    let view (runtime : IRuntime) (data : Frame[]) (bpClient : Browser) (m : AdaptiveModel) =
+    let view (runtime : IRuntime) (data : Frame[]) (m : AdaptiveModel) =
         let shuffleR (r : Random) xs = xs |> Seq.sortBy (fun _ -> r.Next())
 
         let temp = findOutliers data.[0].energies  
@@ -1477,7 +1477,7 @@ module App =
                                             ]
                                             // Incremental.div AttributeMap.empty dynamicUI
                                             dropdown { placeholder = "ColorMaps"; allowEmpty = false} [ clazz "ui selection"; style "margin: 10px; min-width: 80%; font-size: large"] colorMaps (m.currentMap |> AVal.map Some) SetTransferFunc
-                                            dropdown1 [ clazz "ui selection"; style "margin: 10px; min-width: 80%; font-size: large"] renderValues m.renderValue SetRenderValue
+                                            dropdown1 [ clazz "semantic ui selection"; style "margin: 10px; min-width: 80%; font-size: large"] renderValues m.renderValue SetRenderValue
                                         ]
                                 
                                         div [style "margin: 7px; color: white; width: 250px; background-color: rgba(150, 150, 200, 0.15); border-radius: 10px" ] [
@@ -1754,7 +1754,7 @@ module App =
 
          ThreadPool.add "timer" (time()) pool
 
-    let app (runtime : IRuntime) (bpClient : Browser) =
+    let app (runtime : IRuntime) =
         //let frms = seq { 120 .. 40 .. 400 }
         //frms |> Seq.iter (fun i -> DataLoader.createData(i))
         //DataLoader.createData(0)
@@ -1763,7 +1763,7 @@ module App =
         {
             initial = initial frames // store data Hera frame as array to model....
             update = update frames
-            view = view runtime frames bpClient
+            view = view runtime frames
             threads = threads
             unpersist = Unpersist.instance
         }

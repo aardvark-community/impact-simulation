@@ -64,22 +64,52 @@ let main argv =
     let projTrafos = app.SystemInfo.render.projTrafos
     //let hmdLocation = app.SystemInfo.state.display.pose.deviceToWorld
 
+
+
     let histogramOffler = 
         new Offler {
-            url = "http://localhost:4321/?page=histogramPage"
+            url = "https://www.google.com/"
             width = 1920
             height = 1080
             incremental = true
         }
 
-    let bla = Demo.app Unchecked.defaultof<_> histogramOffler Unchecked.defaultof<_> viewTrafos projTrafos app.Runtime
-    let mapp = ComposedApp.start' app true bla
+    let boxPlotOffler = 
+        new Offler {
+            url = "https://www.google.com/"
+            width = 1920
+            height = 1080
+            incremental = true
+        }
+
+    let controllersOffler = 
+        new Offler {
+            url = "https://www.google.com/"
+            width = 1200    
+            height = 790
+            incremental = true
+        }
+
+
+    let vrapp = Demo.app controllersOffler histogramOffler boxPlotOffler viewTrafos projTrafos app.Runtime
+    let mapp = ComposedApp.start' app true vrapp
 
     WebPart.startServerLocalhost 4321 [
         MutableApp.toWebPart app.Runtime mapp
         Reflection.assemblyWebPart typeof<AardVolume.EmbeddedRessource>.Assembly
     ] |> ignore
-    
+
+    controllersOffler.StartJavascript (sprintf "win.loadURL(\"%s\");" "http://localhost:4321/?page=controllersPage")
+
+    histogramOffler.StartJavascript (sprintf "win.loadURL(\"%s\");" "http://localhost:4321/?page=histogramPage")
+
+    boxPlotOffler.StartJavascript (sprintf "win.loadURL(\"%s\");" "http://localhost:4321/?page=boxPlotPage")
+        
+    //histogramOffler.Value.StartJavascript "socket.send(http://localhost:4321/?page=histogramPage);"
+
+    //histogramOffler.contents.Url <- "http://localhost:4321/?page=histogramPage"
+    //histogramOffler.contents.StartJavascript "socket.send(http://localhost:4321/?page=histogramPage);"
+
     //client.LoadUrl "http://localhost:4321/?page=controllersPage" |> ignore
     //histogramClient.LoadUrl "http://localhost:4321/?page=histogramPage" |> ignore
     //boxPlotClient.LoadUrl "http://localhost:4321/?page=boxPlotPage" |> ignore
@@ -87,7 +117,7 @@ let main argv =
     //histogramOffler.Dispose()
     
     Aardium.run {
-        url "http://localhost:4321/?page=mainPage"
+        url "http://localhost:4321/?page=controllersPage"
     }
 
     Aardvark.Cef.Internal.Cef.shutdown()
