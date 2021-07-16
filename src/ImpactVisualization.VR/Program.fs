@@ -4,6 +4,7 @@ open Aardvark.Vr
 open Aardium
 open ImpactVisualization
 open Suave
+open Offler
 
 open Aardvark.Cef
 open FSharp.Data.Adaptive
@@ -23,7 +24,7 @@ let main argv =
     // initialize browser controls...
     Xilium.CefGlue.ChromiumUtilities.unpackCef()
     Aardvark.Cef.Internal.Cef.init()
-
+    Offler.Init()
     Aardvark.Init()
 
     // dont remove this code for now. although it does not do anything it is needed. please dont ask for now :(
@@ -53,27 +54,70 @@ let main argv =
 
     Aardium.init()
 
-    let app = VRApplication.create' (VRDisplay.OpenVR 1.0) Aardvark.Application.Backend.GL 8 false
-    let client = new Browser(null,AVal.constant System.DateTime.Now,app.Runtime, true, AVal.constant (ImpactVisualization.UpdateFunctions.screenResolution))
-    let histogramClient = new Browser(null,AVal.constant System.DateTime.Now,app.Runtime, true, AVal.constant (V2i(1920, 1080)))
-    let boxPlotClient = new Browser(null,AVal.constant System.DateTime.Now,app.Runtime, true, AVal.constant (V2i(1920, 1140)))
+    //let gl = Aardvark.Application.Slim.OpenGlApplication()
+
+    let app = VRApplication.create' (VRDisplay.OpenVR 1.0) Aardvark.Application.Backend.Vulkan 8 false
+    //let client = new Browser(null,AVal.constant System.DateTime.Now,gl.Runtime, true, AVal.constant (ImpactVisualization.UpdateFunctions.screenResolution))
+    //let histogramClient = new Browser(null,AVal.constant System.DateTime.Now,gl.Runtime, true, AVal.constant (V2i(1920, 1080)))
+    //let boxPlotClient = new Browser(null,AVal.constant System.DateTime.Now,gl.Runtime, true, AVal.constant (V2i(1920, 1140)))
     let viewTrafos = app.SystemInfo.render.viewTrafos
     let projTrafos = app.SystemInfo.render.projTrafos
     //let hmdLocation = app.SystemInfo.state.display.pose.deviceToWorld
-    let bla = Demo.app client histogramClient boxPlotClient viewTrafos projTrafos app.Runtime
-    let mapp = ComposedApp.start' app true bla
+
+
+
+    let histogramOffler = 
+        new Offler {
+            url = "https://www.google.com/"
+            width = 1920
+            height = 1080
+            incremental = true
+        }
+
+    let boxPlotOffler = 
+        new Offler {
+            url = "https://www.google.com/"
+            width = 1920
+            height = 1080
+            incremental = true
+        }
+
+    let controllersOffler = 
+        new Offler {
+            url = "https://www.google.com/"
+            width = 1200    
+            height = 790
+            incremental = true
+        }
+
+
+    let vrapp = Demo.app controllersOffler histogramOffler boxPlotOffler viewTrafos projTrafos app.Runtime
+    let mapp = ComposedApp.start' app true vrapp
 
     WebPart.startServerLocalhost 4321 [
         MutableApp.toWebPart app.Runtime mapp
         Reflection.assemblyWebPart typeof<AardVolume.EmbeddedRessource>.Assembly
     ] |> ignore
-    
-    client.LoadUrl "http://localhost:4321/?page=controllersPage" |> ignore
-    histogramClient.LoadUrl "http://localhost:4321/?page=histogramPage" |> ignore
-    boxPlotClient.LoadUrl "http://localhost:4321/?page=boxPlotPage" |> ignore
+
+    controllersOffler.StartJavascript (sprintf "win.loadURL(\"%s\");" "http://localhost:4321/?page=controllersPage")
+
+    histogramOffler.StartJavascript (sprintf "win.loadURL(\"%s\");" "http://localhost:4321/?page=histogramPage")
+
+    boxPlotOffler.StartJavascript (sprintf "win.loadURL(\"%s\");" "http://localhost:4321/?page=boxPlotPage")
+        
+    //histogramOffler.Value.StartJavascript "socket.send(http://localhost:4321/?page=histogramPage);"
+
+    //histogramOffler.contents.Url <- "http://localhost:4321/?page=histogramPage"
+    //histogramOffler.contents.StartJavascript "socket.send(http://localhost:4321/?page=histogramPage);"
+
+    //client.LoadUrl "http://localhost:4321/?page=controllersPage" |> ignore
+    //histogramClient.LoadUrl "http://localhost:4321/?page=histogramPage" |> ignore
+    //boxPlotClient.LoadUrl "http://localhost:4321/?page=boxPlotPage" |> ignore
+
+    //histogramOffler.Dispose()
     
     Aardium.run {
-        url "http://localhost:4321/?page=mainPage"
+        url "http://localhost:4321/?page=controllersPage"
     }
 
     Aardvark.Cef.Internal.Cef.shutdown()

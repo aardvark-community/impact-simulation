@@ -4,7 +4,7 @@ open System
 open System.IO
 open System.Text.Json
 open Aardvark.Base
-open Aardvark.Base.Rendering
+open Aardvark.Rendering
 open Aardvark.Vr
 open Aardvark.Application
 open Aardvark.Rendering.GL
@@ -18,6 +18,7 @@ open AardVolume.App
 open ImpactVisualization
 open ImpactVisualization.UpdateFunctions
 open Aardvark.Cef
+open Offler
 
 module MoveControllerFunctions =
 
@@ -97,7 +98,7 @@ module MoveControllerFunctions =
             tvTransformations = newTvTransformations
             tvQuad = updatedTvQuad}
 
-    let updateRay (id : int) (client : Browser) (model : Model)  = 
+    let updateRay (id : int) (controllersOffler : Offler) (model : Model)  = 
         match model.mainControllerId with 
         | Some i when i = id -> 
             let initRay = 
@@ -114,7 +115,9 @@ module MoveControllerFunctions =
                         let screenCoords = (V2d(hit.Coord.X * screenResolution.ToV2d().X, hit.Coord.Y * screenResolution.ToV2d().Y)).ToV2i()
                         let screenPos = PixelPosition(screenCoords, screenResolution.X, screenResolution.Y)
                         if model.rayTriggerClicked then
-                            client.Mouse.Move(screenPos)
+                            //client.Mouse.Move(screenPos)
+                            controllersOffler.MouseMove(screenPos.Position.X, screenPos.Position.Y, false, false, false)
+                            //vrMouse.Move(screenPos)
                           //  printfn "Move"
                         Ray3d(initRay.Origin, hit.Point), C4b.Green, screenPos
                     else

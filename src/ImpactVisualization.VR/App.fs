@@ -25,10 +25,11 @@ open ImpactVisualization.AppUpdate
 open ImpactVisualization.UpdateFunctions
 open Aardvark.Cef
 open Touchpad
+open Offler
  
 module Demo =
     open Aardvark.UI.Primitives
-    open Aardvark.Base.Rendering
+    open Aardvark.Rendering
 
     let combinedTrafo (trafos : aval<Trafo3d []>) = 
         trafos |> AVal.map (fun trafos ->
@@ -95,8 +96,8 @@ module Demo =
             if pose.isValid then [MoveController (controllerId, pose.deviceToWorld); SetController controllerId] else []
         | _ -> []
 
-    let ui (runtime : IRuntime) (data : Frame[]) (boxPlotClient : Browser) (info : VrSystemInfo) (m : AdaptiveModel) : DomNode<Message> = // 2D UI
-        div [] [AardVolume.App.view runtime data boxPlotClient m.twoDModel |> UI.map TwoD]
+    let ui (runtime : IRuntime) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : DomNode<Message> = // 2D UI
+        div [] [AardVolume.App.view runtime data m.twoDModel |> UI.map TwoD]
 
     let planeSg positions : ISg<Message> = 
         Sg.draw IndexedGeometryMode.TriangleList
@@ -105,7 +106,7 @@ module Demo =
         |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
         |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
 
-    let vr (runtime : IRuntime) (client : Browser) (histogramClient : Browser) (boxPlotClient : Browser) (viewTrafo : aval<Trafo3d>) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
+    let vr (runtime : IRuntime) (controllersOffler : Offler) (histogramOffler : Offler) (boxPlotOffler : Offler) (viewTrafo : aval<Trafo3d>) (data : Frame[]) (info : VrSystemInfo) (m : AdaptiveModel) : ISg<Message> = // HMD Graphics
        
         let pass0 = RenderPass.main
         let pass1 = RenderPass.after "pass1" RenderPassOrder.Arbitrary pass0 
@@ -113,14 +114,14 @@ module Demo =
         let pass3 = RenderPass.after "pass3" RenderPassOrder.Arbitrary pass2   
         let pass4 = RenderPass.after "pass4" RenderPassOrder.Arbitrary pass3   
 
-        let mutable mode = BlendMode(true)
-        mode.Enabled <- true
-        mode.Operation <- BlendOperation.Add
-        mode.AlphaOperation <- BlendOperation.Add
-        mode.SourceFactor <- BlendFactor.SourceAlpha
-        mode.DestinationFactor <- BlendFactor.InvSourceAlpha
-        mode.SourceAlphaFactor <- BlendFactor.One
-        mode.DestinationAlphaFactor <- BlendFactor.InvSourceAlpha
+        let mode =
+            { Enabled                = true
+              ColorOperation         = BlendOperation.Add
+              AlphaOperation         = BlendOperation.Add
+              SourceColorFactor      = BlendFactor.SourceAlpha
+              DestinationColorFactor = BlendFactor.InvSourceAlpha
+              SourceAlphaFactor      = BlendFactor.One
+              DestinationAlphaFactor = BlendFactor.InvSourceAlpha }
 
         let cfg : Aardvark.Rendering.Text.TextConfig = 
             {
@@ -210,7 +211,7 @@ module Demo =
             Sg.sphere' 9 C4b.LightGreen 0.002
             |> Sg.noEvents
             |> Sg.translate 0.0 -0.05 0.0035 // translation so that it is in the middle of the touchpad
-            |> Sg.translate' pos
+            |> Sg.translation pos
             |> Sg.trafo trafo
             |> Sg.onOff touching
 
@@ -303,17 +304,47 @@ module Demo =
             let translate = Trafo3d.Translation(0.0, 0.25, 0.1)
             scale * flip * rotate * translate
 
+        //let boxPlotSg deviceId =
+        //    let texture = 
+        //        let pixImage = boxPlotOffler.Value.LastImage 
+        //        convertPixImageToITexture pixImage 
+        //        |> AVal.constant
+        //    let showTexture =
+        //        (deviceId, m.secondControllerId, m.showCurrBoxPlot) 
+        //        |||> AVal.map3 (fun dId sId show ->
+        //            match sId with 
+        //            | Some id when id = dId -> show
+        //            | _ -> false)
+        //    planeSg defaultBoxPlotPositions
+        //    |> Sg.trafo (AVal.constant (activeBoxPlotTrafo true))
+        //    |> Sg.onOff showTexture
+        //    |> Sg.diffuseTexture texture
+        //    |> Sg.shader {
+        //        do! DefaultSurfaces.trafo
+        //        do! DefaultSurfaces.diffuseTexture
+        //    }  
+        //    |> Sg.blendMode (AVal.constant mode)
+        //    |> Sg.pass pass2
+
         let boxPlotSg deviceId =
-            let showTexture =
+            let show =
                 (deviceId, m.secondControllerId, m.showCurrBoxPlot) 
                 |||> AVal.map3 (fun dId sId show ->
                     match sId with 
                     | Some id when id = dId -> show
                     | _ -> false)
-            planeSg defaultBoxPlotPositions
+            Sg.browser {
+                Browser.url "http://localhost:4321/?page=boxPlotPage"
+                //Browser.keyboard win.Keyboard
+                //Browser.mouse vrMouse
+                //Browser.focus (cval false)
+                Browser.mipMaps true
+                Browser.size (1920,1140)
+            }
+            |> Sg.noEvents
+            |> Sg.transform (Trafo3d.Scale(1.7, 1.0, 1.0))
             |> Sg.trafo (AVal.constant (activeBoxPlotTrafo true))
-            |> Sg.onOff showTexture
-            |> Sg.diffuseTexture boxPlotClient.Texture 
+            |> Sg.onOff show
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.diffuseTexture
@@ -472,6 +503,7 @@ module Demo =
                 | AdaptiveNone -> (AVal.constant false))
 
         let takenBoxPlotSg = 
+            let texture = m.takenBPTex |> AVal.map (fun pi ->  convertPixImageToITexture pi)
             let visualConnections = 
                 (boxPlotIsRegion, timeProbePos) 
                 ||> AVal.map2 (fun region probePos ->
@@ -483,7 +515,7 @@ module Demo =
                 |> Sg.dynamic
             planeSg defaultBoxPlotPositions
             |> Sg.trafo trafoBP
-            |> Sg.diffuseTexture texBP
+            |> Sg.diffuseTexture texture
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.diffuseTexture
@@ -658,6 +690,7 @@ module Demo =
             |> Sg.trafo statisticsScaleTrafo
             |> Sg.trafo (p.radius |> AVal.map (fun r -> Trafo3d.Translation(0.0, (r * 0.75), 0.0)))
             |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
+            |> Sg.transform (Trafo3d.Scale(1.0, -1.0, 1.0))
             |> Sg.myBillboard viewTrafo
             |> Sg.applyRuntime runtime
             |> Sg.noEvents
@@ -690,6 +723,7 @@ module Demo =
                         | None -> DefaultTextures.blackPix :> PixImage
                     convertPixImageToITexture pixImage)
             planeSg probeHistogramPositions
+            |> Sg.transform (Trafo3d.Scale(1.0, -1.0, 1.0))
             |> Sg.trafo histogramScaleTrafo
             |> Sg.transform (Trafo3d.FromOrthoNormalBasis(V3d.IOO,-V3d.OIO, V3d.OOI))
             |> Sg.myBillboard viewTrafo
@@ -705,7 +739,7 @@ module Demo =
                 do! DefaultSurfaces.diffuseTexture
             }
             |> Sg.blendMode (AVal.constant mode)
-            |> Sg.pass pass2
+            |> Sg.pass pass3
 
         let showBillboard = (m.showBillboard, m.grabbingHera) ||> AVal.map2 (fun show grabbing -> show && not grabbing)
 
@@ -842,16 +876,34 @@ module Demo =
         let qp = AVal.constant  [|browserQuad.P0; browserQuad.P1; browserQuad.P2; browserQuad.P3|]
 
         let browserSg = 
-            Sg.draw IndexedGeometryMode.TriangleList
-            |> Sg.vertexAttribute DefaultSemantic.Positions qp
-            |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
-            |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
-            |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
-            |> Sg.diffuseTexture client.Texture 
+            Sg.BrowserNode {
+                offler = controllersOffler
+                keyboard = None
+                mouse = None
+                focus = cval true
+                dispose = []
+                mipMaps = true
+            }
+            |> Sg.noEvents
+            |> Sg.transform (Trafo3d.Scale(1.0, -1.0, 1.0))
+            |> Sg.transform (Trafo3d.Scale(0.732, 0.425, 1.0))
+            |> Sg.translate 0.0 0.0085 0.017 
             |> Sg.shader {
                 do! DefaultSurfaces.trafo
                 do! DefaultSurfaces.diffuseTexture
             }  
+
+        //let browserSg' = 
+        //    Sg.draw IndexedGeometryMode.TriangleList
+        //    |> Sg.vertexAttribute DefaultSemantic.Positions qp
+        //    |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
+        //    |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
+        //    |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
+        //    |> Sg.diffuseTexture client.Texture 
+        //    |> Sg.shader {
+        //        do! DefaultSurfaces.trafo
+        //        do! DefaultSurfaces.diffuseTexture
+        //    }  
 
         let tvSg = 
             Loader.Assimp.load (Path.combine [__SOURCE_DIRECTORY__; "..";"..";"models";"tv";"tv.obj"])
@@ -870,7 +922,7 @@ module Demo =
         let tvPosSphereSg = 
             Sg.sphere' 9 C4b.LightGreen 0.02
             |> Sg.noEvents
-            |> Sg.translate' m.hitPoint
+            |> Sg.translation m.hitPoint
             |> Sg.onOff m.screenIntersection
 
         // TODO: X and Y must be swapped for some reason !! Find why??!!
@@ -899,7 +951,7 @@ module Demo =
                 toEffect DefaultSurfaces.vertexColor
                 toEffect DefaultSurfaces.thickLine
                 ]
-            |> Sg.depthTest (AVal.constant DepthTestMode.LessOrEqual)
+            |> Sg.depthTest' DepthTest.LessOrEqual
             |> Sg.pass pass1
 
         let currentBox = 
@@ -998,9 +1050,9 @@ module Demo =
             do! DefaultSurfaces.simpleLighting
         }
 
-    let app (client : Browser) (histogramClient : Browser) (boxPlotClient : Browser) (viewTrafos : aval<Trafo3d []>) (projTrafos : aval<Trafo3d []>) (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
+    let app (controllersOffler : Offler) (histogramOffler : Offler) (boxPlotOffler : Offler) (viewTrafos : aval<Trafo3d []>) (projTrafos : aval<Trafo3d []>) (runtime : IRuntime) : ComposedApp<Model,AdaptiveModel,Message> =
         let frames = DataLoader.loadDataAllFrames runtime
-        client.SetFocus true
+        //client.SetFocus true
         //let viewTrafo = combinedTrafo viewTrafos
         //let projTrafo = combinedTrafo projTrafos
         let viewTrafo = viewTrafos |> AVal.map (fun vts -> vts.[0])
@@ -1008,10 +1060,10 @@ module Demo =
         {
             unpersist = Unpersist.instance
             initial = initial runtime frames
-            update = update runtime client histogramClient boxPlotClient viewTrafo projTrafo frames
+            update = update runtime controllersOffler histogramOffler boxPlotOffler viewTrafo projTrafo frames
             threads = threads
             input = input 
-            ui = ui runtime frames boxPlotClient
-            vr = vr runtime client histogramClient boxPlotClient viewTrafo frames
+            ui = ui runtime frames
+            vr = vr runtime controllersOffler histogramOffler boxPlotOffler viewTrafo frames
             pauseScene = Some pause
         }

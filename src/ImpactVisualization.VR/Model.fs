@@ -5,6 +5,7 @@ open Aardvark.UI.Primitives
 open FSharp.Data.Adaptive
 open Adaptify
 open Aardvark.Base
+open Aardvark.Rendering
 open System.IO
 
 open FSharp.Data.Adaptive
@@ -235,6 +236,7 @@ type Model =
         secondContrBoxPlotIntersectionId : Option<string>
         movingBoxPlot : bool
         takenBoxPlot : Option<BoxPlot>
+        takenBPTex : PixImage
         allCurrSelectedProbesIds : HashMap<int, Probe>
         selectedProbesPositions : (string * V3d) []
 

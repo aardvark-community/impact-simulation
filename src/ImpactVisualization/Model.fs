@@ -5,6 +5,7 @@ open Aardvark.UI.Primitives
 open FSharp.Data.Adaptive
 open Adaptify
 open Aardvark.Base
+open Aardvark.Rendering
 open System.IO
 
 open Hera

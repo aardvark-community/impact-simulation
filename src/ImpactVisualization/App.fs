@@ -7,7 +7,7 @@ open Aardvark.SceneGraph
 open Aardvark.SceneGraph.IO
 open Aardvark.UI
 open Aardvark.UI.Primitives
-open Aardvark.Base.Rendering
+open Aardvark.Rendering
 open AardVolume.Model
 open HeraSg
 
@@ -817,7 +817,7 @@ module App =
     let transparencyValues = AMap.ofArray((Enum.GetValues typeof<RenderValue> :?> (RenderValue [])) |> Array.map (fun c -> (c, text (Enum.GetName(typeof<RenderValue>, c)) )))
     let opacityTFs = AMap.ofArray((Enum.GetValues typeof<TransferFunction> :?> (TransferFunction [])) |> Array.map (fun t -> (t, text (Enum.GetName(typeof<TransferFunction>, t)) )))
 
-    let view (runtime : IRuntime) (data : Frame[]) (bpClient : Browser) (m : AdaptiveModel) =
+    let view (runtime : IRuntime) (data : Frame[]) (m : AdaptiveModel) =
         let shuffleR (r : Random) xs = xs |> Seq.sortBy (fun _ -> r.Next())
 
         let temp = findOutliers data.[0].energies  
@@ -941,52 +941,6 @@ module App =
             V2d(newX, newY)
 
         //let temp = m.allProbesScreenPositions |> AVal.map (fun array -> if array.IsEmpty() then V2d(0.0, 0.0) else array.[0])
-
-        let testPlaneSg = 
-            Sg.draw IndexedGeometryMode.TriangleList
-            |> Sg.vertexAttribute DefaultSemantic.Positions (AVal.constant  [|V3f(-1.7, -1.0, 0.0); V3f(1.7, -1.0, 0.0); V3f(1.7, 1.0, 0.0); V3f(-1.7, 1.0, 0.0)|])
-            |> Sg.vertexAttribute DefaultSemantic.Normals (AVal.constant [| V3f.OOI; V3f.OOI; V3f.OOI; V3f.OOI |])
-            |> Sg.vertexAttribute DefaultSemantic.DiffuseColorCoordinates  (AVal.constant  [| V2f.OO; V2f.IO; V2f.II; V2f.OI |])
-            |> Sg.index (AVal.constant [|0;1;2; 0;2;3|])
-            |> Sg.trafo (AVal.constant testPlaneTrafo)
-            |> Sg.diffuseTexture bpClient.Texture 
-            |> Sg.shader {
-                do! DefaultSurfaces.trafo
-                do! DefaultSurfaces.simpleLighting
-                do! DefaultSurfaces.diffuseTexture
-            }
-
-        let testSphereSg = 
-            m.allProbesScreenPositions
-            |> AVal.map (fun positions ->
-                positions 
-                |> Array.mapi (fun idx pos ->
-                    let newPos = testPlaneTrafo.Forward.TransformPos(V3d.OOO)
-                    let finalPos = newPos + V3d(-(convertRange pos).X, 0.0, (convertRange pos).Y)
-                    let currColor =
-                        match scheme10Colors.TryFind(idx) with
-                        | Some c -> c
-                        | None -> C4b.Black
-                    let sphere = 
-                        Sg.sphere' 6 currColor 0.005
-                        |> Sg.noEvents
-                        |> Sg.trafo (AVal.constant (Trafo3d.Translation(finalPos)))
-                    let origin = V3d.OOO
-                    let currLine = AVal.constant [|Line3d(finalPos, origin)|]
-                    currLine
-                    |> Sg.lines (AVal.constant currColor)
-                    |> Sg.noEvents
-                    |> Sg.uniform "LineWidth" (AVal.constant 5)
-                    |> Sg.effect [
-                        toEffect DefaultSurfaces.trafo
-                        toEffect DefaultSurfaces.vertexColor
-                        toEffect DefaultSurfaces.thickLine
-                        ]
-                    |> Sg.andAlso sphere
-                )
-                |> Sg.ofArray
-            )
-            |> Sg.dynamic
 
 
         let sg = 
@@ -1555,7 +1509,7 @@ module App =
                                             ]
                                             // Incremental.div AttributeMap.empty dynamicUI
                                             dropdown { placeholder = "ColorMaps"; allowEmpty = false} [ clazz "ui selection"; style "margin: 10px; min-width: 80%; font-size: large"] colorMaps (m.currentMap |> AVal.map Some) SetTransferFunc
-                                            dropdown1 [ clazz "ui selection"; style "margin: 10px; min-width: 80%; font-size: large"] renderValues m.renderValue SetRenderValue
+                                            dropdown1 [ clazz "semantic ui selection"; style "margin: 10px; min-width: 80%; font-size: large"] renderValues m.renderValue SetRenderValue
                                         ]
                                 
                                         div [style "margin: 7px; color: white; width: 250px; background-color: rgba(150, 150, 200, 0.15); border-radius: 10px" ] [
@@ -1854,7 +1808,7 @@ module App =
 
          ThreadPool.add "timer" (time()) pool
 
-    let app (runtime : IRuntime) (bpClient : Browser) =
+    let app (runtime : IRuntime) =
         //let frms = seq { 120 .. 40 .. 400 }
         //frms |> Seq.iter (fun i -> DataLoader.createData(i))
         //DataLoader.createData(0)
@@ -1863,7 +1817,7 @@ module App =
         {
             initial = initial frames // store data Hera frame as array to model....
             update = update frames
-            view = view runtime frames bpClient
+            view = view runtime frames
             threads = threads
             unpersist = Unpersist.instance
         }
