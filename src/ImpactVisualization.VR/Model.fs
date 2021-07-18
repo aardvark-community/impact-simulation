@@ -74,6 +74,7 @@ type Probe = {
     currHistogram       : Option<PixImage>
     showHistogram       : bool
     currBillboard       : BillboardType
+    billboardOffset     : V3d
     currAttribute       : RenderValue
     allData             : HashMap<RenderValue, (float[] * string)> []
     
@@ -156,6 +157,7 @@ type Model =
         text : string
         twoDModel : AardVolume.Model.Model
         threads : ThreadPool<Message>
+
         firstHistogram : bool
         showBillboard : bool
         hmdPos : V3d

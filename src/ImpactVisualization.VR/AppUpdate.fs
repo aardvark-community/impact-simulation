@@ -790,15 +790,13 @@ module AppUpdate =
                                 lastAttrib, lastBillboardType
                             else 
                                 let att = if model.attribute = RenderValue.NoValue then RenderValue.Energy else model.attribute
-                                att, BillboardType.Histogram
+                                att, BillboardType.Statistic
 
                         let array, stats = allData.[mTwoD.frame].Item attrib
 
-
                         //let currSelected = model.lastModifiedProbeIntId <> -1 
                         let color = if intersection then C4b.Blue else C4b.White
-
-                        let probe = createProbe model.lastModifiedProbeIntId false false 0 false 0 color spherePos sphereRadius spherePosTransformed radiusTransformed intersection allData attrib true true billboardType
+                        let probe = createProbe model.lastModifiedProbeIntId false false 0 false 0 color spherePos sphereRadius spherePosTransformed radiusTransformed intersection allData attrib true true billboardType V3d.OOO
 
                         let filteredData = if intersection then array else mTwoD.data.arr
                         let attributeAsString = renderValueToString attrib

@@ -1729,7 +1729,7 @@ module App =
                                     ]
 
                                     yield span [style "position: relative; font-size: 1.3em; right: 15px; top: 0px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.min).ToString()))] 
-                                    yield span [style "position: absolute; font-size: 1.3em; right: -10px; top: 45px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.max).ToString()))]
+                                    yield span [style "position: absolute; font-size: 1.3em; right: -10px; top: 35px; color: #ffffff"] [Incremental.text (m.dataRange |> AVal.map (fun r -> (roundDecimal r.max).ToString()))]
                                     }
                                 )
 

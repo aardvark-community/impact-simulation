@@ -173,7 +173,7 @@ module UpdateFunctions =
                     (pos : V3d) (rad : float) (posToHera : V3d) (radToHera : float) 
                     (inside : bool) (allData : HashMap<RenderValue, (float[] * string)> []) 
                     (attribute : RenderValue) (showStats : bool) (showHisto : bool) 
-                    (billboardType : BillboardType) : Probe = 
+                    (billboardType : BillboardType) (offset : V3d) : Probe = 
         {
             id = Guid.NewGuid().ToString()
             numberId = numberId
@@ -194,6 +194,7 @@ module UpdateFunctions =
             currHistogram = None
             showHistogram = showHisto
             currBillboard = billboardType
+            billboardOffset = offset
         }
     
     let createBoxPlot (region : bool)(attribute : RenderValue) (trafo : Trafo3d) (corners : Quad3d) 

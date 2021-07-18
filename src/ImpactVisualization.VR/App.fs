@@ -683,6 +683,26 @@ module Demo =
                         | BillboardType.Statistic -> true
                         | _ -> false
                     showStats && showBillboard)
+            let aboveProbe = 
+                (p.center, p.radius)
+                ||> AVal.map2 (fun c r -> Trafo3d.Translation(c) * Trafo3d.Translation(0.0, 0.0, (r * 1.8)))
+            let billboardOffset =
+                (m.heraTransformations, p.centerRelToHera, p.radiusRelToHera)
+                |||> AVal.map3 (fun tf pos radius -> 
+                    let posAndRadius = pos.Z + radius
+                    if pos.X < 16.0 && pos.X > -16.0 && 
+                        pos.Y < 0.0 && pos.Y > -16.0 && 
+                        pos.Z > -16.0 && posAndRadius < 16.0 then 
+                        let offsetInZdir = 20.0 - posAndRadius
+                        let newPos = V3d(pos.X, pos.Y, (posAndRadius + offsetInZdir))
+                        tf.Forward.TransformPos(newPos)
+                    else V3d.OOO)
+            let doOffset = 
+                (intersected, billboardOffset)
+                ||> AVal.map2 (fun intr bOff -> intr && bOff <> V3d.OOO)
+            let translateTrafo = 
+                (doOffset, aboveProbe, billboardOffset)
+                |||> AVal.map3 (fun doOffs above bOffs -> if doOffs then Trafo3d.Translation(bOffs) else above)
             text
             |> AVal.map cfg.Layout
             |> Sg.shapeWithBackground C4b.Gray10 Border2d.None
@@ -694,8 +714,9 @@ module Demo =
             |> Sg.myBillboard viewTrafo
             |> Sg.applyRuntime runtime
             |> Sg.noEvents
-            |> Sg.trafo (p.center |> AVal.map (fun center -> Trafo3d.Translation(center)))
-            |> Sg.trafo (p.radius |> AVal.map (fun r -> Trafo3d.Translation(0.0, 0.0, (r * 1.8))))
+            //|> Sg.trafo (p.center |> AVal.map (fun center -> Trafo3d.Translation(center)))
+            //|> Sg.trafo (p.radius |> AVal.map (fun r -> Trafo3d.Translation(0.0, 0.0, (r * 1.8))))
+            |> Sg.trafo translateTrafo
             |> Sg.onOff showStatistics
             |> Sg.blendMode (AVal.constant mode)
             |> Sg.pass pass3
@@ -714,6 +735,9 @@ module Demo =
                         | BillboardType.Histogram -> true
                         | _ -> false
                     showHisto && currHisto.IsSome && showBillboard)
+            let aboveProbe = 
+                (p.center, p.radius)
+                ||> AVal.map2 (fun c r -> Trafo3d.Translation(c) * Trafo3d.Translation(0.0, 0.0, (r * 1.6)))
             let texture = 
                 p.currHistogram 
                 |> AVal.map (fun histo ->
@@ -722,6 +746,23 @@ module Demo =
                         | Some tex -> tex
                         | None -> DefaultTextures.blackPix :> PixImage
                     convertPixImageToITexture pixImage)
+            let billboardOffset =
+                (m.heraTransformations, p.centerRelToHera, p.radiusRelToHera)
+                |||> AVal.map3 (fun tf pos radius -> 
+                    let posAndRadius = pos.Z + radius
+                    if pos.X < 16.0 && pos.X > -16.0 && 
+                        pos.Y < 0.0 && pos.Y > -16.0 && 
+                        pos.Z > -16.0 && posAndRadius < 16.0 then 
+                        let offsetInZdir = 20.0 - posAndRadius
+                        let newPos = V3d(pos.X, pos.Y, (posAndRadius + offsetInZdir))
+                        tf.Forward.TransformPos(newPos)
+                    else V3d.OOO)
+            let doOffset = 
+                (intersected, billboardOffset)
+                ||> AVal.map2 (fun intr bOff -> intr && bOff <> V3d.OOO)
+            let translateTrafo = 
+                (doOffset, aboveProbe, billboardOffset)
+                |||> AVal.map3 (fun doOffs above bOffs -> if doOffs then Trafo3d.Translation(bOffs) else above)
             planeSg probeHistogramPositions
             |> Sg.transform (Trafo3d.Scale(1.0, -1.0, 1.0))
             |> Sg.trafo histogramScaleTrafo
@@ -729,8 +770,10 @@ module Demo =
             |> Sg.myBillboard viewTrafo
             |> Sg.applyRuntime runtime
             |> Sg.noEvents
-            |> Sg.trafo (p.center |> AVal.map (fun center -> Trafo3d.Translation(center)))
-            |> Sg.trafo (p.radius |> AVal.map (fun r -> Trafo3d.Translation(0.0, 0.0, (r * 1.6))))
+            //|> Sg.trafo (p.center |> AVal.map (fun center -> Trafo3d.Translation(center)))
+            //|> Sg.trafo (p.radius |> AVal.map (fun r -> Trafo3d.Translation(0.0, 0.0, (r * 1.6))))
+            //|> Sg.trafo (billboardOffset |> AVal.map (fun o -> Trafo3d.Translation(o)))
+            |> Sg.trafo translateTrafo
             |> Sg.onOff showCurrHistogram
             |> Sg.diffuseTexture texture
             |> Sg.shader {
