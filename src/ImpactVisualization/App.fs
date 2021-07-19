@@ -877,7 +877,7 @@ module App =
                 m.lowerOutliers m.higherOutliers m.outliersRange
                 m.renderValue m.currentMap 
                 m.domainRange m.clippingPlane m.invertX m.invertY m.invertZ
-                m.boxFilter m.currFilters m.initDataRange m.colorValue.c 
+                m.boxFilter m.currFilters m.dataRange m.colorValue.c 
                 m.cameraState.view viewVector
                 runtime
             |> Sg.noEvents

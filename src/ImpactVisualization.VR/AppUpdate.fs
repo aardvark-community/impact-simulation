@@ -790,7 +790,7 @@ module AppUpdate =
                                 lastAttrib, lastBillboardType
                             else 
                                 let att = if model.attribute = RenderValue.NoValue then RenderValue.Energy else model.attribute
-                                att, BillboardType.Statistic
+                                att, BillboardType.Histogram
 
                         let array, stats = allData.[mTwoD.frame].Item attrib
 
@@ -828,7 +828,8 @@ module AppUpdate =
                                 do! Async.Sleep sleepTime
                                 // perform readback
                                 let t = getScreenshot histogramOffler
-                                yield SetTexture(t, probe)
+                                let texCopy = t.CopyToPixImage()
+                                yield SetTexture(texCopy, probe)
                             }
 
                         {model with
@@ -1148,7 +1149,8 @@ module AppUpdate =
                                 do! Async.Sleep sleepTime
                                 // perform readback
                                 let t = getScreenshot histogramOffler
-                                yield SetTexture(t, updatedProbe)
+                                let texCopy = t.CopyToPixImage()
+                                yield SetTexture(texCopy, updatedProbe)
                             }
 
                         {model with 
