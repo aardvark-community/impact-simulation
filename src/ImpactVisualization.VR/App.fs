@@ -255,9 +255,9 @@ module Demo =
 
         let controllerPos position = m.mainControllerTrafo |> AVal.map (fun t -> t.Forward.TransformPos(position)) 
 
-        let probeContrPos = (V3d(-0.12, 0.11, 0.0))
+        let probeContrPos = (V3d(-0.15, 0.05, 0.0))
         let rayContrPos = (V3d(0.0, 0.15, 0.0))
-        let clippingContrPos = (V3d(0.12, 0.11, 0.0))
+        let clippingContrPos = (V3d(0.15, 0.05, 0.0))
 
         let scaleTrafo mode = 
             m.controllerMode |> AVal.map (fun m ->
@@ -269,7 +269,7 @@ module Demo =
 
         let probeContrSg = 
             let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"probe";"probe.obj"]
-            controllerSg path 90.0 0.0 30.0 probeScaleTrafo probeContrPos
+            controllerSg path 90.0 0.0 40.0 probeScaleTrafo probeContrPos
            
         let laserContrSg = 
             let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"laser";"laser.obj"]
@@ -277,7 +277,7 @@ module Demo =
 
         let clippingContrSg = 
             let path = [__SOURCE_DIRECTORY__; "..";"..";"models";"menuControllers";"clipping";"clipping.obj"]
-            controllerSg path 90.0 0.0 -30.0 clippingScaleTrafo clippingContrPos
+            controllerSg path 90.0 0.0 -40.0 clippingScaleTrafo clippingContrPos
 
         let smallControllersSgs deviceId = 
             let visible =

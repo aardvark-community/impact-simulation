@@ -907,10 +907,10 @@ module AppUpdate =
                 let newContrlMode = 
                     if r >= 0.5 then 
                         match theta with 
-                        | t when t >= 0.0   && t < 60.0  -> ControllerMode.Clipping
-                        | t when t >= 60.0  && t < 120.0 -> ControllerMode.Ray
-                        | t when t >= 120.0 && t < 180.0 -> ControllerMode.Probe
-                        | t when t >= 180.0 && t < 360.0 -> ControllerMode.Analyze
+                        | t when (t >= 0.0   && t < 45.0) || (t >= 315.0 && t < 360.0)  -> ControllerMode.Clipping
+                        | t when t >= 45.0  && t < 135.0 -> ControllerMode.Ray
+                        | t when t >= 135.0 && t < 225.0 -> ControllerMode.Probe
+                        | t when t >= 225.0 && t < 315.0 -> ControllerMode.Analyze
                         | _ -> model.controllerMode
                     else 
                         model.controllerMode

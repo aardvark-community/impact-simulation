@@ -1809,9 +1809,9 @@ module App =
          ThreadPool.add "timer" (time()) pool
 
     let app (runtime : IRuntime) =
-        //let frms = seq { 120 .. 40 .. 400 }
+        //let frms = seq { 40 .. 40 .. 80 }
         //frms |> Seq.iter (fun i -> DataLoader.createData(i))
-        //DataLoader.createData(0)
+        //DataLoader.createData(1)
         // load data
         let frames = DataLoader.loadDataAllFrames runtime
         {

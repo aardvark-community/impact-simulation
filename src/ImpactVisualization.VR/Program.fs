@@ -117,7 +117,7 @@ let main argv =
     //histogramOffler.Dispose()
     
     Aardium.run {
-        url "http://localhost:4321/?page=controllersPage"
+        url "http://localhost:4321/?page=mainPage"
     }
 
     Aardvark.Cef.Internal.Cef.shutdown()
