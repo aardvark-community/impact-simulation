@@ -324,8 +324,8 @@ module Shaders =
             let maxOutlier = outliersRange.max
             let isInsideOutlierRange = minOutlier <= currValue && currValue <= maxOutlier
 
-            let minRange = dataRange.min
-            let maxRange = dataRange.max
+            let minRange = if normalizeData then 0.0 else dataRange.min
+            let maxRange = if normalizeData then 1.0 else dataRange.max
             let isInAllRanges = notDiscardByFilters && isInsideBoxFilter && isInsideOutlierRange && minRange <= linearCoord && linearCoord <= maxRange
 
             // DISCARD EVALUATIONS 
