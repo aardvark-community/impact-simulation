@@ -540,6 +540,7 @@ module App =
                 filteredAllFrames = allFramesFiltered}
         | StepTime -> 
             //printfn "Frame: %A" (m.offsetId % frames.Length) 
+
             let newFrameId = ((sw.Elapsed.TotalSeconds / 0.5) |> int) + (m.offsetId % frames.Length) + frames.Length
             let curr = newFrameId % frames.Length
             let currFrame = if m.reverseAnimation then frames.Length - curr - 1 else curr 
@@ -559,6 +560,7 @@ module App =
                     m.data.arr
 
             if m.playAnimation then sw.Start() else sw.Stop()
+
             { m with 
                 frameId = newFrameId
                 frame = currFrame 

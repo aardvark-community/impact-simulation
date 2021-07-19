@@ -854,8 +854,10 @@ module AppUpdate =
                     | Some i when i = id ->
                         //client.Mouse.Up(model.screenCoordsHitPos, MouseButtons.Left)
                         //vrMouse.Up(model.screenCoordsHitPos, MouseButtons.Left)
-                        controllersOffler.MouseUp(model.screenCoordsHitPos.Position.X, model.screenCoordsHitPos.Position.Y, MouseButton.Left, false, false, false)
-                        controllersOffler.MouseClick(model.screenCoordsHitPos.Position.X, model.screenCoordsHitPos.Position.Y, MouseButton.Left, 1, false, false, false)
+                        let xPos = model.screenCoordsHitPos.Position.X
+                        let yPos = model.screenCoordsHitPos.Position.Y
+                        controllersOffler.MouseUp(xPos, yPos, MouseButton.Left, false, false, false)
+                        controllersOffler.MouseClick(xPos, yPos, MouseButton.Left, 1, false, false, false)
 
                         {model with 
                             rayTriggerClicked = false

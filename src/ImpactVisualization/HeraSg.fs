@@ -220,9 +220,9 @@ module Shaders =
             let invertY = uniform?InvertY
             let invertZ = uniform?InvertZ
 
-            let minRange = if normalizeData then 0.0 else dataRange.min
-            let maxRange = if normalizeData then 1.0 else dataRange.max
-            let isInAllRanges = notDiscardByFilters && isInsideBoxFilter && isInsideOutlierRange && minRange <= linearCoord && linearCoord <= maxRange 
+            //let minRange = if normalizeData then 0.0 else dataRange.min
+            //let maxRange = if normalizeData then 1.0 else dataRange.max
+            let isInAllRanges = notDiscardByFilters && isInsideBoxFilter && isInsideOutlierRange && dataRange.min <= currValue && currValue <= dataRange.max 
 
             let pointInDomainRange = wp.X >= dm.x.min && wp.X <= dm.x.max && wp.Y >= dm.y.min && wp.Y <= dm.y.max && wp.Z >= dm.z.min && wp.Z <= dm.z.max
             let pointInsidePlanes = 
@@ -324,9 +324,9 @@ module Shaders =
             let maxOutlier = outliersRange.max
             let isInsideOutlierRange = minOutlier <= currValue && currValue <= maxOutlier
 
-            let minRange = if normalizeData then 0.0 else dataRange.min
-            let maxRange = if normalizeData then 1.0 else dataRange.max
-            let isInAllRanges = notDiscardByFilters && isInsideBoxFilter && isInsideOutlierRange && minRange <= linearCoord && linearCoord <= maxRange
+            //let minRange = if normalizeData then 0.0 else dataRange.min
+            //let maxRange = if normalizeData then 1.0 else dataRange.max
+            let isInAllRanges = notDiscardByFilters && isInsideBoxFilter && isInsideOutlierRange && dataRange.min <= currValue && currValue <= dataRange.max 
 
             // DISCARD EVALUATIONS 
             let pointInDomainRange = wpInv.X >= dm.x.min && wpInv.X <= dm.x.max && wpInv.Y >= dm.y.min && wpInv.Y <= dm.y.max && wpInv.Z >= dm.z.min && wpInv.Z <= dm.z.max

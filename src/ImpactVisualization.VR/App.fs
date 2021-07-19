@@ -691,7 +691,7 @@ module Demo =
                 |||> AVal.map3 (fun tf pos radius -> 
                     let posAndRadius = pos.Z + radius
                     if pos.X < 16.0 && pos.X > -16.0 && 
-                        pos.Y < 0.0 && pos.Y > -16.0 && 
+                        pos.Y < -1.0 && pos.Y > -16.0 && 
                         pos.Z > -16.0 && posAndRadius < 16.0 then 
                         let offsetInZdir = 20.0 - posAndRadius
                         let newPos = V3d(pos.X, pos.Y, (posAndRadius + offsetInZdir))
@@ -751,7 +751,7 @@ module Demo =
                 |||> AVal.map3 (fun tf pos radius -> 
                     let posAndRadius = pos.Z + radius
                     if pos.X < 16.0 && pos.X > -16.0 && 
-                        pos.Y < 0.0 && pos.Y > -16.0 && 
+                        pos.Y < -1.0 && pos.Y > -16.0 && 
                         pos.Z > -16.0 && posAndRadius < 16.0 then 
                         let offsetInZdir = 20.0 - posAndRadius
                         let newPos = V3d(pos.X, pos.Y, (posAndRadius + offsetInZdir))
@@ -961,9 +961,12 @@ module Demo =
                 do! DefaultSurfaces.simpleLighting
             }
             |> Sg.pass pass0
+
+        let tvSphereScale = 
+            m.scalingFactorTv |> AVal.map (fun sc -> sc * 0.008)
         
         let tvPosSphereSg = 
-            Sg.sphere' 9 C4b.LightGreen 0.02
+            Sg.sphere 9 (AVal.constant C4b.LightGreen) tvSphereScale
             |> Sg.noEvents
             |> Sg.translation m.hitPoint
             |> Sg.onOff m.screenIntersection
