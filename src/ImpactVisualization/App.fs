@@ -1398,7 +1398,7 @@ module App =
                                     div [style "margin-top: 5px; margin-bottom: 5px"] [
                                         button [onClick (fun _ -> SetFilter 1); style "margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 1"]
                                         button [onClick (fun _ -> SetFilter 2); style "margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 2"]
-                                        button [onClick (fun _ -> SetFilter 3); style "margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 3"]
+                                        button [onClick (fun _ -> SetFilter 3); style "margin-inline-start: 2px; margin-inline-end: 2px"] [text "All Data"]
               
                                     ]
                                     button [onClick (fun _ -> ResetFilter); style "margin: 2px; margin-top: 0px; margin-bottom: 5px"] [text "Reset"]
@@ -1739,7 +1739,7 @@ module App =
                                     div [style "margin-top: 5px; margin-bottom: 5px"] [
                                         button [onClick (fun _ -> SetFilter 1); style "font-size: x-large; margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 1"]
                                         button [onClick (fun _ -> SetFilter 2); style "font-size: x-large; margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 2"]
-                                        button [onClick (fun _ -> SetFilter 3); style "font-size: x-large; margin-inline-start: 2px; margin-inline-end: 2px"] [text "Probe 3"]
+                                        button [onClick (fun _ -> SetFilter 3); style "font-size: x-large; margin-inline-start: 2px; margin-inline-end: 2px"] [text "All Data"]
                                         button [onClick (fun _ -> ResetFilter); style "font-size: x-large; margin: 2px; margin-top: 0px; margin-bottom: 5px"] [text "Reset"]
                                     ]
                                 ]
