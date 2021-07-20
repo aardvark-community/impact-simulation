@@ -856,9 +856,11 @@ module AppUpdate =
                         //vrMouse.Up(model.screenCoordsHitPos, MouseButtons.Left)
                         let xPos = model.screenCoordsHitPos.Position.X
                         let yPos = model.screenCoordsHitPos.Position.Y
+                        //printfn "xPos: %A" xPos
+                        //printfn "yPos: %A" yPos
                         controllersOffler.MouseUp(xPos, yPos, MouseButton.Left, false, false, false)
-                        controllersOffler.MouseClick(xPos, yPos, MouseButton.Left, 1, false, false, false)
-
+                        if xPos < 650 || xPos > 1150 || yPos < 455 || yPos > 700 then
+                            controllersOffler.MouseClick(xPos, yPos, MouseButton.Left, 1, false, false, false)
                         {model with 
                             rayTriggerClicked = false
                             clickPosition = None}

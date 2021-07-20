@@ -145,6 +145,7 @@ module Shaders =
             let wp  = p.Value.wp
 
             let dm : DomainRange = uniform?DomainRange
+            let initRange : Range = uniform?InitRange
             let dataRange : Range = uniform?DataRange
             let filter : Box3f = uniform?Filter
             let filters : Filters = uniform?CurrFilters
@@ -189,8 +190,8 @@ module Shaders =
                 | _ -> p.Value.energy
 
 
-            let linearCoord = if normalizeData then (currValue - dataRange.min) / (dataRange.max - dataRange.min) else currValue
-            let linearCoordTransp = if normalizeData then (transparencyValue - dataRange.min) / (dataRange.max - dataRange.min) else transparencyValue
+            let linearCoord = if normalizeData then (currValue - initRange.min) / (initRange.max - initRange.min) else currValue
+            let linearCoordTransp = if normalizeData then (transparencyValue - initRange.min) / (initRange.max - initRange.min) else transparencyValue
 
             //let temp = (currValue - dataRange.min) / (dataRange.max - dataRange.min) // normalized values!!! 
             //let linearCoord = Math.Pow(temp, 1.0/2.0)
@@ -220,9 +221,9 @@ module Shaders =
             let invertY = uniform?InvertY
             let invertZ = uniform?InvertZ
 
-            //let minRange = if normalizeData then 0.0 else dataRange.min
-            //let maxRange = if normalizeData then 1.0 else dataRange.max
-            let isInAllRanges = notDiscardByFilters && isInsideBoxFilter && isInsideOutlierRange && dataRange.min <= currValue && currValue <= dataRange.max 
+            let minRange = if normalizeData then 0.0 else dataRange.min
+            let maxRange = if normalizeData then 1.0 else dataRange.max
+            let isInAllRanges = notDiscardByFilters && isInsideBoxFilter && isInsideOutlierRange && minRange <= linearCoord && linearCoord <= maxRange
 
             let pointInDomainRange = wp.X >= dm.x.min && wp.X <= dm.x.max && wp.Y >= dm.y.min && wp.Y <= dm.y.max && wp.Z >= dm.z.min && wp.Z <= dm.z.max
             let pointInsidePlanes = 
@@ -255,6 +256,7 @@ module Shaders =
             let modelMatrix = uniform.ModelTrafo
 
             let dm : DomainRange = uniform?DomainRange
+            let initRange : Range = uniform?InitRange
             let dataRange : Range = uniform?DataRange
             let filterBox : Box3f = uniform?Filter
             let boxIsSet : bool = uniform?BoxSet
@@ -300,8 +302,8 @@ module Shaders =
                 | _ -> p.Value.energy
 
 
-            let linearCoord = if normalizeData then (currValue - dataRange.min) / (dataRange.max - dataRange.min) else currValue
-            let linearCoordTransp = if normalizeData then (transparencyValue - dataRange.min) / (dataRange.max - dataRange.min) else transparencyValue
+            let linearCoord = if normalizeData then (currValue - initRange.min) / (initRange.max - initRange.min) else currValue
+            let linearCoordTransp = if normalizeData then (transparencyValue - initRange.min) / (initRange.max - initRange.min) else transparencyValue
 
             //let transparencyValue = value transparencyAttrib
             //let linearCoordTransp = if normalizeData then (transparencyValue - dataRange.min) / (dataRange.max - dataRange.min) else transparencyValue
@@ -324,9 +326,9 @@ module Shaders =
             let maxOutlier = outliersRange.max
             let isInsideOutlierRange = minOutlier <= currValue && currValue <= maxOutlier
 
-            //let minRange = if normalizeData then 0.0 else dataRange.min
-            //let maxRange = if normalizeData then 1.0 else dataRange.max
-            let isInAllRanges = notDiscardByFilters && isInsideBoxFilter && isInsideOutlierRange && dataRange.min <= currValue && currValue <= dataRange.max 
+            let minRange = if normalizeData then 0.0 else dataRange.min
+            let maxRange = if normalizeData then 1.0 else dataRange.max
+            let isInAllRanges = notDiscardByFilters && isInsideBoxFilter && isInsideOutlierRange && dataRange.min <= currValue && currValue <= dataRange.max
 
             // DISCARD EVALUATIONS 
             let pointInDomainRange = wpInv.X >= dm.x.min && wpInv.X <= dm.x.max && wpInv.Y >= dm.y.min && wpInv.Y <= dm.y.max && wpInv.Z >= dm.z.min && wpInv.Z <= dm.z.max
@@ -568,7 +570,7 @@ module HeraSg =
                          (domainRange : aval<DomainRange>) (clippingPlane : aval<ClippingPlane>) 
                          (invertX : aval<bool>) (invertY : aval<bool>) (invertZ : aval<bool>) 
                          (filterBox : aval<option<Box3f>>) (currFilters : aval<Filters>) 
-                         (dataRange : aval<Range>) (colorValue : aval<C4b>) 
+                         (initRange : aval<Range>) (dataRange : aval<Range>) (colorValue : aval<C4b>) 
                          (cameraView : aval<CameraView>) (viewVector : aval<V3d>)
                          (runtime : IRuntime)
                          (frames : Frame[])  = 
@@ -658,6 +660,7 @@ module HeraSg =
         |> Sg.uniform "InvertZ" invertZ
         |> Sg.uniform "Filter" filterNew 
         |> Sg.uniform "CurrFilters" currFilters
+        |> Sg.uniform "InitRange" initRange
         |> Sg.uniform "DataRange" dataRange
         |> Sg.uniform "Color" color
         |> Sg.uniform "Alpha" ~~0.01
@@ -674,7 +677,7 @@ module HeraSg =
                            (clippingPlane : aval<ClippingPlane>) (invertX : aval<bool>) (invertY : aval<bool>) (invertZ : aval<bool>) 
                            (contrClippingPlane : aval<Plane3d>) (filterBox : aval<option<Box3f>>) 
                            (sphereProbe : aval<Sphere3d>) (allSpheres : aval<V4f[]>) (spheresLength : aval<int>)
-                           (currFilters : aval<Filters>) (dataRange : aval<Range>) (colorValue : aval<C4b>) 
+                           (currFilters : aval<Filters>) (initRange : aval<Range>) (dataRange : aval<Range>) (colorValue : aval<C4b>) 
                            (cameraView : aval<CameraView>) (hmdPosition : aval<V3d>)
                            (viewTrafoVR : aval<Trafo3d>) (viewVector : aval<V3d>)
                            (heraTF : aval<Trafo3d>)
@@ -778,6 +781,7 @@ module HeraSg =
         |> Sg.uniform "Filter" filterBoxNew 
         |> Sg.uniform "BoxSet" boxIsSet
         |> Sg.uniform "CurrFilters" currFilters
+        |> Sg.uniform "InitRange" initRange
         |> Sg.uniform "DataRange" dataRange
         |> Sg.uniform "Color" color
         |> Sg.uniform "SphereProbe" sphereProbe  

@@ -879,7 +879,7 @@ module App =
                 m.lowerOutliers m.higherOutliers m.outliersRange
                 m.renderValue m.currentMap 
                 m.domainRange m.clippingPlane m.invertX m.invertY m.invertZ
-                m.boxFilter m.currFilters m.dataRange m.colorValue.c 
+                m.boxFilter m.currFilters m.initDataRange m.dataRange m.colorValue.c 
                 m.cameraState.view viewVector
                 runtime
             |> Sg.noEvents
@@ -1227,14 +1227,14 @@ module App =
                                         }
                                     ]
 
-                                    div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
-                                        simplecheckbox { 
-                                            attributes [clazz "ui inverted checkbox"]
-                                            state m.reconstructNormal
-                                            toggle ReconstructNormal
-                                            content [ text "Reconstruct Normal"]  
-                                        }
-                                    ]
+                                    //div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
+                                    //    simplecheckbox { 
+                                    //        attributes [clazz "ui inverted checkbox"]
+                                    //        state m.reconstructNormal
+                                    //        toggle ReconstructNormal
+                                    //        content [ text "Reconstruct Normal"]  
+                                    //    }
+                                    //]
 
                                     div [style "width: 90%; margin-top: 6px; margin-bottom: 8px"] [ 
                                         simplecheckbox { 
