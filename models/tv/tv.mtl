@@ -1,0 +1,15 @@
+# Blender MTL File: 'tv.blend'
+# Material Count: 1
+
+newmtl tv
+Ns 19.607843
+Ka 1.000000 1.000000 1.000000
+Kd 0.470588 0.470588 0.470588
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 1
+map_Bump tv_tv_Normal.png
+map_Kd tv_tv_AlbedoTransparency.png
+map_Ks tv_tv_MetallicSmoothness.png

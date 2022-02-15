@@ -4,7 +4,7 @@ Aardvark.Base
 Aardvark.Base.Incremental
 Aardvark.Base.FSharp
 
-Aardvark.Base.Rendering
+Aardvark.Rendering
 Aardvark.Application.Slim
 Aardvark.Application.Slim.GL
 Aardvark.Application.Slim.Vulkan
@@ -17,8 +17,18 @@ Aardvark.UI
 Aardvark.UI.Primitives
 Aardium
 
+Aardvark.GPGPU
 
 Adaptify.MSBuild
 FSharp.Data.Adaptive
 
-FSharp.Data
+Aardvark.Geometry
+Aardvark.Geometry.PointSet
+Aardvark.Geometry.PointTree
+Aardvark.Geometry.Intersection
+Aardvark.Data.Points.Ascii
+
+Aardvark.Cef
+Another.Unofficial.Xilium.CefGlue.UnpackNativeDependencies
+
+sharpcompress

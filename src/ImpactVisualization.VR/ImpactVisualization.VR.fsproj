@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <OutputPath>..\..\bin\Debug\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <OutputPath>..\..\bin\Release</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Cef.fs" />
+    <None Include="paket.references" />
+    <Compile Include="Touchpad.fs" />
+    <Compile Include="Model.fs" />
+    <Compile Include="Billboard.fs" />
+    <Compile Include="UpdateFunctions.fs" />
+    <Compile Include="MoveControllerFunctions.fs" />
+    <Compile Include="AppUpdate.fs" />
+    <Compile Include="App.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FSharpx.Collections" Version="2.1.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ImpactVisualization\ImpactVisualization.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>
